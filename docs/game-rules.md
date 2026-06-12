@@ -170,10 +170,11 @@ Carrés bonus (Tout Atout) : identiques à Sans Atout.
 ## 6. La Belote / Rebelote
 
 - Un joueur possédant **Roi + Dame d'atout** = belote → **+20 points** pour son équipe
-- Annonce obligatoire : **"Belote"** en jouant la première, **"Rebelote"** en jouant la seconde
-- Si "Rebelote" sans "Belote" préalable → bonus **non accordé**
-- Omission de "Rebelote" : **une tolérance** par équipe par partie (si signalé avant la comptabilisation)
-- **Tout Atout** : jusqu'à 4 belotes possibles (une par couleur), soit 80 pts max
+- L'annonce est effectuée **automatiquement par le jeu** au moment où les cartes concernées sont jouées
+- La belote des **preneurs** compte dans l'évaluation du contrat
+- **Contrat réussi** : les défenseurs marquent leur propre belote (+20) si annoncée
+- **Chute** : aucune belote n'est comptabilisée (ni preneurs ni défenseurs)
+- **Tout Atout** : pas de belote possible
 - **Sans Atout** : pas de belote possible
 
 ---
@@ -182,28 +183,32 @@ Carrés bonus (Tout Atout) : identiques à Sans Atout.
 
 ### Dix de der
 - L'équipe remportant le **dernier pli** gagne un bonus de **10 points**
+- Vaut toujours 10 pts, **y compris en cas de capot**
 - Total des points du jeu : **162** (152 pts de cartes + 10 dix de der)
 
 ### Capot
 - Les **8 plis** remportés par la même équipe
-- Le dix de der vaut **100 points** → total : **252 points**
+- Comme contrat, le capot vaut **160 points**
 
 ---
 
-## 8. Calcul du score (méthode : points faits)
+## 8. Calcul du score (méthode : points annoncés)
 
-### Comptabilisation
-Chaque équipe totalise :
-1. Points des cartes dans ses plis
-2. Dix de der (si applicable)
-3. Belote/Rebelote (si annoncée)
+### Évaluation du contrat
+
+Les preneurs totalisent leurs points pour vérifier si le contrat est réussi :
+1. Points des cartes dans leurs plis
+2. Dix de der (10 pts, si le dernier pli leur appartient)
+3. Belote/Rebelote (20 pts, si annoncée — **uniquement pour les preneurs**)
+
+> Note : la belote des défenseurs n'entre pas dans cette évaluation.
 
 ### Contrat réussi
-Les preneurs atteignent ou dépassent leur enchère (ou réalisent 8 plis si capot).
+Les preneurs atteignent ou dépassent leur enchère (ou réalisent les 8 plis si capot).
 
 ```
-Preneurs   → points_faits (arrondis)
-Défenseurs → points_faits (arrondis)
+Preneurs   → valeur_annoncée
+Défenseurs → 0 pt  (+ 20 si belote/rebelote annoncée par les défenseurs)
 ```
 
 ### Chute
@@ -211,12 +216,13 @@ Les preneurs n'atteignent pas leur enchère.
 
 ```
 Preneurs   → 0
-Défenseurs → totalité des points de la donne (arrondis)
-             + belote des preneurs (si annoncée) change de camp
+Défenseurs → valeur_annoncée × multiplicateur
 ```
 
+> Note : aucune belote n'est comptabilisée en cas de chute.
+
 ### Multiplicateurs (contre / surcontre)
-Le multiplicateur s'applique aux points comptabilisés par les défenseurs en cas de chute :
+Le multiplicateur s'applique à la valeur annoncée par les preneurs en cas de chute :
 
 | Situation | Multiplicateur |
 |-----------|---------------|
@@ -226,11 +232,7 @@ Le multiplicateur s'applique aux points comptabilisés par les défenseurs en ca
 
 > Note : la belote n'est **jamais** multipliée.
 
-### Arrondi
-À la dizaine la plus proche — **85 → 90**, **84 → 80**.
-
 ### Fin de partie
 - Premier camp atteignant ou dépassant le score cible → **vainqueur**
 - Si les deux dépassent au même moment → celui avec le plus de points gagne
 - Nouvelle égalité → une donne de départage
-- **Cas particulier capot** : si une équipe atteint le score cible uniquement grâce à la belote d'un capot subi → la partie continue (un pli supplémentaire requis)

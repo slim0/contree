@@ -308,37 +308,38 @@ ALL_TRUMP_POINTS = {
 
 ### Invariants de score
 
-| Contrat | Total points | Dix de der |
-|---------|-------------|------------|
-| Normal  | 162         | 10         |
-| Capot   | 252         | 100        |
+| Contrat | Total points cartes | Dix de der |
+|---------|---------------------|------------|
+| Normal  | 152                 | 10         |
+| Capot   | 152                 | 10         |
 
-### Algorithme de score (points faits)
+Total toujours : **162 pts** (152 + 10)
+
+### Algorithme de score (points annoncés)
 
 ```
-1. Calculer raw_points[team] pour chaque équipe :
-   = somme des cartes dans les plis
-   + dix de der (10 ou 100)
-   + belote si annoncée par cette équipe
+1. Calculer preneurs_eval (pour déterminer si contrat réussi) :
+   = somme des cartes dans les plis des preneurs
+   + dix de der (10 pts, si dernier pli aux preneurs)
+   + belote (20 pts, si annoncée par les preneurs)
+   # Note : belote des défenseurs n'est PAS incluse
 
 2. Déterminer contract_made :
    - Capot : les preneurs ont tous les 8 plis
-   - Normal : raw_points[preneurs] >= contract.bid.value
+   - Normal : preneurs_eval >= contract.bid.value
 
 3. Si contract_made :
-   final_score[preneurs]   = round_to_ten(raw_points[preneurs])
-   final_score[défenseurs] = round_to_ten(raw_points[défenseurs])
+   final_score[preneurs]   = contract.bid.value
+   final_score[défenseurs] = 0 + (20 if belote annoncée by défenseurs else 0)
 
 4. Si chute :
    final_score[preneurs]   = 0
-   # la belote des preneurs change de camp
-   belote_bonus = 20 if belote annoncée by preneurs else 0
-   total = round_to_ten(162 ou 252) + belote_bonus
-   final_score[défenseurs] = total * contract.multiplier
-   # Note : belote_bonus NON multipliée
+   final_score[défenseurs] = contract.bid.value * contract.multiplier
+   # Aucune belote n'est comptabilisée en chute
 
-5. round_to_ten(x) = round(x / 10) * 10
-   # Python : round(85/10)*10 = 90, round(84/10)*10 = 80 ✓
+Valeur du contrat Capot : 160 pts
+Multiplicateurs : Normal ×1, Contré ×2, Surcontré ×4
+La belote n'est jamais multipliée.
 ```
 
 ---

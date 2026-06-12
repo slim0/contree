@@ -42,31 +42,30 @@ contree
 ## Règles métier critiques — NE JAMAIS VIOLER
 
 1. **Montée obligatoire à l'atout** : quand on joue atout (couleur demandée ou coupe), on doit toujours jouer plus fort que l'atout en place, sauf si impossible ("ne pisse pas").
-2. **Belote et camp** : la belote (20 pts) appartient toujours à l'équipe qui l'annonce — SAUF si cette équipe chute, auquel cas elle va aux adversaires. Elle n'est jamais multipliée par le contre/surcontre.
-3. **Dix de der** : 10 pts en jeu normal, 100 pts en cas de capot. Inclus dans les points faits.
-4. **Total des points** : 162 pts en jeu normal (152 cartes + 10 dix de der), 252 pts en capot.
-5. **Arrondi** : à la dizaine la plus proche — 85 → 90, 84 → 80.
-6. **4 passes sans enchère** : la donne est annulée, les cartes repassent au donneur suivant.
-7. **Surcontre** : termine immédiatement le tour d'enchères.
-8. **Variante Sans Atout** : As vaut 19 pts (au lieu de 11). Pas de belote/rebelote possible. Carrés bonus applicables.
-9. **Variante Tout Atout** : montée obligatoire s'applique *toujours* (toutes couleurs sont atout). Jusqu'à 4 belotes possibles.
+2. **Belote** : annoncée **automatiquement par le jeu**. Compte dans l'évaluation du contrat pour les preneurs uniquement. En contrat réussi, les défenseurs marquent leur belote (+20) si annoncée. En chute, aucune belote n'est comptabilisée. Jamais multipliée par le contre/surcontre.
+3. **Dix de der** : toujours **10 pts**, y compris en cas de capot.
+4. **Total des points** : toujours **162 pts** (152 cartes + 10 dix de der).
+5. **4 passes sans enchère** : la donne est annulée, les cartes repassent au donneur suivant.
+6. **Surcontre** : termine immédiatement le tour d'enchères.
+7. **Variante Sans Atout** : As vaut 19 pts (au lieu de 11). Pas de belote/rebelote possible. Carrés bonus applicables.
+8. **Variante Tout Atout** : montée obligatoire s'applique *toujours* (toutes couleurs sont atout). Pas de belote possible.
 
 ## Méthode de comptage
 
-**Points faits uniquement** (pas de points demandés ajoutés au score).
+**Points annoncés** (valeur du contrat, pas les points faits).
 
 ```
 Contrat réussi :
-  preneurs  → points_faits (arrondis)
-  défenseurs → points_faits (arrondis)
+  preneurs   → valeur_annoncée × multiplicateur
+  défenseurs → 0 (+ 20 si leur belote annoncée)
 
 Chute :
-  preneurs  → 0
-  défenseurs → totalité des points (162 arrondis, ou 252 si capot)
-  + belote des preneurs va aux défenseurs
+  preneurs   → 0
+  défenseurs → valeur_annoncée × multiplicateur
 ```
 
-Multiplicateur contre/surcontre s'applique sur les points faits des défenseurs en cas de chute.
+Multiplicateur contre/surcontre s'applique sur la valeur annoncée en cas de chute.
+Capot comme contrat = 160 pts.
 
 ## Ordre de priorité de développement
 
