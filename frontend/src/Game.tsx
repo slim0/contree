@@ -14,6 +14,15 @@ const PARTNER: Record<string, string> = { N: 'S', S: 'N', E: 'W', W: 'E' }
 const SCREEN_LEFT: Record<string, string>  = { S: 'W', N: 'E', E: 'N', W: 'S' }
 const SCREEN_RIGHT: Record<string, string> = { S: 'E', N: 'W', E: 'S', W: 'N' }
 const TEAM: Record<string, string> = { N: 'NS', S: 'NS', E: 'EW', W: 'EW' }
+const TEAM_LABEL: Record<string, string> = { NS: 'NOUS', EW: 'EUX' }
+
+function formatMsg(msg: string): string {
+  return msg
+    .replace(/ à ([HDCS])\b/g, (_, s) => ` à ${SUIT_SYM[s]}`)
+    .replace(/\b([RD])([HDCS])\b/g, (_, r, s) => `${r}${SUIT_SYM[s]}`)
+    .replace(/\bNS\b/g, 'NOUS')
+    .replace(/\bEW\b/g, 'EUX')
+}
 
 // ─── Card sorting ─────────────────────────────────────────────────────────────
 
@@ -114,10 +123,10 @@ function PlayerSlot({ pos, game, r, onPlay }: {
   return (
     <div className={slotClass}>
       <div className="player-pos">
-        <span className={teamClass}>{team}</span>
-        {isDealer && <span title="Donneur"> 🃏</span>}
-        {isBidder && <span title="À enchérir"> 💬</span>}
-        {isPlayer && <span title="À jouer"> ▶</span>}
+        <span className={teamClass}>{TEAM_LABEL[team] ?? team}</span>
+        {isDealer && <span className="badge-dealer" title="Donneur"> 🃏 Donneur</span>}
+        {isBidder && <span className="badge-action" title="À enchérir"> 💬 Enchère</span>}
+        {isPlayer && <span className="badge-action" title="À jouer"> ▶ À jouer</span>}
       </div>
       <div className="player-name">{name ?? pos}{isMe ? ' (moi)' : ''}</div>
       {isMe ? (
@@ -234,7 +243,7 @@ function ScoreSummary({ game }: { game: GameData }) {
       <div className="score-bar">
         <div className="score-team ns">
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-            <span className="player-team-ns" style={{fontWeight:'bold'}}>NS</span>
+            <span className="player-team-ns" style={{fontWeight:'bold'}}>NOUS</span>
             <span className="score-value">{ns}</span>
           </div>
           <div className="score-progress">
@@ -244,7 +253,7 @@ function ScoreSummary({ game }: { game: GameData }) {
         </div>
         <div className="score-team ew">
           <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-            <span className="player-team-ew" style={{fontWeight:'bold'}}>EW</span>
+            <span className="player-team-ew" style={{fontWeight:'bold'}}>EUX</span>
             <span className="score-value">{ew}</span>
           </div>
           <div className="score-progress">
@@ -258,7 +267,7 @@ function ScoreSummary({ game }: { game: GameData }) {
             <div className={lr.contract_made ? 'result-made' : 'result-chute'}>
               {lr.contract_made ? '✓ Contrat réussi' : '✗ Chute'}
             </div>
-            <div style={{marginTop:3}}>{lr.message}</div>
+            <div style={{marginTop:3}}>{formatMsg(lr.message)}</div>
           </div>
         )}
       </div>
@@ -364,14 +373,14 @@ export default function Game({ game, error, send }: {
           )}
         </div>
         {contract && (
-          <div style={{fontSize:'0.85em'}}>
+          <div style={{fontSize:'0.9em'}}>
             Contrat : <span className={contract.bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
-              {contract.bidding_team}
+              {TEAM_LABEL[contract.bidding_team] ?? contract.bidding_team}
             </span>
             {' '}{contract.bid.is_capot ? 'Capot' : contract.bid.value}
             {' '}à {TRUMP_LABELS[contract.bid.trump] ?? contract.bid.trump}
             {contract.double !== 'NONE' && <strong style={{color:'#f96'}}> {contract.double}</strong>}
-            {r?.belote_team && <span style={{color:'#ff4'}}> | Belote {r.belote_team}</span>}
+            {r?.belote_team && <span style={{color:'#ff4'}}> | Belote {TEAM_LABEL[r.belote_team] ?? r.belote_team}</span>}
           </div>
         )}
         {r?.phase === 'BIDDING' && !contract && (
@@ -411,10 +420,10 @@ export default function Game({ game, error, send }: {
               borderColor: isMyTurnBid ? '#fa6' : isMyTurnPlay ? '#4d9' : '#333'
             }}>
               <div className="player-pos">
-                <span className={TEAM[me] === 'NS' ? 'player-team-ns' : 'player-team-ew'}>{TEAM[me]}</span>
-                {r?.dealer === me && <span> 🃏</span>}
-                {isMyTurnPlay && <span className="my-turn"> ▶ À JOUER</span>}
-                {isMyTurnBid  && <span style={{color:'#fa6'}}> 💬 À ENCHÉRIR</span>}
+                <span className={TEAM[me] === 'NS' ? 'player-team-ns' : 'player-team-ew'}>{TEAM_LABEL[TEAM[me]] ?? TEAM[me]}</span>
+                {r?.dealer === me && <span className="badge-dealer"> 🃏 Donneur</span>}
+                {isMyTurnPlay && <span className="badge-action my-turn"> ▶ À JOUER</span>}
+                {isMyTurnBid  && <span className="badge-action" style={{color:'#fa6'}}> 💬 À ENCHÉRIR</span>}
               </div>
               <div className="player-name">{game.players[me] ?? me} (moi)</div>
               <div className="hand-row">
@@ -461,7 +470,7 @@ export default function Game({ game, error, send }: {
       <div className="panel">
         <h3>Journal</h3>
         <div className="log">
-          {[...game.messages].reverse().map((m, i) => <p key={i}>{m}</p>)}
+          {[...game.messages].reverse().map((m, i) => <p key={i}>{formatMsg(m)}</p>)}
         </div>
       </div>
     </div>
