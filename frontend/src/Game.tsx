@@ -145,7 +145,7 @@ function PlayerSlot({ pos, game, r, onPlay }: {
   )
 }
 
-function TrickArea({ r, lastTrick }: { r: RoundData | null; lastTrick?: ReturnType<typeof getLastTrick> }) {
+function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: ReturnType<typeof getLastTrick>; me: string }) {
   const phase = r?.phase
   const trick = r?.current_trick
 
@@ -168,17 +168,22 @@ function TrickArea({ r, lastTrick }: { r: RoundData | null; lastTrick?: ReturnTy
 
   const tricksCount = r?.tricks?.length ?? 0
 
+  const posTop    = PARTNER[me]
+  const posLeft   = SCREEN_LEFT[me]
+  const posRight  = SCREEN_RIGHT[me]
+  const posBottom = me
+
   return (
     <div className="trick-grid">
-      <div className="trick-pos-N">{renderTrickCard('N', displayCard('N'), isWinner('N'))}</div>
-      <div className="trick-pos-W">{renderTrickCard('W', displayCard('W'), isWinner('W'))}</div>
+      <div className="trick-pos-top">{renderTrickCard(posTop, displayCard(posTop), isWinner(posTop))}</div>
+      <div className="trick-pos-left">{renderTrickCard(posLeft, displayCard(posLeft), isWinner(posLeft))}</div>
       <div className="trick-pos-center">
         <div style={{textAlign:'center', color:'#555', fontSize:'0.7em'}}>
           {phase === 'PLAYING' ? `Pli ${tricksCount + 1}/8` : phase === 'BIDDING' ? 'Enchères' : ''}
         </div>
       </div>
-      <div className="trick-pos-E">{renderTrickCard('E', displayCard('E'), isWinner('E'))}</div>
-      <div className="trick-pos-S">{renderTrickCard('S', displayCard('S'), isWinner('S'))}</div>
+      <div className="trick-pos-right">{renderTrickCard(posRight, displayCard(posRight), isWinner(posRight))}</div>
+      <div className="trick-pos-bottom">{renderTrickCard(posBottom, displayCard(posBottom), isWinner(posBottom))}</div>
     </div>
   )
 }
@@ -377,7 +382,7 @@ export default function Game({ game, error, send }: {
 
           {/* Center = current trick */}
           <div className="slot-center">
-            <TrickArea r={r} lastTrick={lastTrick ?? undefined} />
+            <TrickArea r={r} lastTrick={lastTrick ?? undefined} me={me} />
           </div>
 
           {/* Right opponent */}
