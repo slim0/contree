@@ -146,6 +146,7 @@ function PlayerSlot({ pos, game, r, onPlay }: {
 }
 
 function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: ReturnType<typeof getLastTrick>; me: string }) {
+  const [showLast, setShowLast] = useState(false)
   const phase = r?.phase
   const trick = r?.current_trick
 
@@ -154,13 +155,16 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
     return tc?.card ?? null
   }
 
+  const viewing = showLast && !!lastTrick
+
   const isWinner = (pos: string) => {
+    if (viewing) return lastTrick!.winner === pos
     if (trick?.winner) return trick.winner === pos
-    if (lastTrick?.winner) return lastTrick.winner === pos
     return false
   }
 
   const displayCard = (pos: string): CardData | null => {
+    if (viewing) return lastTrick!.cardAt(pos)
     if (phase === 'PLAYING') return cardAt(pos)
     if (phase === 'BIDDING') return null
     return lastTrick?.cardAt(pos) ?? null
@@ -179,8 +183,19 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
       <div className="trick-pos-left">{renderTrickCard(posLeft, displayCard(posLeft), isWinner(posLeft))}</div>
       <div className="trick-pos-center">
         <div style={{textAlign:'center', color:'#555', fontSize:'0.7em'}}>
-          {phase === 'PLAYING' ? `Pli ${tricksCount + 1}/8` : phase === 'BIDDING' ? 'Enchères' : ''}
+          {viewing
+            ? <span style={{color:'#888'}}>Pli {tricksCount}/{8}</span>
+            : phase === 'PLAYING' ? `Pli ${tricksCount + 1}/8` : phase === 'BIDDING' ? 'Enchères' : ''}
         </div>
+        {phase === 'PLAYING' && lastTrick && (
+          <button
+            style={{marginTop:4, fontSize:'0.65em', padding:'2px 5px'}}
+            onClick={() => setShowLast(v => !v)}
+            title={showLast ? 'Voir pli en cours' : 'Voir dernier pli'}
+          >
+            {showLast ? '▶ En cours' : '↩ Dernier pli'}
+          </button>
+        )}
       </div>
       <div className="trick-pos-right">{renderTrickCard(posRight, displayCard(posRight), isWinner(posRight))}</div>
       <div className="trick-pos-bottom">{renderTrickCard(posBottom, displayCard(posBottom), isWinner(posBottom))}</div>
