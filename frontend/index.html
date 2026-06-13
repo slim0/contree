@@ -2,41 +2,70 @@
 <html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
     <title>Belote Contrée</title>
     <style>
       * { box-sizing: border-box; }
-      body { font-family: monospace; margin: 0; padding: 12px; background: #1a1a1a; color: #eee; font-size: 15px; }
+      body { font-family: monospace; margin: 0; padding: 10px; background: #1a1a1a; color: #eee; font-size: 15px; }
 
-      button { margin: 2px; padding: 8px 14px; cursor: pointer; background: #2a2a2a; color: #eee; border: 1px solid #555; border-radius: 6px; font-family: monospace; font-size: 0.9em; min-height: 36px; touch-action: manipulation; }
+      button { margin: 2px; padding: 8px 14px; cursor: pointer; background: #2a2a2a; color: #eee; border: 1px solid #555; border-radius: 6px; font-family: monospace; font-size: 0.9em; min-height: 38px; touch-action: manipulation; }
       button:hover { background: #444; }
-      button.legal { border-color: #4a9; color: #4a9; background: #1a2e24; }
-      button.legal:hover { background: #254035; }
       button.action { border-color: #c87; color: #f96; background: #2a1e10; }
       button.action:hover { background: #3a2a18; }
       button:disabled { opacity: 0.4; cursor: default; }
 
-      input, select { background: #2a2a2a; color: #eee; border: 1px solid #555; padding: 7px 10px; border-radius: 6px; font-family: monospace; font-size: 0.9em; min-height: 36px; }
+      input, select { background: #2a2a2a; color: #eee; border: 1px solid #555; padding: 7px 10px; border-radius: 6px; font-family: monospace; font-size: 0.9em; min-height: 38px; }
 
-      h3 { margin: 0 0 8px 0; color: #888; font-size: 0.8em; text-transform: uppercase; letter-spacing: 0.05em; }
+      h3 { margin: 0 0 7px 0; color: #888; font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.05em; }
 
-      .panel { border: 1px solid #333; padding: 10px 14px; margin: 6px 0; border-radius: 8px; background: #222; }
-      .error { color: #f66; margin: 4px 0; font-size: 0.9em; }
+      .panel { border: 1px solid #333; padding: 9px 12px; margin: 5px 0; border-radius: 8px; background: #222; }
+      .error { color: #f66; margin: 4px 0; font-size: 0.9em; padding: 4px 8px; }
       .my-turn { color: #4d9; font-weight: bold; }
 
+      /* ── GAME WRAPPER ── */
+      .game-wrap { display: flex; flex-direction: column; gap: 5px; max-width: 960px; margin: 0 auto; }
+
+      /* ── HEADER COMPACT ── */
+      .game-header {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 16px;
+        align-items: center;
+        padding: 8px 12px;
+        background: #222;
+        border: 1px solid #333;
+        border-radius: 8px;
+      }
+      .header-room { font-size: 0.9em; }
+      .header-player { color: #888; font-size: 0.9em; }
+      .header-scores { display: flex; align-items: center; gap: 4px; font-size: 0.95em; }
+      .score-num { font-size: 1.2em; margin: 0 2px; }
+      .score-sep { color: #555; }
+      .score-limit { color: #666; font-size: 0.85em; }
+      .last-inline { font-size: 0.8em; padding: 1px 5px; border-radius: 3px; }
+      .header-contract { font-size: 0.9em; color: #ccc; }
+      .player-team-ns { color: #6af; font-weight: bold; }
+      .player-team-ew { color: #f96; font-weight: bold; }
+      .result-made  { color: #4d9; }
+      .result-chute { color: #f66; }
+
+      /* ── SCORE PROGRESS BARS (slim) ── */
+      .score-bars { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+      .score-bar-item { height: 4px; background: #2a2a2a; border-radius: 2px; overflow: hidden; }
+      .score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
+
       /* ── TABLE LOSANGE ── */
-      .table-wrap { display: flex; justify-content: center; margin: 8px 0; }
+      .table-wrap { display: flex; justify-content: center; }
       .table-grid {
         display: grid;
         grid-template-areas:
           ". top ."
           "left center right"
           ". bottom .";
-        grid-template-columns: minmax(110px, 180px) 1fr minmax(110px, 180px);
+        grid-template-columns: minmax(120px, 190px) 1fr minmax(120px, 190px);
         grid-template-rows: auto auto auto;
         gap: 6px;
         width: 100%;
-        max-width: 900px;
         align-items: center;
         justify-items: center;
       }
@@ -50,7 +79,7 @@
       .player-slot {
         border: 1px solid #333;
         border-radius: 8px;
-        padding: 8px 12px;
+        padding: 8px 10px;
         background: #222;
         min-width: 100px;
         width: 100%;
@@ -59,12 +88,10 @@
       .player-slot.active-bidder { border-color: #fa6; }
       .player-slot.active-player { border-color: #4d9; }
       .player-slot.dealer { border-color: #aaa; }
-      .player-name { font-size: 1em; font-weight: bold; margin-bottom: 5px; }
-      .player-pos  { font-size: 0.85em; color: #aaa; margin-bottom: 5px; display: flex; flex-wrap: wrap; gap: 4px; justify-content: center; align-items: center; }
-      .player-team-ns { color: #6af; }
-      .player-team-ew { color: #f96; }
-      .badge-dealer { color: #aaa; font-size: 0.9em; }
-      .badge-action { font-weight: bold; font-size: 0.9em; }
+      .player-name { font-size: 1em; font-weight: bold; margin-bottom: 4px; }
+      .player-pos  { font-size: 0.82em; color: #aaa; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; align-items: center; }
+      .badge-dealer { color: #aaa; }
+      .badge-action { font-weight: bold; }
       .card-backs { color: #666; font-size: 1.1em; letter-spacing: 2px; }
 
       /* ── CARDS ── */
@@ -78,13 +105,14 @@
         font-weight: bold;
         background: #2a2a2a;
         cursor: default;
+        user-select: none;
       }
       .card.H, .card.D { color: #f77; }
       .card.C, .card.S { color: #ddd; }
       .card.playable { border-color: #4a9; color: #4d9; cursor: pointer; background: #1a2e24; }
       .card.playable.H, .card.playable.D { color: #f96; border-color: #f96; background: #2e1a1a; }
       .card.playable:hover { filter: brightness(1.3); transform: translateY(-4px); }
-      .hand-row { display: flex; flex-wrap: nowrap; justify-content: center; gap: 4px; overflow-x: auto; }
+      .hand-row { display: flex; flex-wrap: nowrap; justify-content: center; gap: 4px; overflow-x: auto; padding-bottom: 2px; }
 
       /* ── TRICK CENTER ── */
       .trick-grid {
@@ -104,7 +132,7 @@
       }
       .trick-pos-top    { grid-area: tn; }
       .trick-pos-left   { grid-area: tw; }
-      .trick-pos-center { grid-area: tc; font-size: 0.7em; color: #666; }
+      .trick-pos-center { grid-area: tc; font-size: 0.7em; color: #666; text-align: center; }
       .trick-pos-right  { grid-area: te; }
       .trick-pos-bottom { grid-area: ts; }
       .trick-card { padding: 8px 14px; border: 1px solid #555; border-radius: 6px; background: #2a2a2a; font-size: 1.3em; font-weight: bold; }
@@ -112,84 +140,71 @@
       .trick-card.C, .trick-card.S { color: #ddd; }
       .trick-card.winner { border-color: #ff0; background: #2a2a10; }
 
-      /* ── SCORES ── */
-      .score-bar { display: flex; gap: 10px; align-items: stretch; flex-wrap: wrap; }
-      .score-team {
-        flex: 1; min-width: 130px;
-        border: 1px solid #333;
-        border-radius: 8px;
-        padding: 8px 14px;
-        background: #222;
-      }
-      .score-team.ns { border-color: #336; }
-      .score-team.ew { border-color: #633; }
-      .score-value { font-size: 1.6em; font-weight: bold; }
-      .score-progress {
-        height: 5px; background: #333; border-radius: 2px; margin-top: 5px;
-      }
-      .score-fill-ns { height: 100%; background: #6af; border-radius: 2px; transition: width 0.3s; }
-      .score-fill-ew { height: 100%; background: #f96; border-radius: 2px; transition: width 0.3s; }
-      .score-target { font-size: 0.8em; color: #888; margin-top: 3px; }
-      .last-result {
-        flex: 2; min-width: 200px;
-        border: 1px solid #333; border-radius: 8px;
-        padding: 8px 14px; background: #222;
-        font-size: 0.85em; color: #aaa;
-      }
-      .result-made  { color: #4d9; }
-      .result-chute { color: #f66; }
-
       /* ── BID PANEL ── */
       .bid-panel { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+      .bid-panel-wrap { margin-top: 4px; }
 
-      /* ── LOG ── */
-      .log { height: 150px; overflow-y: auto; font-size: 0.82em; color: #888; }
-      .log p { margin: 2px 0; }
-      .log p:first-child { color: #bbb; }
+      /* ── PAYSAGE MOBILE (≤ 600px de hauteur) ── */
+      @media (orientation: landscape) and (max-height: 520px) {
+        body { padding: 4px 8px; font-size: 13px; }
 
-      /* top-bar header */
-      .top-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 8px; }
-      .top-bar .room-info { font-size: 0.9em; color: #888; }
+        .game-wrap { gap: 3px; }
 
-      /* ── RESPONSIVE MOBILE ── */
-      @media (max-width: 640px) {
-        body { padding: 6px; font-size: 13px; }
+        .game-header { padding: 5px 10px; gap: 6px 12px; border-radius: 6px; }
+        .score-num { font-size: 1.1em; }
+
+        .score-bars { display: none; } /* masqués : déjà dans header */
 
         .table-grid {
-          grid-template-columns: minmax(75px, 90px) 1fr minmax(75px, 90px);
+          grid-template-columns: minmax(90px, 130px) 1fr minmax(90px, 130px);
           gap: 3px;
         }
 
-        .player-slot { padding: 5px 6px; min-width: 70px; }
-        .player-name { font-size: 0.95em; }
-        .player-pos  { font-size: 0.78em; gap: 2px; }
-        .badge-dealer, .badge-action { font-size: 0.8em; }
+        .player-slot { padding: 5px 7px; min-width: 80px; }
+        .player-name { font-size: 0.9em; margin-bottom: 2px; }
+        .player-pos  { font-size: 0.75em; margin-bottom: 2px; gap: 2px; }
 
-        .trick-grid { min-width: 100px; min-height: 100px; padding: 6px; gap: 4px; }
-        .trick-card { padding: 5px 9px; font-size: 1.1em; }
+        .trick-grid { min-width: 120px; min-height: 100px; padding: 6px; gap: 4px; }
+        .trick-card { padding: 5px 10px; font-size: 1.1em; }
 
-        .card { padding: 6px 10px; font-size: 1.15em; margin: 2px; }
+        .card { padding: 5px 10px; font-size: 1.1em; margin: 2px; }
         .hand-row { gap: 2px; }
 
-        .score-bar { flex-direction: row; flex-wrap: wrap; gap: 6px; }
-        .score-team { min-width: 110px; padding: 6px 10px; }
-        .score-value { font-size: 1.3em; }
-        .last-result { min-width: 100%; font-size: 0.8em; }
+        button { padding: 6px 10px; min-height: 34px; font-size: 0.85em; }
+        select, input { padding: 5px 7px; min-height: 34px; font-size: 0.85em; }
 
-        button { padding: 9px 12px; font-size: 0.9em; min-height: 40px; }
-        select, input { padding: 8px 8px; font-size: 0.9em; min-height: 40px; }
-
-        .bid-panel { gap: 6px; }
-        .log { height: 110px; font-size: 0.78em; }
-        .panel { padding: 7px 10px; margin: 4px 0; }
-        h3 { font-size: 0.75em; margin-bottom: 5px; }
+        h3 { font-size: 0.72em; margin-bottom: 4px; }
+        .panel { padding: 6px 10px; margin: 3px 0; border-radius: 6px; }
+        .bid-panel { gap: 5px; }
       }
 
-      @media (max-width: 380px) {
-        .table-grid { grid-template-columns: 65px 1fr 65px; gap: 2px; }
-        .player-slot { padding: 4px 5px; }
-        .trick-grid { min-width: 80px; min-height: 90px; padding: 4px; }
-        .card { padding: 5px 8px; font-size: 1.05em; }
+      /* ── PORTRAIT MOBILE (≤ 640px de largeur) ── */
+      @media (orientation: portrait) and (max-width: 640px) {
+        body { padding: 6px; font-size: 13px; }
+
+        .table-grid {
+          grid-template-columns: minmax(80px, 100px) 1fr minmax(80px, 100px);
+          gap: 3px;
+        }
+
+        .player-slot { padding: 5px 7px; min-width: 70px; }
+        .player-name { font-size: 0.9em; }
+        .player-pos  { font-size: 0.76em; gap: 2px; }
+
+        .trick-grid { min-width: 110px; min-height: 105px; padding: 6px; gap: 4px; }
+        .trick-card { padding: 5px 9px; font-size: 1.1em; }
+
+        .card { padding: 6px 10px; font-size: 1.1em; margin: 2px; }
+        .hand-row { gap: 2px; }
+
+        button { padding: 9px 11px; font-size: 0.88em; min-height: 40px; }
+        select, input { padding: 7px 8px; font-size: 0.88em; min-height: 40px; }
+
+        h3 { font-size: 0.74em; margin-bottom: 5px; }
+        .panel { padding: 7px 10px; margin: 4px 0; }
+        .bid-panel { gap: 6px; }
+
+        .game-header { gap: 6px 10px; padding: 6px 10px; }
       }
     </style>
   </head>

@@ -65,9 +65,8 @@ function sortHand(cards: CardData[], trump: string): CardData[] {
   if (trump !== 'NT' && trump !== 'AT' && present.includes(trump)) {
     const isRedTrump = trump === 'H' || trump === 'D'
     const rest = present.filter(s => s !== trump)
-    suitOrder = [trump, ...alternateColors(rest, isRedTrump)] // after trump alternate starting opposite color
+    suitOrder = [trump, ...alternateColors(rest, isRedTrump)]
   } else {
-    // Alternate H,C,D,S (no trump)
     suitOrder = alternateColors(present, false)
   }
 
@@ -124,9 +123,9 @@ function PlayerSlot({ pos, game, r, onPlay }: {
     <div className={slotClass}>
       <div className="player-pos">
         <span className={teamClass}>{TEAM_LABEL[team] ?? team}</span>
-        {isDealer && <span className="badge-dealer" title="Donneur"> 🃏 Donneur</span>}
-        {isBidder && <span className="badge-action" title="À enchérir"> 💬 Enchère</span>}
-        {isPlayer && <span className="badge-action" title="À jouer"> ▶ À jouer</span>}
+        {isDealer && <span className="badge-dealer" title="Donneur"> 🃏</span>}
+        {isBidder && <span className="badge-action" title="À enchérir"> 💬</span>}
+        {isPlayer && <span className="badge-action" title="À jouer"> ▶</span>}
       </div>
       <div className="player-name">{name ?? pos}{isMe ? ' (moi)' : ''}</div>
       {isMe ? (
@@ -193,7 +192,7 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
       <div className="trick-pos-center">
         <div style={{textAlign:'center', color:'#555', fontSize:'0.7em'}}>
           {viewing
-            ? <span style={{color:'#888'}}>Pli {tricksCount}/{8}</span>
+            ? <span style={{color:'#888'}}>Pli {tricksCount}/8</span>
             : phase === 'PLAYING' ? `Pli ${tricksCount + 1}/8` : phase === 'BIDDING' ? 'Enchères' : ''}
         </div>
         {phase === 'PLAYING' && lastTrick && (
@@ -202,7 +201,7 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
             onClick={() => setShowLast(v => !v)}
             title={showLast ? 'Voir pli en cours' : 'Voir dernier pli'}
           >
-            {showLast ? '▶ En cours' : '↩ Dernier pli'}
+            {showLast ? '▶ En cours' : '↩ Dernier'}
           </button>
         )}
       </div>
@@ -231,50 +230,6 @@ function getLastTrick(r: RoundData | null) {
   }
 }
 
-function ScoreSummary({ game }: { game: GameData }) {
-  const ns = game.scores['NS'] ?? 0
-  const ew = game.scores['EW'] ?? 0
-  const target = game.target_score
-  const lr = game.last_result
-
-  return (
-    <div className="panel">
-      <h3>Scores — cible {target} pts</h3>
-      <div className="score-bar">
-        <div className="score-team ns">
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-            <span className="player-team-ns" style={{fontWeight:'bold'}}>NOUS</span>
-            <span className="score-value">{ns}</span>
-          </div>
-          <div className="score-progress">
-            <div className="score-fill-ns" style={{width: `${Math.min(100, ns / target * 100)}%`}} />
-          </div>
-          <div className="score-target">{target - ns > 0 ? `${target - ns} pts restants` : '🏆 Objectif atteint'}</div>
-        </div>
-        <div className="score-team ew">
-          <div style={{display:'flex', justifyContent:'space-between', alignItems:'baseline'}}>
-            <span className="player-team-ew" style={{fontWeight:'bold'}}>EUX</span>
-            <span className="score-value">{ew}</span>
-          </div>
-          <div className="score-progress">
-            <div className="score-fill-ew" style={{width: `${Math.min(100, ew / target * 100)}%`}} />
-          </div>
-          <div className="score-target">{target - ew > 0 ? `${target - ew} pts restants` : '🏆 Objectif atteint'}</div>
-        </div>
-        {lr && (
-          <div className="last-result">
-            <div style={{color:'#666', fontSize:'0.85em', marginBottom:3}}>Dernier résultat (manche {lr.round_number})</div>
-            <div className={lr.contract_made ? 'result-made' : 'result-chute'}>
-              {lr.contract_made ? '✓ Contrat réussi' : '✗ Chute'}
-            </div>
-            <div style={{marginTop:3}}>{formatMsg(lr.message)}</div>
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function BidPanel({ r, game, send }: { r: RoundData; game: GameData; send: (m: object) => void }) {
   const actions = r.legal_bid_actions
   if (!actions) return null
@@ -286,12 +241,9 @@ function BidPanel({ r, game, send }: { r: RoundData; game: GameData; send: (m: o
     v => actions.min_bid_value !== null && v >= (actions.min_bid_value ?? 80)
   )
 
-  const myTeam = TEAM[game.my_position]
-  const contract = r.contract
-
   return (
-    <div className="panel">
-      <h3>Vos enchères <span className="my-turn">— À VOUS</span></h3>
+    <div className="panel bid-panel-wrap">
+      <h3>Enchères <span className="my-turn">— À VOUS</span></h3>
       <div className="bid-panel">
         {actions.can_pass && (
           <button className="action" onClick={() => send({ type: 'pass' })}>Passer</button>
@@ -352,7 +304,6 @@ export default function Game({ game, error, send }: {
   const isMyTurnBid  = r?.phase === 'BIDDING'  && r?.current_bidder  === me
   const isMyTurnPlay = r?.phase === 'PLAYING'   && r?.current_player  === me
 
-  // Wire up card clicks for my hand — send play action
   const myHand = r?.hands[me] ?? []
   const trump  = r ? getCurrentTrump(r) : null
   const shouldSort = trump !== null && r !== null && r.bid_history.some(e => e.action === 'bid')
@@ -360,68 +311,89 @@ export default function Game({ game, error, send }: {
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
   const contract = r?.contract
+  const ns = game.scores['NS'] ?? 0
+  const ew = game.scores['EW'] ?? 0
+  const lr = game.last_result
 
   return (
-    <div>
-      {/* Top bar */}
-      <div className="top-bar">
-        <div>
-          <strong>Salon {game.room_id}</strong>
-          <span className="room-info"> · {me} ({game.players[me] ?? '?'})</span>
+    <div className="game-wrap">
+
+      {/* ── Header compact : room + scores + contrat ── */}
+      <div className="game-header">
+        <div className="header-room">
+          <strong>{game.room_id}</strong>
+          <span className="header-player"> {me} · {game.players[me] ?? '?'}</span>
           {game.phase === 'FINISHED' && (
-            <span style={{color:'#f96', marginLeft:10}}>🏆 Vainqueur : {game.winner}</span>
+            <span style={{color:'#f96'}}> 🏆 {TEAM_LABEL[game.winner ?? ''] ?? game.winner}</span>
           )}
         </div>
-        {contract && (
-          <div style={{fontSize:'0.9em'}}>
-            Contrat : <span className={contract.bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
-              {TEAM_LABEL[contract.bidding_team] ?? contract.bidding_team}
+
+        <div className="header-scores">
+          <span className="player-team-ns">NOUS</span>
+          <strong className="score-num">{ns}</strong>
+          <span className="score-sep"> · </span>
+          <span className="player-team-ew">EUX</span>
+          <strong className="score-num">{ew}</strong>
+          <span className="score-limit"> /{game.target_score}</span>
+          {lr && (
+            <span className={`last-inline ${lr.contract_made ? 'result-made' : 'result-chute'}`}
+              title={formatMsg(lr.message)}>
+              {' '}{lr.contract_made ? '✓' : '✗'}M{lr.round_number}
             </span>
-            {' '}{contract.bid.is_capot ? 'Capot' : contract.bid.value}
-            {' '}à {TRUMP_LABELS[contract.bid.trump] ?? contract.bid.trump}
-            {contract.double !== 'NONE' && <strong style={{color:'#f96'}}> {contract.double}</strong>}
-            {r?.belote_team && <span style={{color:'#ff4'}}> | Belote {TEAM_LABEL[r.belote_team] ?? r.belote_team}</span>}
-          </div>
-        )}
-        {r?.phase === 'BIDDING' && !contract && (
-          <span style={{fontSize:'0.8em', color:'#888'}}>Enchères en cours…</span>
-        )}
+          )}
+        </div>
+
+        <div className="header-contract">
+          {contract ? (
+            <>
+              <span className={contract.bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
+                {TEAM_LABEL[contract.bidding_team] ?? contract.bidding_team}
+              </span>
+              {' '}{contract.bid.is_capot ? 'Capot' : contract.bid.value}
+              {' '}{TRUMP_LABELS[contract.bid.trump] ?? contract.bid.trump}
+              {contract.double !== 'NONE' && <strong style={{color:'#f96'}}> {contract.double}</strong>}
+              {r?.belote_team && <span style={{color:'#ff4'}}> · Belote {TEAM_LABEL[r.belote_team] ?? r.belote_team}</span>}
+            </>
+          ) : r?.phase === 'BIDDING' ? (
+            <span style={{color:'#888'}}>Enchères en cours…</span>
+          ) : null}
+        </div>
       </div>
 
-      {/* Scores */}
-      <ScoreSummary game={game} />
+      {/* ── Score bars ── */}
+      <div className="score-bars">
+        <div className="score-bar-item ns">
+          <div className="score-bar-fill" style={{width: `${Math.min(100, ns / game.target_score * 100)}%`, background:'#6af'}} />
+        </div>
+        <div className="score-bar-item ew">
+          <div className="score-bar-fill" style={{width: `${Math.min(100, ew / game.target_score * 100)}%`, background:'#f96'}} />
+        </div>
+      </div>
 
-      {/* Table losange */}
+      {/* ── Table losange ── */}
       <div className="table-wrap">
         <div className="table-grid">
-          {/* Top = partner */}
           <div className="slot-top">
             <PlayerSlot pos={top} game={game} r={r} />
           </div>
-
-          {/* Left opponent */}
           <div className="slot-left">
             <PlayerSlot pos={left} game={game} r={r} />
           </div>
-
-          {/* Center = current trick */}
           <div className="slot-center">
             <TrickArea r={r} lastTrick={lastTrick ?? undefined} me={me} />
           </div>
-
-          {/* Right opponent */}
           <div className="slot-right">
             <PlayerSlot pos={right} game={game} r={r} />
           </div>
-
-          {/* Bottom = me */}
           <div className="slot-bottom">
             <div className="player-slot" style={{
               borderColor: isMyTurnBid ? '#fa6' : isMyTurnPlay ? '#4d9' : '#333'
             }}>
               <div className="player-pos">
-                <span className={TEAM[me] === 'NS' ? 'player-team-ns' : 'player-team-ew'}>{TEAM_LABEL[TEAM[me]] ?? TEAM[me]}</span>
-                {r?.dealer === me && <span className="badge-dealer"> 🃏 Donneur</span>}
+                <span className={TEAM[me] === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
+                  {TEAM_LABEL[TEAM[me]] ?? TEAM[me]}
+                </span>
+                {r?.dealer === me && <span className="badge-dealer" title="Donneur"> 🃏</span>}
                 {isMyTurnPlay && <span className="badge-action my-turn"> ▶ À JOUER</span>}
                 {isMyTurnBid  && <span className="badge-action" style={{color:'#fa6'}}> 💬 À ENCHÉRIR</span>}
               </div>
@@ -443,7 +415,7 @@ export default function Game({ game, error, send }: {
         </div>
       </div>
 
-      {/* Bid history (compact) */}
+      {/* ── Historique enchères (phase BIDDING seulement) ── */}
       {r?.phase === 'BIDDING' && r.bid_history.length > 0 && (
         <div className="panel">
           <h3>Enchères</h3>
@@ -460,19 +432,12 @@ export default function Game({ game, error, send }: {
         </div>
       )}
 
-      {/* Bidding actions */}
+      {/* ── Panel enchères (quand c'est mon tour) ── */}
       {isMyTurnBid && r && <BidPanel r={r} game={game} send={send} />}
 
-      {/* Error */}
+      {/* ── Erreur ── */}
       {error && <p className="error">⚠ {error}</p>}
 
-      {/* Log */}
-      <div className="panel">
-        <h3>Journal</h3>
-        <div className="log">
-          {[...game.messages].reverse().map((m, i) => <p key={i}>{formatMsg(m)}</p>)}
-        </div>
-      </div>
     </div>
   )
 }

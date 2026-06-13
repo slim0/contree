@@ -81,6 +81,14 @@ Capot comme contrat = 160 pts.
 - **Tests** : chaque règle de jeu a au moins un test unitaire avant son implémentation (TDD)
 - **Nommage** : anglais pour le code, français pour les commentaires métier complexes
 
+## Contraintes front-end — à respecter impérativement
+
+- **Mobile paysage uniquement** : le front doit être jouable sur mobile en orientation **paysage** (landscape). Portrait toléré mais pas prioritaire. Cible : ~667×375px (iPhone SE landscape).
+- **Pas de journal** : les joueurs ne voient pas l'historique des actions. La seule rétrospective autorisée est le **dernier pli** (bouton toggle dans la zone de pli).
+- **Symboles de couleur** : toujours utiliser ♥ ♦ ♣ ♠, jamais les lettres H/D/C/S dans les textes affichés.
+- **Noms d'équipe** : NS → **NOUS**, EW → **EUX** dans toute l'interface.
+- **Layout** : header compact (scores + contrat sur une ligne), table losange, panel enchères. Pas d'éléments verticalement trop hauts qui empêchent le jeu en paysage.
+
 ## Contexte pour la génération de code
 
 - Le moteur de jeu (`backend/game/`) doit être **pur** : aucune dépendance externe, aucun I/O, testable seul
