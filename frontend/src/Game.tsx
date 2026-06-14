@@ -81,18 +81,22 @@ function getCurrentTrump(r: RoundData): string | null {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
-function CardChip({ card, playable, onClick }: {
+function PlayingCard({ card, playable, onClick, style, compact, winner }: {
   card: CardData; playable?: boolean; onClick?: () => void
+  style?: React.CSSProperties; compact?: boolean; winner?: boolean
 }) {
   const sym = SUIT_SYM[card.suit] ?? card.suit
+  const isRed = card.suit === 'H' || card.suit === 'D'
+  const cls = ['playing-card', isRed ? 'red' : 'black',
+    playable ? 'playable' : '', compact ? 'compact' : '', winner ? 'winner' : '']
+    .filter(Boolean).join(' ')
   return (
-    <span
-      className={`card ${card.suit}${playable ? ' playable' : ''}`}
-      onClick={onClick}
-      title={playable ? 'Cliquer pour jouer' : undefined}
-    >
-      {card.rank}{sym}
-    </span>
+    <div className={cls} onClick={onClick} style={style}
+      title={playable ? 'Cliquer pour jouer' : undefined}>
+      <div className="pc-tl"><div className="pc-rank">{card.rank}</div><div className="pc-sym">{sym}</div></div>
+      <div className="pc-center">{sym}</div>
+      <div className="pc-br"><div className="pc-rank">{card.rank}</div><div className="pc-sym">{sym}</div></div>
+    </div>
   )
 }
 
@@ -114,6 +118,12 @@ function PlayerSlot({ pos, game, r, onPlay }: {
 
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
+  const n = sortedHand.length
+  const cardW = 46
+  const spacing = n > 1 ? Math.min(cardW, Math.floor(260 / (n - 1))) : 0
+  const maxAngle = Math.min(24, n * 2.8)
+  const fanW = n > 0 ? spacing * (n - 1) + cardW : cardW
+
   let slotClass = 'player-slot'
   if (isBidder) slotClass += ' active-bidder'
   else if (isPlayer) slotClass += ' active-player'
@@ -129,24 +139,30 @@ function PlayerSlot({ pos, game, r, onPlay }: {
       </div>
       <div className="player-name">{name ?? pos}{isMe ? ' (moi)' : ''}</div>
       {isMe ? (
-        <div className="hand-row">
-          {sortedHand.map((c, i) => {
-            const key = `${c.rank}${c.suit}`
-            const playable = isPlayer && legalSet.has(key)
-            return (
-              <CardChip key={i} card={c} playable={playable}
-                onClick={playable ? () => onPlay?.(c) : undefined}
-              />
-            )
-          })}
-          {sortedHand.length === 0 && r?.phase === 'PLAYING' && <span style={{color:'#666'}}>—</span>}
+        <div className="hand-fan-wrap">
+          <div className="hand-fan" style={{width: fanW}}>
+            {sortedHand.map((c, i) => {
+              const key = `${c.rank}${c.suit}`
+              const playable = isPlayer && legalSet.has(key)
+              const k = n > 1 ? i / (n - 1) : 0.5
+              const angle = n > 1 ? maxAngle * (2 * k - 1) : 0
+              return (
+                <div key={i} style={{position:'absolute', left: i * spacing, bottom: 0,
+                  transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
+                  <PlayingCard card={c} playable={playable}
+                    onClick={playable ? () => onPlay?.(c) : undefined} />
+                </div>
+              )
+            })}
+            {sortedHand.length === 0 && r?.phase === 'PLAYING' && <span style={{color:'#666', position:'absolute', bottom: 4}}>—</span>}
+          </div>
         </div>
       ) : (
-        <div className="card-backs">
+        <div className="card-backs-row">
           {hand.length > 0
-            ? '🂠'.repeat(Math.min(hand.length, 8))
+            ? Array.from({length: Math.min(hand.length, 6)}).map((_, i) => <div key={i} className="card-back" />)
             : <span style={{color:'#555'}}>—</span>}
-          {hand.length > 0 && <span style={{color:'#666',marginLeft:4}}>×{hand.length}</span>}
+          {hand.length > 6 && <span className="card-backs-count">+{hand.length - 6}</span>}
         </div>
       )}
     </div>
@@ -213,12 +229,7 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
 
 function renderTrickCard(pos: string, card: CardData | null, winner: boolean) {
   if (!card) return <span style={{color:'#444',fontSize:'0.7em'}}>{pos}</span>
-  const sym = SUIT_SYM[card.suit] ?? card.suit
-  return (
-    <span className={`trick-card ${card.suit}${winner ? ' winner' : ''}`}>
-      {card.rank}{sym}
-    </span>
-  )
+  return <PlayingCard card={card} compact winner={winner} />
 }
 
 function getLastTrick(r: RoundData | null) {
@@ -310,6 +321,12 @@ export default function Game({ game, error, send }: {
   const sortedHand = shouldSort ? sortHand(myHand, trump!) : myHand
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
+  const fanN = sortedHand.length
+  const fanCardW = 46
+  const fanSpacing = fanN > 1 ? Math.min(fanCardW, Math.floor(260 / (fanN - 1))) : 0
+  const fanMaxAngle = Math.min(24, fanN * 2.8)
+  const fanW = fanN > 0 ? fanSpacing * (fanN - 1) + fanCardW : fanCardW
+
   const contract = r?.contract
   const ns = game.scores['NS'] ?? 0
   const ew = game.scores['EW'] ?? 0
@@ -389,17 +406,23 @@ export default function Game({ game, error, send }: {
                 {isMyTurnBid  && <span className="badge-action" style={{color:'#fa6'}}> 💬 À ENCHÉRIR</span>}
               </div>
               <div className="player-name">{game.players[me] ?? me} (moi)</div>
-              <div className="hand-row">
-                {sortedHand.map((c, i) => {
-                  const key = `${c.rank}${c.suit}`
-                  const playable = isMyTurnPlay && legalSet.has(key)
-                  return (
-                    <CardChip key={i} card={c} playable={playable}
-                      onClick={playable ? () => send({ type: 'play', suit: c.suit, rank: c.rank }) : undefined}
-                    />
-                  )
-                })}
-                {sortedHand.length === 0 && <span style={{color:'#555', fontSize:'0.85em'}}>—</span>}
+              <div className="hand-fan-wrap">
+                <div className="hand-fan" style={{width: fanW}}>
+                  {sortedHand.map((c, i) => {
+                    const key = `${c.rank}${c.suit}`
+                    const playable = isMyTurnPlay && legalSet.has(key)
+                    const k = fanN > 1 ? i / (fanN - 1) : 0.5
+                    const angle = fanN > 1 ? fanMaxAngle * (2 * k - 1) : 0
+                    return (
+                      <div key={i} style={{position:'absolute', left: i * fanSpacing, bottom: 0,
+                        transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
+                        <PlayingCard card={c} playable={playable}
+                          onClick={playable ? () => send({ type: 'play', suit: c.suit, rank: c.rank }) : undefined} />
+                      </div>
+                    )
+                  })}
+                  {sortedHand.length === 0 && <span style={{color:'#555', fontSize:'0.85em', position:'absolute', bottom: 4}}>—</span>}
+                </div>
               </div>
             </div>
           </div>
