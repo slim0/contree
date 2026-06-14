@@ -91,15 +91,34 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str) -> No
         await ws.close()
         return
 
-    game, position = await store.join_room(room_id, player_name)
-    if position is None:
-        log.warning("Salon '%s' plein — %s refusé", room_id, player_name)
-        await ws.send_text(json.dumps({"type": "error", "message": "Salon plein."}))
-        await ws.close()
-        return
+    # Detect reconnection: same name already holds a slot and is currently offline
+    async with _conn_lock:
+        active = set(_connections.get(room_id, {}).keys())
 
-    log.info("Salon '%s' — %s rejoint en position %s  [%d/4]",
-             room_id, player_name, position.value, len(game.players))
+    position: Optional[Position] = None
+    for pos, name in game.players.items():
+        if name == player_name:
+            if pos.value in active:
+                log.warning("Salon '%s' — %s déjà connecté en %s", room_id, player_name, pos.value)
+                await ws.send_text(json.dumps({"type": "error", "message": "Ce pseudo est déjà en jeu."}))
+                await ws.close()
+                return
+            position = pos
+            break
+
+    if position is not None:
+        log.info("Salon '%s' — %s se reconnecte en position %s", room_id, player_name, position.value)
+        game.messages.append(f"{player_name} ({position.value}) s'est reconnecté")
+        await store.set_game(game)
+    else:
+        game, position = await store.join_room(room_id, player_name)
+        if position is None:
+            log.warning("Salon '%s' plein — %s refusé", room_id, player_name)
+            await ws.send_text(json.dumps({"type": "error", "message": "Salon plein."}))
+            await ws.close()
+            return
+        log.info("Salon '%s' — %s rejoint en position %s  [%d/4]",
+                 room_id, player_name, position.value, len(game.players))
 
     await _register(room_id, position, ws)
 
