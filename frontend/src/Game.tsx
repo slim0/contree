@@ -360,15 +360,6 @@ export default function Game({ game, error, send }: {
         </div>
       </div>
 
-      {/* ── Score bars ── */}
-      <div className="score-bars">
-        <div className="score-bar-item ns">
-          <div className="score-bar-fill" style={{width: `${Math.min(100, ns / game.target_score * 100)}%`, background:'#6af'}} />
-        </div>
-        <div className="score-bar-item ew">
-          <div className="score-bar-fill" style={{width: `${Math.min(100, ew / game.target_score * 100)}%`, background:'#f96'}} />
-        </div>
-      </div>
 
       {/* ── Table losange ── */}
       <div className="table-wrap">
