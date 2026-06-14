@@ -5,9 +5,18 @@ import Game from './Game'
 const STORAGE_ROOM = 'contree_room'
 const STORAGE_NAME = 'contree_name'
 
+function genRoomCode(): string {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
+  return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
+}
+
 export default function App() {
-  const [roomId, setRoomId] = useState(() => sessionStorage.getItem(STORAGE_ROOM) ?? 'salon1')
+  const [roomId, setRoomId] = useState(() => sessionStorage.getItem(STORAGE_ROOM) ?? '')
   const [playerName, setPlayerName] = useState(() => sessionStorage.getItem(STORAGE_NAME) ?? '')
+  const [step, setStep] = useState<'name' | 'lobby'>('name')
+  const [joinMode, setJoinMode] = useState(false)
+  const [createdRoom, setCreatedRoom] = useState<string | null>(null)
+  const [copied, setCopied] = useState(false)
   const [game, setGame] = useState<GameData | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
@@ -83,30 +92,117 @@ export default function App() {
     setError(null)
   }, [])
 
+  function handleCreate() {
+    const code = genRoomCode()
+    setCreatedRoom(code)
+    setRoomId(code)
+    setJoinMode(false)
+  }
+
+  function handleCopy() {
+    navigator.clipboard.writeText(createdRoom ?? '')
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
   if (reconnecting) {
-    return <p style={{ color: '#4af', padding: 16 }}>Reconnexion en cours…</p>
+    return <div className="lp-reconnect">Reconnexion en cours…</div>
   }
 
   if (!connected) {
+    if (step === 'name') {
+      return (
+        <div className="lp-root">
+          <div className="lp-card">
+            <div className="lp-logo">
+              <div className="lp-logo-mark">🃏</div>
+            </div>
+            <h1 className="lp-title">Belote Contrée</h1>
+            <p className="lp-subtitle">Jouez avec vos amis en temps réel</p>
+            <label className="lp-label" htmlFor="lp-name">Votre pseudo</label>
+            <input
+              id="lp-name"
+              className="lp-input"
+              value={playerName}
+              placeholder="Ex. Alice"
+              autoFocus
+              onChange={e => setPlayerName(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && playerName.trim() && setStep('lobby')}
+            />
+            <button
+              className="lp-btn-primary"
+              disabled={!playerName.trim()}
+              onClick={() => setStep('lobby')}
+            >
+              Continuer
+            </button>
+            {error && <p className="lp-error">{error}</p>}
+          </div>
+        </div>
+      )
+    }
+
     return (
-      <div className="section">
-        <h3>Belote Contrée — Rejoindre une partie</h3>
-        <div>
-          <label>Salon : </label>
-          <input value={roomId} onChange={e => setRoomId(e.target.value)} />
+      <div className="lp-root">
+        <div className="lp-card">
+          <button className="lp-back" onClick={() => { setStep('name'); setJoinMode(false); setCreatedRoom(null) }}>
+            ← Retour
+          </button>
+          <h1 className="lp-title">Bonjour, {playerName}&nbsp;!</h1>
+          <p className="lp-subtitle">Créez un salon et partagez le code, ou rejoignez une partie existante.</p>
+
+          {createdRoom ? (
+            <>
+              <div className="lp-code-box">
+                <div className="lp-code">{createdRoom}</div>
+                <div className="lp-code-hint">Partagez ce code avec vos 3 amis</div>
+              </div>
+              <button className="lp-btn-copy" onClick={handleCopy}>
+                {copied ? '✓ Code copié !' : 'Copier le code'}
+              </button>
+              <button className="lp-btn-primary" onClick={() => connect(createdRoom, playerName)}>
+                Entrer dans le salon
+              </button>
+              <button className="lp-btn-secondary" onClick={() => setCreatedRoom(null)}>
+                Générer un autre code
+              </button>
+            </>
+          ) : (
+            <>
+              <button className="lp-btn-primary" style={{ marginTop: 0 }} onClick={handleCreate}>
+                Créer un salon
+              </button>
+              <div className="lp-divider">ou</div>
+              {joinMode ? (
+                <>
+                  <label className="lp-label" htmlFor="lp-room">Code du salon</label>
+                  <input
+                    id="lp-room"
+                    className="lp-input"
+                    value={roomId}
+                    placeholder="Ex. A3BX"
+                    autoFocus
+                    onChange={e => setRoomId(e.target.value.toUpperCase())}
+                    onKeyDown={e => e.key === 'Enter' && roomId.trim() && connect(roomId, playerName)}
+                  />
+                  <button
+                    className="lp-btn-secondary"
+                    disabled={!roomId.trim()}
+                    onClick={() => connect(roomId, playerName)}
+                  >
+                    Rejoindre
+                  </button>
+                </>
+              ) : (
+                <button className="lp-btn-secondary" onClick={() => setJoinMode(true)}>
+                  Rejoindre un salon existant
+                </button>
+              )}
+            </>
+          )}
+
+          {error && <p className="lp-error">{error}</p>}
         </div>
-        <div style={{ marginTop: 8 }}>
-          <label>Pseudo : </label>
-          <input value={playerName} onChange={e => setPlayerName(e.target.value)}
-            onKeyDown={e => e.key === 'Enter' && connect(roomId, playerName)} />
-        </div>
-        <div style={{ marginTop: 8 }}>
-          <button className="action" onClick={() => connect(roomId, playerName)}>Rejoindre</button>
-        </div>
-        {error && <p className="error">{error}</p>}
-        <p style={{ color: '#666', fontSize: '0.8em' }}>
-          Ouvre 4 onglets, même salon, 4 pseudos différents.
-        </p>
       </div>
     )
   }
