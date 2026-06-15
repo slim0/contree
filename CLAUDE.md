@@ -94,3 +94,58 @@ Capot comme contrat = 160 pts.
 - Le moteur de jeu (`backend/game/`) doit être **pur** : aucune dépendance externe, aucun I/O, testable seul
 - Les WebSockets transportent des événements typés (voir `docs/architecture.md`)
 - Ne pas utiliser Socket.io — WebSocket natif côté front
+
+
+## Stratégie de tests
+
+### Règle absolue
+Toute nouvelle feature — back ou front — doit être accompagnée de ses tests
+dans le même commit. Pas de code sans tests.
+
+### Backend (FastAPI + pytest)
+
+Stack :
+- pytest pour les tests unitaires
+- httpx + pytest-asyncio pour les routes FastAPI
+- pytest-cov pour la couverture de code
+
+Emplacement : backend/tests/
+Convention de nommage : test_<module_testé>.py
+
+Pour chaque feature back, tu dois écrire :
+1. Tests unitaires sur la logique métier pure (indépendants de FastAPI)
+   → Ex : logique de jeu, calcul de score, validation des règles belote
+2. Tests d'intégration sur les routes HTTP / WebSocket si concernées
+3. Couvrir les cas nominaux ET les cas d'erreur / edge cases
+
+Commande pour lancer les tests back :
+cd backend && pytest --cov=. --cov-report=term-missing
+
+### Frontend (Vitest + React Testing Library)
+
+Stack :
+- vitest comme test runner (natif Vite, pas de config webpack)
+- @testing-library/react pour tester les composants
+- @testing-library/user-event pour simuler les interactions
+- jsdom comme environnement DOM
+
+Emplacement : frontend/src/__tests__/ ou colocalisé ComponentName.test.tsx
+Convention de nommage : <NomComposant>.test.tsx
+
+Pour chaque feature front, tu dois écrire :
+1. Tests sur le comportement utilisateur (ce que l'utilisateur voit et fait)
+   → Ne pas tester les détails d'implémentation (state interne, noms de fonctions)
+2. Tester le rendu conditionnel, les interactions (clic, saisie), les états d'erreur
+3. Mocker les appels API/WebSocket — ne jamais appeler le vrai backend en test
+
+Commande pour lancer les tests front :
+cd frontend && npm run test
+
+### Priorités de test pour ce projet
+
+La logique métier belote est complexe et critique. Ordre de priorité :
+1. Logique de jeu — ordre des cartes, obligation de monter, couper, défausser
+2. Calcul du score — points faits, contre/surcontre, belote/rebelote, dix de der
+3. Enchères — validation des enchères, contre, surcontre, capot
+4. Routes API / WebSocket — connexion, déconnexion, synchronisation d'état
+5. Composants UI — affichage des cartes, phase de jeu active, scores
