@@ -33,6 +33,17 @@ export default function App() {
       reconnectTimer.current = null
     }
 
+    // Neutralise stale handlers before replacing the connection (guards against
+    // React StrictMode double-effect and rapid reconnect races).
+    if (wsRef.current) {
+      const stale = wsRef.current
+      stale.onopen = null
+      stale.onmessage = null
+      stale.onclose = null
+      stale.onerror = null
+      if (stale.readyState < WebSocket.CLOSING) stale.close()
+    }
+
     const url = `ws://${location.hostname}:8000/ws/${room}/${encodeURIComponent(name)}?target_score=${score}`
     const ws = new WebSocket(url)
     wsRef.current = ws
@@ -52,8 +63,8 @@ export default function App() {
         setGame(msg.data)
       } else if (msg.type === 'error') {
         setError(msg.message)
-        // Errors that mean we should not auto-reconnect
-        if (msg.message === 'Partie terminée.' || msg.message === 'Ce pseudo est déjà en jeu.') {
+        // Only a finished game permanently blocks reconnection
+        if (msg.message === 'Partie terminée.') {
           shouldReconnect.current = false
           sessionStorage.removeItem(STORAGE_ROOM)
           sessionStorage.removeItem(STORAGE_NAME)

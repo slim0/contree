@@ -15,26 +15,35 @@ from backend.store import memory_store as store
 
 log = logging.getLogger(__name__)
 
-# room_id -> {position_str -> WebSocket}
-_connections: dict[str, dict[str, WebSocket]] = {}
+# room_id -> {position_str -> (WebSocket, conn_id)}
+# conn_id prevents stale disconnect handlers from unregistering a newer connection.
+_connections: dict[str, dict[str, tuple[WebSocket, int]]] = {}
 _conn_lock = asyncio.Lock()
+_conn_serial: int = 0
 
 
-async def _register(room_id: str, position: Position, ws: WebSocket) -> None:
+async def _register(room_id: str, position: Position, ws: WebSocket) -> int:
+    global _conn_serial
     async with _conn_lock:
-        _connections.setdefault(room_id, {})[position.value] = ws
+        _conn_serial += 1
+        conn_id = _conn_serial
+        _connections.setdefault(room_id, {})[position.value] = (ws, conn_id)
+        return conn_id
 
 
-async def _unregister(room_id: str, position: Position) -> None:
+async def _unregister(room_id: str, position: Position, conn_id: int) -> None:
+    """Only remove the connection if it still belongs to conn_id (guards against stale handlers)."""
     async with _conn_lock:
         room = _connections.get(room_id, {})
-        room.pop(position.value, None)
+        entry = room.get(position.value)
+        if entry is not None and entry[1] == conn_id:
+            room.pop(position.value)
 
 
 async def broadcast(room_id: str, game: GameState, viewer: Optional[Position] = None) -> None:
     """Send game state to all connected players (hiding opponents' hands)."""
     async with _conn_lock:
-        sockets = dict(_connections.get(room_id, {}))
+        sockets = {pos: ws for pos, (ws, _) in _connections.get(room_id, {}).items()}
 
     for pos_str, ws in sockets.items():
         pos = Position(pos_str)
@@ -91,20 +100,32 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
         await ws.close()
         return
 
-    # Detect reconnection: same name already holds a slot and is currently offline
-    async with _conn_lock:
-        active = set(_connections.get(room_id, {}).keys())
-
+    # Identify if this player already has a slot (reconnection case).
+    # If the old connection is still "active" (possible zombie or race), kick it
+    # and let the new connection take over. A conn_id guards against the old
+    # handler accidentally unregistering the new connection.
     position: Optional[Position] = None
+    old_ws_to_close: Optional[WebSocket] = None
+
     for pos, name in game.players.items():
         if name == player_name:
-            if pos.value in active:
-                log.warning("Salon '%s' — %s déjà connecté en %s", room_id, player_name, pos.value)
-                await ws.send_text(json.dumps({"type": "error", "message": "Ce pseudo est déjà en jeu."}))
-                await ws.close()
-                return
+            async with _conn_lock:
+                room_conns = _connections.get(room_id, {})
+                entry = room_conns.pop(pos.value, None)
+                if entry is not None:
+                    old_ws_to_close, _ = entry
+                    log.warning(
+                        "Salon '%s' — %s reconnecte avec ancienne connexion active (zombie ?), kick en cours",
+                        room_id, player_name,
+                    )
             position = pos
             break
+
+    if old_ws_to_close is not None:
+        try:
+            await old_ws_to_close.close()
+        except Exception:
+            pass
 
     if position is not None:
         log.info("Salon '%s' — %s se reconnecte en position %s", room_id, player_name, position.value)
@@ -120,7 +141,7 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
         log.info("Salon '%s' — %s rejoint en position %s  [%d/4]",
                  room_id, player_name, position.value, len(game.players))
 
-    await _register(room_id, position, ws)
+    conn_id = await _register(room_id, position, ws)
 
     if len(game.players) == 4 and game.phase == GamePhase.WAITING:
         log.info("Salon '%s' — 4 joueurs, démarrage de la partie", room_id)
@@ -150,7 +171,7 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
                 await ws.send_text(json.dumps({"type": "error", "message": error}))
 
     except WebSocketDisconnect:
-        await _unregister(room_id, position)
+        await _unregister(room_id, position, conn_id)
         log.info("── DÉCONNEXION  %s (%s)  ←  salon '%s'", player_name, position.value, room_id)
         game = await store.get_game(room_id)
         if game:

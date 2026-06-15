@@ -99,8 +99,12 @@ Capot comme contrat = 160 pts.
 ## Stratégie de tests
 
 ### Règle absolue
-Toute nouvelle feature — back ou front — doit être accompagnée de ses tests
-dans le même commit. Pas de code sans tests.
+Tout changement de code — nouvelle feature OU correction de bug — doit être
+accompagné de ses tests dans le même commit. Pas de code sans tests.
+
+Pour une correction de bug en particulier : écrire d'abord un test qui
+**reproduit le bug** (il doit échouer avant le fix, passer après).
+Ce test sert de régression pour éviter que le bug ne réapparaisse.
 
 ### Backend (FastAPI + pytest)
 
