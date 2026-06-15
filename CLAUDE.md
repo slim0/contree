@@ -149,3 +149,43 @@ La logique métier belote est complexe et critique. Ordre de priorité :
 3. Enchères — validation des enchères, contre, surcontre, capot
 4. Routes API / WebSocket — connexion, déconnexion, synchronisation d'état
 5. Composants UI — affichage des cartes, phase de jeu active, scores
+
+## Structure du monorepo
+
+belote-contree/
+├── backend/   # FastAPI
+└── frontend/  # Vite + React
+
+## Checklist obligatoire avant toute implémentation de feature
+
+⚠ Avant d'écrire la moindre ligne de code, tu dois répondre explicitement
+à ces deux questions dans ton plan :
+
+1. Est-ce que cette feature nécessite un changement backend ?
+   → Nouvelle route, modification de logique métier, nouveau message WebSocket,
+     changement de modèle de données, nouveau calcul de score, etc.
+
+2. Est-ce que cette feature nécessite un changement frontend ?
+   → Nouveau composant, appel API, affichage d'un nouvel état, interaction utilisateur, etc.
+
+Si la réponse est oui des deux côtés : tu implémentes les deux dans la même tâche.
+Ne jamais livrer une feature à moitié — un front sans back (ou l'inverse) n'est pas
+une feature, c'est du code mort.
+
+## Ordre d'implémentation
+
+Toujours dans cet ordre :
+1. Backend — logique métier + route/WebSocket + tests
+2. Frontend — appel API/WebSocket + composant + tests
+3. Vérification end-to-end — le flux complet fonctionne de bout en bout
+
+## Cas particuliers acceptables
+
+Les seuls cas où une implémentation mono-côté est légitime :
+- Feature purement visuelle sans aucun échange avec le backend
+  (ex : animation, refactoring de composant, thème)
+- Feature purement backend sans surface utilisateur
+  (ex : tâche de maintenance, optimisation interne)
+
+Dans ces cas, tu dois explicitement justifier pourquoi l'autre côté
+n'est pas impacté avant de commencer.
