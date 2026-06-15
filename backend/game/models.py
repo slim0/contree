@@ -311,6 +311,7 @@ class RoundResult:
 @dataclass
 class GameState:
     room_id: str
+    room_name: str
     players: dict[Position, str]
     scores: dict[Team, int]
     target_score: int
@@ -323,6 +324,7 @@ class GameState:
     def to_dict(self) -> dict:
         return {
             "room_id": self.room_id,
+            "room_name": self.room_name,
             "players": {p.value: n for p, n in self.players.items()},
             "scores": {t.value: s for t, s in self.scores.items()},
             "target_score": self.target_score,

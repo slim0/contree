@@ -19,10 +19,11 @@ async def set_game(game: GameState) -> None:
         _rooms[game.room_id] = game
 
 
-async def create_room(room_id: str, target_score: int = 1000) -> GameState:
+async def create_room(room_id: str, target_score: int = 1000, room_name: str = "") -> GameState:
     async with _lock:
         game = GameState(
             room_id=room_id,
+            room_name=room_name,
             players={},
             scores={Team.NORTH_SOUTH: 0, Team.EAST_WEST: 0},
             target_score=target_score,
@@ -53,6 +54,21 @@ async def join_room(room_id: str, player_name: str) -> tuple[Optional[GameState]
         return game, None  # room full
 
 
-async def list_rooms() -> list[str]:
+async def delete_room(room_id: str) -> None:
     async with _lock:
-        return list(_rooms.keys())
+        _rooms.pop(room_id, None)
+
+
+async def list_rooms() -> list[dict]:
+    async with _lock:
+        result = []
+        for game in _rooms.values():
+            if game.phase.value == "FINISHED":
+                continue
+            result.append({
+                "room_id": game.room_id,
+                "room_name": game.room_name,
+                "player_count": len(game.players),
+                "phase": game.phase.value,
+            })
+        return result

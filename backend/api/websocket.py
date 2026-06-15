@@ -85,14 +85,14 @@ def _player_tag(game: GameState, position: Position) -> str:
     return f"{name} ({position.value})"
 
 
-async def handle_connection(ws: WebSocket, room_id: str, player_name: str, target_score: int = 1000) -> None:
+async def handle_connection(ws: WebSocket, room_id: str, player_name: str, target_score: int = 1000, room_name: str = "") -> None:
     await ws.accept()
     log.info("── CONNEXION  %s  →  salon '%s'", player_name, room_id)
 
     game = await store.get_game(room_id)
     if game is None:
         log.info("Salon '%s' créé (score cible : %d)", room_id, target_score)
-        game = await store.create_room(room_id, target_score)
+        game = await store.create_room(room_id, target_score, room_name)
 
     if game.phase == GamePhase.FINISHED:
         log.warning("Salon '%s' terminé — %s refusé", room_id, player_name)
@@ -173,11 +173,19 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
     except WebSocketDisconnect:
         await _unregister(room_id, position, conn_id)
         log.info("── DÉCONNEXION  %s (%s)  ←  salon '%s'", player_name, position.value, room_id)
-        game = await store.get_game(room_id)
-        if game:
-            game.messages.append(f"{player_name} ({position.value}) s'est déconnecté")
-            await store.set_game(game)
-            await broadcast(room_id, game)
+
+        async with _conn_lock:
+            no_connections_left = not _connections.get(room_id)
+
+        if no_connections_left:
+            log.info("Salon '%s' — plus aucune connexion active, suppression", room_id)
+            await store.delete_room(room_id)
+        else:
+            game = await store.get_game(room_id)
+            if game:
+                game.messages.append(f"{player_name} ({position.value}) s'est déconnecté")
+                await store.set_game(game)
+                await broadcast(room_id, game)
 
 
 async def _dispatch(

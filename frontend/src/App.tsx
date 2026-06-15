@@ -5,6 +5,13 @@ import Game from './Game'
 const STORAGE_ROOM = 'contree_room'
 const STORAGE_NAME = 'contree_name'
 
+interface RoomSummary {
+  room_id: string
+  room_name: string
+  player_count: number
+  phase: string
+}
+
 function genRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
   return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('')
@@ -15,7 +22,10 @@ export default function App() {
   const [playerName, setPlayerName] = useState(() => sessionStorage.getItem(STORAGE_NAME) ?? '')
   const [step, setStep] = useState<'name' | 'lobby'>('name')
   const [joinMode, setJoinMode] = useState(false)
+  const [joinCodeMode, setJoinCodeMode] = useState(false)
+  const [rooms, setRooms] = useState<RoomSummary[]>([])
   const [createdRoom, setCreatedRoom] = useState<string | null>(null)
+  const [roomName, setRoomName] = useState('')
   const [targetScore, setTargetScore] = useState(1000)
   const [copied, setCopied] = useState(false)
   const [game, setGame] = useState<GameData | null>(null)
@@ -26,7 +36,7 @@ export default function App() {
   const shouldReconnect = useRef(false)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const connect = useCallback((room: string, name: string, score: number = 1000) => {
+  const connect = useCallback((room: string, name: string, score: number = 1000, rName: string = '') => {
     if (!name.trim() || !room.trim()) return
     if (reconnectTimer.current) {
       clearTimeout(reconnectTimer.current)
@@ -44,7 +54,9 @@ export default function App() {
       if (stale.readyState < WebSocket.CLOSING) stale.close()
     }
 
-    const url = `ws://${location.hostname}:8000/ws/${room}/${encodeURIComponent(name)}?target_score=${score}`
+    const params = new URLSearchParams({ target_score: String(score) })
+    if (rName.trim()) params.set('room_name', rName.trim())
+    const url = `ws://${location.hostname}:8000/ws/${room}/${encodeURIComponent(name)}?${params}`
     const ws = new WebSocket(url)
     wsRef.current = ws
 
@@ -99,6 +111,15 @@ export default function App() {
     }
   }, [connect])
 
+  // Fetch room list when join panel opens
+  useEffect(() => {
+    if (!joinMode) return
+    fetch(`http://${location.hostname}:8000/api/rooms`)
+      .then(r => r.json())
+      .then(data => setRooms(data.rooms ?? []))
+      .catch(() => setRooms([]))
+  }, [joinMode])
+
   const send = useCallback((msg: object) => {
     wsRef.current?.send(JSON.stringify(msg))
     setError(null)
@@ -115,6 +136,15 @@ export default function App() {
     navigator.clipboard.writeText(createdRoom ?? '')
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
+  }
+
+  function handleSelectRoom() {
+    setJoinCodeMode(true)
+  }
+
+  function handleJoinBack() {
+    setJoinCodeMode(false)
+    setRoomId('')
   }
 
   if (reconnecting) {
@@ -136,7 +166,7 @@ export default function App() {
               id="lp-name"
               className="lp-input"
               value={playerName}
-              placeholder="Ex. Alice"
+              placeholder="Ex. funkypants"
               autoFocus
               onChange={e => setPlayerName(e.target.value)}
               onKeyDown={e => e.key === 'Enter' && playerName.trim() && setStep('lobby')}
@@ -157,7 +187,7 @@ export default function App() {
     return (
       <div className="lp-root">
         <div className="lp-card">
-          <button className="lp-back" onClick={() => { setStep('name'); setJoinMode(false); setCreatedRoom(null) }}>
+          <button className="lp-back" onClick={() => { setStep('name'); setJoinMode(false); setJoinCodeMode(false); setCreatedRoom(null) }}>
             ← Retour
           </button>
           <h1 className="lp-title">Bonjour, {playerName}&nbsp;!</h1>
@@ -165,6 +195,15 @@ export default function App() {
 
           {createdRoom ? (
             <>
+              <label className="lp-label" htmlFor="lp-room-name">Nom du salon</label>
+              <input
+                id="lp-room-name"
+                className="lp-input"
+                value={roomName}
+                placeholder="Ex. Coinche de malade"
+                autoFocus
+                onChange={e => setRoomName(e.target.value)}
+              />
               <div className="lp-code-box">
                 <div className="lp-code">{createdRoom}</div>
                 <div className="lp-code-hint">Partagez ce code avec vos 3 amis</div>
@@ -186,7 +225,7 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              <button className="lp-btn-primary" onClick={() => connect(createdRoom, playerName, targetScore)}>
+              <button className="lp-btn-primary" disabled={!roomName.trim()} onClick={() => connect(createdRoom, playerName, targetScore, roomName)}>
                 Entrer dans le salon
               </button>
               <button className="lp-btn-secondary" onClick={() => setCreatedRoom(null)}>
@@ -200,25 +239,46 @@ export default function App() {
               </button>
               <div className="lp-divider">ou</div>
               {joinMode ? (
-                <>
-                  <label className="lp-label" htmlFor="lp-room">Code du salon</label>
-                  <input
-                    id="lp-room"
-                    className="lp-input"
-                    value={roomId}
-                    placeholder="Ex. A3BX"
-                    autoFocus
-                    onChange={e => setRoomId(e.target.value.toUpperCase())}
-                    onKeyDown={e => e.key === 'Enter' && roomId.trim() && connect(roomId, playerName)}
-                  />
-                  <button
-                    className="lp-btn-secondary"
-                    disabled={!roomId.trim()}
-                    onClick={() => connect(roomId, playerName)}
-                  >
-                    Rejoindre
-                  </button>
-                </>
+                joinCodeMode ? (
+                  <>
+                    <button className="lp-back-inline" onClick={handleJoinBack}>← Salons</button>
+                    <label className="lp-label" htmlFor="lp-room">Code du salon</label>
+                    <input
+                      id="lp-room"
+                      className="lp-input"
+                      value={roomId}
+                      placeholder="Ex. A3BX"
+                      autoFocus
+                      onChange={e => setRoomId(e.target.value.toUpperCase())}
+                      onKeyDown={e => e.key === 'Enter' && roomId.trim() && connect(roomId, playerName)}
+                    />
+                    <button
+                      className="lp-btn-secondary"
+                      disabled={!roomId.trim()}
+                      onClick={() => connect(roomId, playerName)}
+                    >
+                      Rejoindre
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    {rooms.length === 0 ? (
+                      <p className="lp-no-rooms">Aucun salon disponible.</p>
+                    ) : (
+                      <ul className="lp-room-list">
+                        {rooms.map(r => (
+                          <li key={r.room_id} className="lp-room-item" onClick={() => handleSelectRoom()}>
+                            <span className="lp-room-item-name">{r.room_name || r.room_id}</span>
+                            <span className="lp-room-item-players">{r.player_count}/4</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    <button className="lp-btn-secondary" onClick={() => setJoinCodeMode(true)}>
+                      Entrer un code manuellement
+                    </button>
+                  </>
+                )
               ) : (
                 <button className="lp-btn-secondary" onClick={() => setJoinMode(true)}>
                   Rejoindre un salon existant

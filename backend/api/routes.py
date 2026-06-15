@@ -18,6 +18,7 @@ async def list_rooms():
     return {"rooms": await store.list_rooms()}
 
 
+
 @router.get("/rooms/{room_id}")
 async def get_room(room_id: str):
     game = await store.get_game(room_id)

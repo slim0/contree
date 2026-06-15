@@ -58,6 +58,7 @@ export interface RoundResult {
 
 export interface GameData {
   room_id: string
+  room_name: string
   players: Record<string, string>
   scores: Record<string, number>
   target_score: number

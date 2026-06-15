@@ -394,6 +394,38 @@ export default function Game({ game, error, send }: {
   const ew = game.scores['EW'] ?? 0
   const lr = game.last_result
 
+  if (game.phase === 'WAITING') {
+    const joined = Object.values(game.players)
+    const missing = 4 - joined.length
+    return (
+      <div className="lp-root">
+        <div className="lp-card">
+          {game.room_name && (
+            <div className="lp-title" style={{ fontSize: 20, marginBottom: 4 }}>{game.room_name}</div>
+          )}
+          <div style={{ color: '#aaa', fontSize: 13, marginBottom: 20 }}>#{game.room_id}</div>
+          <p className="lp-subtitle" style={{ marginBottom: 20 }}>
+            {missing === 0 ? 'Démarrage…' : `En attente de ${missing} joueur${missing > 1 ? 's' : ''}…`}
+          </p>
+          <ul className="lp-room-list">
+            {joined.map(name => (
+              <li key={name} className="lp-room-item" style={{ cursor: 'default' }}>
+                <span className="lp-room-item-name">{name}</span>
+                <span style={{ color: '#27ae60', fontSize: 13 }}>✓ connecté</span>
+              </li>
+            ))}
+            {Array.from({ length: missing }).map((_, i) => (
+              <li key={`empty-${i}`} className="lp-room-item" style={{ cursor: 'default', opacity: 0.4 }}>
+                <span className="lp-room-item-name">—</span>
+                <span style={{ fontSize: 13, color: '#aaa' }}>en attente</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div className="game-wrap">
 
@@ -402,7 +434,8 @@ export default function Game({ game, error, send }: {
       {/* ── Header compact : room + scores + contrat ── */}
       <div className="game-header">
         <div className="header-room">
-          <strong>{game.room_id}</strong>
+          <strong>{game.room_name || game.room_id}</strong>
+          {game.room_name && <span className="header-code"> #{game.room_id}</span>}
           <span className="header-player"> {me} · {game.players[me] ?? '?'}</span>
           {game.phase === 'FINISHED' && (
             <span style={{color:'#f96'}}> 🏆 {TEAM_LABEL[game.winner ?? ''] ?? game.winner}</span>
