@@ -127,11 +127,11 @@ export default function App() {
         <div className="lp-root">
           <div className="lp-card">
             <div className="lp-logo">
-              <div className="lp-logo-mark">🃏</div>
+              <img src="/ace.webp" alt="As de cœur" className="lp-logo-img" />
             </div>
             <h1 className="lp-title">Belote Contrée</h1>
-            <p className="lp-subtitle">Jouez avec vos amis en temps réel</p>
-            <label className="lp-label" htmlFor="lp-name">Votre pseudo</label>
+            <p className="lp-subtitle">Joue avec tes potes en live !</p>
+            <label className="lp-label" htmlFor="lp-name">Ton pseudo</label>
             <input
               id="lp-name"
               className="lp-input"
