@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import type { GameData, CardData, LegalBidActions, RoundData } from './types'
+import { useState, useEffect, useRef } from 'react'
+import type { GameData, CardData, LegalBidActions, RoundData, RoundResult } from './types'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -296,6 +296,68 @@ function BidPanel({ r, game, send }: { r: RoundData; game: GameData; send: (m: o
   )
 }
 
+// ─── Round Result Overlay ─────────────────────────────────────────────────────
+
+export function RoundResultOverlay({ lastResult, scores, targetScore }: {
+  lastResult: RoundResult | null
+  scores: Record<string, number>
+  targetScore: number
+}) {
+  const [visible, setVisible] = useState(false)
+  const [snap, setSnap] = useState<{ result: RoundResult; scores: Record<string, number> } | null>(null)
+  const seenRound = useRef<number | null>(null)
+
+  useEffect(() => {
+    if (!lastResult) return
+    if (lastResult.round_number === seenRound.current) return
+    seenRound.current = lastResult.round_number
+    setSnap({ result: lastResult, scores: { ...scores } })
+    setVisible(true)
+    const timer = setTimeout(() => setVisible(false), 4000)
+    return () => clearTimeout(timer)
+  }, [lastResult, scores])
+
+  if (!visible || !snap) return null
+
+  const { result: lr, scores: s } = snap
+  const made = lr.contract_made
+  const { bid, double: dbl, bidding_team } = lr.contract
+
+  return (
+    <div className="rr-overlay">
+      <div className="rr-box">
+        <div className="rr-round">Manche {lr.round_number}</div>
+        <div className={`rr-title ${made ? 'rr-made' : 'rr-chute'}`}>
+          {made ? 'CONTRAT RÉUSSI !' : 'CHUTE !'}
+        </div>
+        <div className="rr-contract">
+          <span className={bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
+            {TEAM_LABEL[bidding_team] ?? bidding_team}
+          </span>
+          {' · '}{bid.is_capot ? 'Capot' : bid.value}{' '}{TRUMP_LABELS[bid.trump] ?? bid.trump}
+          {dbl !== 'NONE' && <strong style={{ color: '#f96' }}> {dbl}</strong>}
+          {lr.belote_team && (
+            <span style={{ color: '#ff4' }}> · Belote {TEAM_LABEL[lr.belote_team] ?? lr.belote_team}</span>
+          )}
+        </div>
+        <div className="rr-scores">
+          <div className="rr-score-col">
+            <div className="player-team-ns">NOUS</div>
+            <div className="rr-pts">{lr.score_ns > 0 ? `+${lr.score_ns}` : lr.score_ns}</div>
+            <div className="rr-total">{s['NS'] ?? 0} / {targetScore}</div>
+          </div>
+          <div className="rr-score-sep">·</div>
+          <div className="rr-score-col">
+            <div className="player-team-ew">EUX</div>
+            <div className="rr-pts">{lr.score_ew > 0 ? `+${lr.score_ew}` : lr.score_ew}</div>
+            <div className="rr-total">{s['EW'] ?? 0} / {targetScore}</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 // ─── Main Game component ───────────────────────────────────────────────────────
 
 export default function Game({ game, error, send }: {
@@ -334,6 +396,8 @@ export default function Game({ game, error, send }: {
 
   return (
     <div className="game-wrap">
+
+      <RoundResultOverlay lastResult={lr} scores={game.scores} targetScore={game.target_score} />
 
       {/* ── Header compact : room + scores + contrat ── */}
       <div className="game-header">

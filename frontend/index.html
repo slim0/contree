@@ -209,6 +209,41 @@
       .result-made  { color: #4d9; }
       .result-chute { color: #f66; }
 
+      /* ── ROUND RESULT OVERLAY ── */
+      @keyframes rr-anim {
+        0%   { opacity: 0; transform: scale(0.88); }
+        8%   { opacity: 1; transform: scale(1); }
+        80%  { opacity: 1; transform: scale(1); }
+        100% { opacity: 0; transform: scale(0.95); }
+      }
+      .rr-overlay {
+        position: fixed; inset: 0; z-index: 1000;
+        display: flex; align-items: center; justify-content: center;
+        background: rgba(0,0,0,0.62);
+        animation: rr-anim 4s ease-in-out forwards;
+        pointer-events: none;
+      }
+      .rr-box {
+        background: #12122a;
+        border: 2px solid #444;
+        border-radius: 18px;
+        padding: 20px 36px 24px;
+        text-align: center;
+        min-width: 260px;
+        max-width: 88vw;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+      }
+      .rr-round  { font-size: 0.8em; color: #888; margin-bottom: 4px; text-transform: uppercase; letter-spacing: .08em; }
+      .rr-title  { font-size: 1.9em; font-weight: bold; margin-bottom: 6px; }
+      .rr-made   { color: #4d9; }
+      .rr-chute  { color: #f55; }
+      .rr-contract { font-size: 0.9em; color: #bbb; margin-bottom: 14px; }
+      .rr-scores { display: flex; align-items: center; justify-content: center; gap: 20px; }
+      .rr-score-col { text-align: center; }
+      .rr-pts    { font-size: 1.7em; font-weight: bold; color: #eee; margin: 3px 0; }
+      .rr-total  { font-size: 0.75em; color: #777; }
+      .rr-score-sep { font-size: 1.2em; color: #444; }
+
       /* ── SCORE PROGRESS BARS (slim) ── */
       .score-bars { display: flex; flex-direction: column; gap: 3px; margin: 0; }
       .score-bar-item { height: 4px; background: #2a2a2a; border-radius: 2px; overflow: hidden; }
