@@ -76,14 +76,14 @@ def _player_tag(game: GameState, position: Position) -> str:
     return f"{name} ({position.value})"
 
 
-async def handle_connection(ws: WebSocket, room_id: str, player_name: str) -> None:
+async def handle_connection(ws: WebSocket, room_id: str, player_name: str, target_score: int = 1000) -> None:
     await ws.accept()
     log.info("── CONNEXION  %s  →  salon '%s'", player_name, room_id)
 
     game = await store.get_game(room_id)
     if game is None:
-        log.info("Salon '%s' créé", room_id)
-        game = await store.create_room(room_id)
+        log.info("Salon '%s' créé (score cible : %d)", room_id, target_score)
+        game = await store.create_room(room_id, target_score)
 
     if game.phase == GamePhase.FINISHED:
         log.warning("Salon '%s' terminé — %s refusé", room_id, player_name)

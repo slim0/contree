@@ -16,6 +16,7 @@ export default function App() {
   const [step, setStep] = useState<'name' | 'lobby'>('name')
   const [joinMode, setJoinMode] = useState(false)
   const [createdRoom, setCreatedRoom] = useState<string | null>(null)
+  const [targetScore, setTargetScore] = useState(1000)
   const [copied, setCopied] = useState(false)
   const [game, setGame] = useState<GameData | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -25,14 +26,14 @@ export default function App() {
   const shouldReconnect = useRef(false)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const connect = useCallback((room: string, name: string) => {
+  const connect = useCallback((room: string, name: string, score: number = 1000) => {
     if (!name.trim() || !room.trim()) return
     if (reconnectTimer.current) {
       clearTimeout(reconnectTimer.current)
       reconnectTimer.current = null
     }
 
-    const url = `ws://${location.hostname}:8000/ws/${room}/${encodeURIComponent(name)}`
+    const url = `ws://${location.hostname}:8000/ws/${room}/${encodeURIComponent(name)}?target_score=${score}`
     const ws = new WebSocket(url)
     wsRef.current = ws
 
@@ -160,7 +161,21 @@ export default function App() {
               <button className="lp-btn-copy" onClick={handleCopy}>
                 {copied ? '✓ Code copié !' : 'Copier le code'}
               </button>
-              <button className="lp-btn-primary" onClick={() => connect(createdRoom, playerName)}>
+              <div className="lp-score-selector">
+                <label className="lp-label">Score cible</label>
+                <div className="lp-score-options">
+                  {[500, 1000, 2000].map(s => (
+                    <button
+                      key={s}
+                      className={`lp-score-btn${targetScore === s ? ' active' : ''}`}
+                      onClick={() => setTargetScore(s)}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <button className="lp-btn-primary" onClick={() => connect(createdRoom, playerName, targetScore)}>
                 Entrer dans le salon
               </button>
               <button className="lp-btn-secondary" onClick={() => setCreatedRoom(null)}>

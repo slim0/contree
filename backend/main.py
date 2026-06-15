@@ -32,5 +32,5 @@ app.include_router(router, prefix="/api")
 
 
 @app.websocket("/ws/{room_id}/{player_name}")
-async def websocket_endpoint(ws: WebSocket, room_id: str, player_name: str):
-    await handle_connection(ws, room_id, player_name)
+async def websocket_endpoint(ws: WebSocket, room_id: str, player_name: str, target_score: int = 1000):
+    await handle_connection(ws, room_id, player_name, target_score)
