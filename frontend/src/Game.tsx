@@ -160,9 +160,8 @@ function PlayerSlot({ pos, game, r, onPlay }: {
       ) : (
         <div className="card-backs-row">
           {hand.length > 0
-            ? Array.from({length: Math.min(hand.length, 6)}).map((_, i) => <div key={i} className="card-back" />)
+            ? hand.map((_, i) => <div key={i} className="card-back" />)
             : <span style={{color:'#555'}}>—</span>}
-          {hand.length > 6 && <span className="card-backs-count">+{hand.length - 6}</span>}
         </div>
       )}
     </div>
