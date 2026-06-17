@@ -32,6 +32,7 @@ export default function App() {
   const [error, setError] = useState<string | null>(null)
   const [connected, setConnected] = useState(false)
   const [reconnecting, setReconnecting] = useState(false)
+  const [startingGame, setStartingGame] = useState(false)
   const wsRef = useRef<WebSocket | null>(null)
   const shouldReconnect = useRef(false)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
@@ -64,6 +65,7 @@ export default function App() {
       shouldReconnect.current = true
       setConnected(true)
       setReconnecting(false)
+      setStartingGame(false)
       setError(null)
       sessionStorage.setItem(STORAGE_ROOM, room)
       sessionStorage.setItem(STORAGE_NAME, name)
@@ -73,6 +75,8 @@ export default function App() {
       const msg = JSON.parse(e.data)
       if (msg.type === 'state') {
         setGame(msg.data)
+      } else if (msg.type === 'restarting') {
+        setStartingGame(true)
       } else if (msg.type === 'error') {
         setError(msg.message)
         // Only a finished game permanently blocks reconnection
@@ -148,7 +152,7 @@ export default function App() {
   }
 
   if (reconnecting) {
-    return <div className="lp-reconnect">Reconnexion en cours…</div>
+    return <div className="lp-reconnect">{startingGame ? 'Démarrage de la partie…' : 'Reconnexion en cours…'}</div>
   }
 
   if (!connected) {

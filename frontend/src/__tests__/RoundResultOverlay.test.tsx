@@ -91,6 +91,6 @@ describe('RoundResultOverlay', () => {
     render(
       <RoundResultOverlay lastResult={result} scores={{ NS: 0, EW: 0 }} targetScore={500} />
     )
-    expect(screen.getByText(/Belote NOUS/)).toBeInTheDocument()
+    expect(screen.getByText(/Belote TEAM RED/)).toBeInTheDocument()
   })
 })

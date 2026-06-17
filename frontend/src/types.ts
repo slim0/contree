@@ -68,4 +68,6 @@ export interface GameData {
   last_result: RoundResult | null
   messages: string[]
   my_position: string
+  team_choices: Record<string, string>
+  ready_to_start: boolean
 }

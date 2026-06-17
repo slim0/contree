@@ -195,6 +195,27 @@
         .lp-title { font-size: 24px; }
       }
 
+      /* ── WAITING ROOM (salle d'attente) ── */
+      .wr-player-list { display: flex; flex-direction: column; gap: 8px; margin-bottom: 4px; }
+      .wr-player-row {
+        display: flex; align-items: center; justify-content: space-between;
+        padding: 10px 14px;
+        border: 1.5px solid #e0e0e0; border-radius: 10px;
+      }
+      .wr-player-row.me { background: #f0f0ed; border-color: #c8c8c1; }
+      .wr-player-name { font-weight: 600; font-size: 15px; color: #000; flex: 1; }
+      .wr-toggle {
+        width: 36px; height: 36px; flex-shrink: 0;
+        border-radius: 50%; border: 2px solid #d0d0ca;
+        background: #e5e5e0;
+        cursor: pointer; transition: background 0.15s, border-color 0.15s;
+        padding: 0; margin: 0;
+      }
+      .wr-toggle.red  { background: #e60023; border-color: #e60023; }
+      .wr-toggle.blue { background: #1d4ed8; border-color: #1d4ed8; }
+      .wr-toggle.readonly { cursor: default; }
+      .wr-toggle:not(.readonly):hover { opacity: 0.8; }
+
       button { margin: 2px; padding: 8px 14px; cursor: pointer; background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%); color: #eee; border: 1px solid #555; border-radius: 6px; font-family: monospace; font-size: 0.9em; min-height: 38px; touch-action: manipulation; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
       button:hover { background: linear-gradient(180deg, #5a5a5a 0%, #4a4a4a 100%); }
       button.action { border-color: #c87; color: #f96; background: linear-gradient(180deg, #5a3a20 0%, #4a2a10 100%); }
@@ -256,12 +277,12 @@
       .last-inline { font-size: 0.8em; padding: 1px 5px; border-radius: 3px; }
       .header-contract { font-size: 0.9em; color: #ccc; }
       .player-team-ns {
-        color: #6af;
+        color: #f96;
         font-weight: bold;
         text-shadow: 0 1px 2px rgba(0,0,0,0.5);
       }
       .player-team-ew {
-        color: #f96;
+        color: #6af;
         font-weight: bold;
         text-shadow: 0 1px 2px rgba(0,0,0,0.5);
       }

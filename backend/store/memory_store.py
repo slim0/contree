@@ -23,7 +23,6 @@ async def create_room(room_id: str, target_score: int = 1000, room_name: str = "
     async with _lock:
         game = GameState(
             room_id=room_id,
-            room_name=room_name,
             players={},
             scores={Team.NORTH_SOUTH: 0, Team.EAST_WEST: 0},
             target_score=target_score,
@@ -32,6 +31,7 @@ async def create_room(room_id: str, target_score: int = 1000, room_name: str = "
             winner=None,
             last_result=None,
             messages=[f"Salon {room_id} créé. Score cible : {target_score}"],
+            room_name=room_name,
         )
         _rooms[room_id] = game
         return game

@@ -311,7 +311,6 @@ class RoundResult:
 @dataclass
 class GameState:
     room_id: str
-    room_name: str
     players: dict[Position, str]
     scores: dict[Team, int]
     target_score: int
@@ -320,6 +319,10 @@ class GameState:
     winner: Optional[Team]
     last_result: Optional[RoundResult]
     messages: list[str]
+    room_name: str = ""
+    # team_choices: position_str → "NS"|"EW", set during WAITING phase
+    team_choices: dict[str, str] = field(default_factory=dict)
+    ready_to_start: bool = False
 
     def to_dict(self) -> dict:
         return {
@@ -332,5 +335,7 @@ class GameState:
             "phase": self.phase.value,
             "winner": self.winner.value if self.winner else None,
             "last_result": self.last_result.to_dict() if self.last_result else None,
-            "messages": self.messages[-30:],  # keep last 30 messages
+            "messages": self.messages[-30:],
+            "team_choices": self.team_choices,
+            "ready_to_start": self.ready_to_start,
         }

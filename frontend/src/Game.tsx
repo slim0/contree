@@ -14,14 +14,14 @@ const PARTNER: Record<string, string> = { N: 'S', S: 'N', E: 'W', W: 'E' }
 const SCREEN_LEFT: Record<string, string>  = { S: 'W', N: 'E', E: 'N', W: 'S' }
 const SCREEN_RIGHT: Record<string, string> = { S: 'E', N: 'W', E: 'S', W: 'N' }
 const TEAM: Record<string, string> = { N: 'NS', S: 'NS', E: 'EW', W: 'EW' }
-const TEAM_LABEL: Record<string, string> = { NS: 'NOUS', EW: 'EUX' }
+const TEAM_LABEL: Record<string, string> = { NS: 'TEAM RED', EW: 'TEAM BLUE' }
 
 function formatMsg(msg: string): string {
   return msg
     .replace(/ à ([HDCS])\b/g, (_, s) => ` à ${SUIT_SYM[s]}`)
     .replace(/\b([RD])([HDCS])\b/g, (_, r, s) => `${r}${SUIT_SYM[s]}`)
-    .replace(/\bNS\b/g, 'NOUS')
-    .replace(/\bEW\b/g, 'EUX')
+    .replace(/\bNS\b/g, TEAM_LABEL['NS'])
+    .replace(/\bEW\b/g, TEAM_LABEL['EW'])
 }
 
 // ─── Card sorting ─────────────────────────────────────────────────────────────
@@ -137,7 +137,7 @@ function PlayerSlot({ pos, game, r, onPlay }: {
         {isBidder && <span className="badge-action" title="À enchérir"> 💬</span>}
         {isPlayer && <span className="badge-action" title="À jouer"> ▶</span>}
       </div>
-      <div className="player-name">{name ?? pos}{isMe ? ' (moi)' : ''}</div>
+      <div className="player-name">{name ?? pos}</div>
       {isMe ? (
         <div className="hand-fan-wrap">
           <div className="hand-fan" style={{width: fanW}}>
@@ -341,13 +341,13 @@ export function RoundResultOverlay({ lastResult, scores, targetScore }: {
         </div>
         <div className="rr-scores">
           <div className="rr-score-col">
-            <div className="player-team-ns">NOUS</div>
+            <div className="player-team-ns">{TEAM_LABEL['NS']}</div>
             <div className="rr-pts">{lr.score_ns > 0 ? `+${lr.score_ns}` : lr.score_ns}</div>
             <div className="rr-total">{s['NS'] ?? 0} / {targetScore}</div>
           </div>
           <div className="rr-score-sep">·</div>
           <div className="rr-score-col">
-            <div className="player-team-ew">EUX</div>
+            <div className="player-team-ew">{TEAM_LABEL['EW']}</div>
             <div className="rr-pts">{lr.score_ew > 0 ? `+${lr.score_ew}` : lr.score_ew}</div>
             <div className="rr-total">{s['EW'] ?? 0} / {targetScore}</div>
           </div>
@@ -394,32 +394,61 @@ export default function Game({ game, error, send }: {
   const lr = game.last_result
 
   if (game.phase === 'WAITING') {
-    const joined = Object.values(game.players)
-    const missing = 4 - joined.length
+    const slots = ['N', 'E', 'S', 'W']
+    const joined = Object.keys(game.players).length
+    const missing = 4 - joined
+
+    const nsCount = slots.filter(p => game.team_choices[p] === 'NS').length
+    const ewCount = slots.filter(p => game.team_choices[p] === 'EW').length
+    const canGo = joined === 4 && nsCount === 2 && ewCount === 2
+
     return (
       <div className="lp-root">
         <div className="lp-card">
           {game.room_name && (
             <div className="lp-title" style={{ fontSize: 20, marginBottom: 4 }}>{game.room_name}</div>
           )}
-          <div style={{ color: '#aaa', fontSize: 13, marginBottom: 20 }}>#{game.room_id}</div>
-          <p className="lp-subtitle" style={{ marginBottom: 20 }}>
-            {missing === 0 ? 'Démarrage…' : `En attente de ${missing} joueur${missing > 1 ? 's' : ''}…`}
+          <div style={{ color: '#aaa', fontSize: 13, marginBottom: 16 }}>#{game.room_id}</div>
+          <p className="lp-subtitle" style={{ marginBottom: 16 }}>
+            {missing > 0
+              ? `En attente de ${missing} joueur${missing > 1 ? 's' : ''}…`
+              : 'Choisissez vos équipes puis appuyez sur GO'}
           </p>
-          <ul className="lp-room-list">
-            {joined.map(name => (
-              <li key={name} className="lp-room-item" style={{ cursor: 'default' }}>
-                <span className="lp-room-item-name">{name}</span>
-                <span style={{ color: '#27ae60', fontSize: 13 }}>✓ connecté</span>
-              </li>
-            ))}
-            {Array.from({ length: missing }).map((_, i) => (
-              <li key={`empty-${i}`} className="lp-room-item" style={{ cursor: 'default', opacity: 0.4 }}>
-                <span className="lp-room-item-name">—</span>
-                <span style={{ fontSize: 13, color: '#aaa' }}>en attente</span>
-              </li>
-            ))}
-          </ul>
+
+          <div className="wr-player-list">
+            {slots.map(pos => {
+              const name = game.players[pos]
+              const team = game.team_choices[pos]
+              const isMe = pos === me
+              return (
+                <div key={pos} className={`wr-player-row${isMe ? ' me' : ''}`}>
+                  <span className="wr-player-name">
+                    {name ?? <span style={{ color: '#bbb' }}>—</span>}
+                  </span>
+                  {name ? (
+                    <button
+                      aria-label={team === 'NS' ? 'TEAM RED' : team === 'EW' ? 'TEAM BLUE' : 'Choisir équipe'}
+                      className={`wr-toggle${team === 'NS' ? ' red' : team === 'EW' ? ' blue' : ''}${!isMe ? ' readonly' : ''}`}
+                      onClick={() => isMe && send({ type: 'choose_team', team: team === 'NS' ? 'EW' : 'NS' })}
+                    />
+                  ) : (
+                    <span style={{ fontSize: 13, color: '#aaa' }}>en attente</span>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+
+          <button
+            className="lp-btn-primary"
+            disabled={!canGo}
+            style={{ marginTop: 20 }}
+            onClick={() => canGo && send({ type: 'start_game' })}
+          >
+            GO !
+          </button>
+
+          {error && <p className="lp-error">{error}</p>}
         </div>
       </div>
     )
@@ -442,10 +471,10 @@ export default function Game({ game, error, send }: {
         </div>
 
         <div className="header-scores">
-          <span className="player-team-ns">NOUS</span>
+          <span className="player-team-ns">{TEAM_LABEL['NS']}</span>
           <strong className="score-num">{ns}</strong>
           <span className="score-sep"> · </span>
-          <span className="player-team-ew">EUX</span>
+          <span className="player-team-ew">{TEAM_LABEL['EW']}</span>
           <strong className="score-num">{ew}</strong>
           <span className="score-limit"> /{game.target_score}</span>
           {lr && (
@@ -501,7 +530,7 @@ export default function Game({ game, error, send }: {
                 {isMyTurnPlay && <span className="badge-action my-turn"> ▶ À JOUER</span>}
                 {isMyTurnBid  && <span className="badge-action" style={{color:'#fa6'}}> 💬 À ENCHÉRIR</span>}
               </div>
-              <div className="player-name">{game.players[me] ?? me} (moi)</div>
+              <div className="player-name">{game.players[me] ?? me}</div>
               <div className="hand-fan-wrap">
                 <div className="hand-fan" style={{width: fanW}}>
                   {sortedHand.map((c, i) => {
