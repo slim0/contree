@@ -34,4 +34,12 @@ dev = [
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
     "pytest-cov>=5",
+    "ty>=0.0.51",
 ]
+
+[tool.ty.environment]
+python-version = "3.12"
+
+[tool.ty.rules]
+# Starlette's exception handler typing is overly strict — cast workaround would be verbose
+invalid-argument-type = "warn"

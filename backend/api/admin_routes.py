@@ -18,8 +18,8 @@ async def list_users(
     request: Request,
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
-) -> list[UserResponse]:
-    return UserRepository(db).list_all()  # type: ignore[return-value]
+) -> list[User]:
+    return UserRepository(db).list_all()
 
 
 @router.post("/users", response_model=UserWithTempPassword, status_code=status.HTTP_201_CREATED)

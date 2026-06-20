@@ -1,0 +1,16 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "FILE=$(jq -r '.tool_input.file_path // \"\"'); echo \"$FILE\" | grep -q '\\.py$' && (cd /Users/simon/Desktop/DEV/dev-projects/contree && uv run ty check backend) 2>&1 || true",
+            "statusMessage": "ty check en cours..."
+          }
+        ]
+      }
+    ]
+  }
+}

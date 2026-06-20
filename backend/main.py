@@ -71,7 +71,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Belote Contrée", lifespan=lifespan)
 
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty: ignore[invalid-argument-type]
 app.add_middleware(SlowAPIMiddleware)
 app.add_middleware(
     CORSMiddleware,

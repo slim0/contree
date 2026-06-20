@@ -60,7 +60,8 @@ def card_strength(card: Card, trump: Trump, led_suit: Suit) -> int:
 
 def trick_winner(trick: Trick, trump: Trump) -> Position:
     assert trick.led_suit is not None
-    best_tc = max(trick.cards, key=lambda tc: card_strength(tc.card, trump, trick.led_suit))
+    led_suit = trick.led_suit
+    best_tc = max(trick.cards, key=lambda tc: card_strength(tc.card, trump, led_suit))
     return best_tc.position
 
 
@@ -134,7 +135,8 @@ def get_legal_plays(round_state: RoundState) -> list[Card]:
     player = round_state.current_player
     assert player is not None
     hand = round_state.hands[player]
-    trump = round_state.contract.bid.trump  # type: ignore[union-attr]
+    assert round_state.contract is not None
+    trump = round_state.contract.bid.trump
     trick = round_state.current_trick
 
     # Opening a new trick: any card
@@ -409,7 +411,8 @@ def apply_play(game: GameState, card: Card) -> tuple[GameState, str]:
     r.hands[player] = [c for c in r.hands[player] if c != card]
 
     # Check for belote announcement (auto)
-    trump = r.contract.bid.trump  # type: ignore[union-attr]
+    assert r.contract is not None
+    trump = r.contract.bid.trump
     if trump not in (Trump.NO_TRUMP, Trump.ALL_TRUMP):
         ts = Suit(trump.value)
         if r.belote_team and TEAM_OF[player] == r.belote_team:
@@ -448,7 +451,8 @@ def apply_play(game: GameState, card: Card) -> tuple[GameState, str]:
 
 def _end_round(game: GameState) -> GameState:
     from .scoring import compute_round_result
-    result = compute_round_result(game.round)  # type: ignore[arg-type]
+    assert game.round is not None
+    result = compute_round_result(game.round)
     game.last_result = result
 
     game.scores[Team.NORTH_SOUTH] += result.score_ns

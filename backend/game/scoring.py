@@ -51,7 +51,7 @@ def compute_round_result(r: RoundState) -> RoundResult:
     # Check capot
     if r.contract.bid.is_capot:
         tricks_by_bidders = sum(
-            1 for t in r.tricks if TEAM_OF[t.winner] == bidding_team  # type: ignore[arg-type]
+            1 for t in r.tricks if t.winner is not None and TEAM_OF[t.winner] == bidding_team
         )
         contract_made = tricks_by_bidders == 8
     else:

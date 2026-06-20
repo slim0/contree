@@ -14,6 +14,7 @@ Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de 
 | Base de données | SQLite (via SQLAlchemy — swappable via `DATABASE_URL`) |
 | Auth | PyJWT + bcrypt |
 | Rate limiting | slowapi (en mémoire, par IP) |
+| Type checking | ty (via uv) |
 | Front-end | React + TypeScript (Vite) |
 | State management | Zustand |
 | CSS | Tailwind CSS |
@@ -227,6 +228,26 @@ Le paramètre `request: Request` est **obligatoire** pour que slowapi fonctionne
 ### Tests
 
 Chaque nouvel endpoint limité doit avoir un test dans `backend/tests/test_rate_limiting.py` qui vérifie que le (N+1)e appel retourne `429`. Le limiter est réinitialisé automatiquement entre chaque test via la fixture `reset_rate_limiter` dans `conftest.py`.
+
+---
+
+## Type checking (ty)
+
+Le projet utilise **ty** (Astral) comme type checker Python, lancé via `uv run ty check backend`.
+
+### Règles
+
+- `ty` vérifie uniquement le dossier `backend/` — le dossier `.venv` est exclu
+- Tout nouveau code Python doit passer `ty check` sans nouvelle erreur
+- Les `assert x is not None` sont la méthode préférée pour narrower les `Optional` — ils documentent les invariants et lèvent une `AssertionError` visible en runtime
+- Éviter les `# type: ignore` sauf pour des limitations de typage de bibliothèques tierces (slowapi, starlette) — utiliser `# ty: ignore[rule-name]` dans ce cas
+- La configuration est dans `pyproject.toml` sous `[tool.ty]`
+
+### Lancer ty
+
+```bash
+uv run ty check backend
+```
 
 ---
 

@@ -219,6 +219,7 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
             await ws.send_text(json.dumps({"type": "error", "message": "Salon plein."}))
             await ws.close()
             return
+        assert game is not None
         log.info("Salon '%s' — %s rejoint en position %s  [%d/4]",
                  room_id, player_name, position.value, len(game.players))
 
@@ -234,6 +235,8 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
             game = rules.start_new_round(game)
             game.phase = GamePhase.BIDDING
             game.ready_to_start = False
+            assert game.round is not None
+            assert game.round.current_bidder is not None
             log.info("Salon '%s' — Manche 1 démarrée, donneur=%s, premier enchérisseur=%s",
                      room_id, game.round.dealer.value, game.round.current_bidder.value)
             await store.set_game(game)

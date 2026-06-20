@@ -14,8 +14,9 @@ __pycache__/
 node_modules/
 .node_modules/
 
-.claude/
 claude_launcher*
 
 contree.db
 .pytest_cache
+
+.vscode
