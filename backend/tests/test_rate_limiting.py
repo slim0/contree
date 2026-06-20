@@ -1,7 +1,6 @@
 """Tests de rate limiting — vérifie que les endpoints renvoient 429 après dépassement."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 
 def test_login_rate_limit(client):

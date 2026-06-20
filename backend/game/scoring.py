@@ -1,10 +1,20 @@
 """Pure scoring logic — no I/O."""
+
 from __future__ import annotations
+
 from .models import (
-    Card, Suit, Rank, Trump, Team, Double, Position,
-    Contract, Trick, RoundState, RoundResult,
+    ALL_TRUMP_POINTS,
+    NO_TRUMP_POINTS,
+    NORMAL_POINTS,
     TEAM_OF,
-    TRUMP_POINTS, NORMAL_POINTS, NO_TRUMP_POINTS, ALL_TRUMP_POINTS,
+    TRUMP_POINTS,
+    Card,
+    Double,
+    RoundResult,
+    RoundState,
+    Suit,
+    Team,
+    Trump,
 )
 
 
@@ -23,7 +33,9 @@ def compute_round_result(r: RoundState) -> RoundResult:
     assert r.contract is not None
     trump = r.contract.bid.trump
     bidding_team = r.contract.bidding_team
-    defending_team = Team.EAST_WEST if bidding_team == Team.NORTH_SOUTH else Team.NORTH_SOUTH
+    defending_team = (
+        Team.EAST_WEST if bidding_team == Team.NORTH_SOUTH else Team.NORTH_SOUTH
+    )
 
     # Sum card points per team
     card_points_ns = 0
@@ -46,12 +58,16 @@ def compute_round_result(r: RoundState) -> RoundResult:
         card_points_ew += 10
 
     # Preneurs evaluation points (for contract check)
-    preneurs_card_pts = card_points_ns if bidding_team == Team.NORTH_SOUTH else card_points_ew
+    preneurs_card_pts = (
+        card_points_ns if bidding_team == Team.NORTH_SOUTH else card_points_ew
+    )
 
     # Check capot
     if r.contract.bid.is_capot:
         tricks_by_bidders = sum(
-            1 for t in r.tricks if t.winner is not None and TEAM_OF[t.winner] == bidding_team
+            1
+            for t in r.tricks
+            if t.winner is not None and TEAM_OF[t.winner] == bidding_team
         )
         contract_made = tricks_by_bidders == 8
     else:
@@ -65,7 +81,9 @@ def compute_round_result(r: RoundState) -> RoundResult:
     )
 
     contract_value = r.contract.contract_value()
-    multiplier = {Double.NONE: 1, Double.CONTRE: 2, Double.SURCONTRE: 4}[r.contract.double]
+    multiplier = {Double.NONE: 1, Double.CONTRE: 2, Double.SURCONTRE: 4}[
+        r.contract.double
+    ]
 
     if contract_made:
         # Preneurs score the announced value
@@ -81,9 +99,9 @@ def compute_round_result(r: RoundState) -> RoundResult:
 
         belote_msg = ""
         if r.belote_team == bidding_team:
-            belote_msg = f" (belote preneurs : non comptée dans score final)"
+            belote_msg = " (belote preneurs : non comptée dans score final)"
         if r.belote_team == defending_team:
-            belote_msg = f" (belote défense +20)"
+            belote_msg = " (belote défense +20)"
 
         msg = (
             f"Contrat RÉUSSI — {bidding_team.value} marque {preneurs_score}, "

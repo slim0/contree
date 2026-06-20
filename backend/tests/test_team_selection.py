@@ -1,17 +1,15 @@
 """Tests for team selection (choose_team / start_game) in the waiting room."""
+
 from __future__ import annotations
 
 import pytest
-from starlette.testclient import TestClient
 
-from backend.game.models import GameState, GamePhase, Position, Team
 from backend.api import websocket as ws_module
+from backend.game.models import GamePhase, GameState, Position, Team
 from backend.store import memory_store as store
-from backend.main import app
-from backend.tests.conftest import TEST_ADMIN, TEST_USER
-
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _waiting_game(room_id: str = "r", n_players: int = 4) -> GameState:
     positions = [Position.NORTH, Position.EAST, Position.SOUTH, Position.WEST]
@@ -41,6 +39,7 @@ def reset_state():
 
 
 # ── Unit tests: _dispatch_waiting ─────────────────────────────────────────────
+
 
 async def test_choose_team_stores_ns():
     game = _waiting_game()
@@ -147,9 +146,9 @@ async def test_unknown_action_returns_error():
 
 # ── Integration tests ─────────────────────────────────────────────────────────
 
+
 def test_choose_team_broadcast_to_all(auth_client, auth_client2):
     """Après choose_team, les deux joueurs connectés reçoivent team_choices mis à jour."""
-    from backend.tests.conftest import TEST_USER, TEST_USER2
     room_id = "room-ct"
     store._rooms[room_id] = _waiting_game(room_id, n_players=0)
     store._rooms[room_id].players = {}
@@ -157,8 +156,8 @@ def test_choose_team_broadcast_to_all(auth_client, auth_client2):
     with auth_client.websocket_connect(f"/ws/{room_id}") as ws1:
         ws1.receive_json()  # état initial testuser
         with auth_client2.websocket_connect(f"/ws/{room_id}") as ws2:
-            ws2.receive_json()   # état initial testuser2
-            ws1.receive_json()   # broadcast testuser (testuser2 vient d'arriver)
+            ws2.receive_json()  # état initial testuser2
+            ws1.receive_json()  # broadcast testuser (testuser2 vient d'arriver)
 
             ws1.send_json({"type": "choose_team", "team": "NS"})
 

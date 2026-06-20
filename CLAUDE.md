@@ -15,6 +15,7 @@ Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de 
 | Auth | PyJWT + bcrypt |
 | Rate limiting | slowapi (en mémoire, par IP) |
 | Type checking | ty (via uv) |
+| Linter/formatter | ruff (via uv) |
 | Front-end | React + TypeScript (Vite) |
 | State management | Zustand |
 | CSS | Tailwind CSS |
@@ -247,6 +248,28 @@ Le projet utilise **ty** (Astral) comme type checker Python, lancé via `uv run 
 
 ```bash
 uv run ty check backend
+```
+
+---
+
+## Linter / Formatter (ruff)
+
+Le projet utilise **ruff** pour le linting et le formatting Python.
+
+### Règles
+
+- Configuration dans `pyproject.toml` sous `[tool.ruff]`
+- Règles actives : E, W, F (pycodestyle/pyflakes), I (isort), UP (pyupgrade), B (bugbear), SIM (simplify)
+- `B008` ignoré (pattern FastAPI `Depends()`)
+- `E501` ignoré (longueur de ligne gérée par le formatter)
+- Le hook Claude applique automatiquement ruff sur chaque fichier `.py` modifié
+
+### Lancer ruff
+
+```bash
+uv run ruff check backend/        # lint
+uv run ruff check --fix backend/  # lint + auto-fix
+uv run ruff format backend/       # format
 ```
 
 ---

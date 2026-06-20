@@ -10,12 +10,12 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from backend.api.admin_routes import router as admin_router
+from backend.api.auth_routes import router as auth_router
+from backend.api.dev_routes import router as dev_router
 from backend.api.limiter import limiter
 from backend.api.routes import router
 from backend.api.websocket import handle_connection
-from backend.api.auth_routes import router as auth_router
-from backend.api.admin_routes import router as admin_router
-from backend.api.dev_routes import router as dev_router
 from backend.auth.service import decode_token, generate_temp_password, hash_password
 from backend.db.database import SessionLocal, init_db
 from backend.users.repository import UserRepository
@@ -39,7 +39,7 @@ _ALLOWED_ORIGINS = [
     "http://localhost:5173",
     "http://127.0.0.1:3000",
     "http://127.0.0.1:5173",
-    "http://localhost",         # nginx prod
+    "http://localhost",  # nginx prod
 ]
 
 
@@ -50,7 +50,9 @@ def _bootstrap_admin() -> None:
         repo = UserRepository(db)
         if repo.count() == 0:
             temp = generate_temp_password()
-            repo.create("admin", hash_password(temp), is_admin=True, must_change_password=True)
+            repo.create(
+                "admin", hash_password(temp), is_admin=True, must_change_password=True
+            )
             log.warning("━" * 60)
             log.warning("PREMIER DÉMARRAGE — Compte administrateur créé")
             log.warning("  Identifiant       : admin")

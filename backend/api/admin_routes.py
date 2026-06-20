@@ -22,7 +22,9 @@ async def list_users(
     return UserRepository(db).list_all()
 
 
-@router.post("/users", response_model=UserWithTempPassword, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/users", response_model=UserWithTempPassword, status_code=status.HTTP_201_CREATED
+)
 @limiter.limit("10/minute")
 async def create_user(
     request: Request,
@@ -32,10 +34,15 @@ async def create_user(
 ) -> UserWithTempPassword:
     repo = UserRepository(db)
     if repo.get_by_username(body.username):
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Ce nom d'utilisateur est déjà pris")
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ce nom d'utilisateur est déjà pris",
+        )
     temp_password = generate_temp_password()
     user = repo.create(body.username, hash_password(temp_password))
-    return UserWithTempPassword(user=UserResponse.model_validate(user), temp_password=temp_password)
+    return UserWithTempPassword(
+        user=UserResponse.model_validate(user), temp_password=temp_password
+    )
 
 
 @router.delete("/users/{username}", status_code=status.HTTP_204_NO_CONTENT)
@@ -47,9 +54,14 @@ async def delete_user(
     admin: User = Depends(require_admin),
 ) -> None:
     if username == admin.username:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Impossible de supprimer son propre compte")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Impossible de supprimer son propre compte",
+        )
     repo = UserRepository(db)
     user = repo.get_by_username(username)
     if not user:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable"
+        )
     repo.delete(user)

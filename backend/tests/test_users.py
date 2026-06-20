@@ -1,13 +1,12 @@
 """Tests du repository utilisateurs et des routes /api/admin/*."""
-from __future__ import annotations
 
-import pytest
+from __future__ import annotations
 
 from backend.auth.service import hash_password
 from backend.users.repository import UserRepository
 
-
 # ── UserRepository ────────────────────────────────────────────────────────────
+
 
 def test_create_and_get_user(isolated_db):
     db = isolated_db()
@@ -63,6 +62,7 @@ def test_delete_user(isolated_db):
 
 
 # ── Routes admin ──────────────────────────────────────────────────────────────
+
 
 def test_list_users_as_admin(admin_client):
     r = admin_client.get("/api/admin/users")

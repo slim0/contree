@@ -1,23 +1,49 @@
 """Pure game logic — no I/O, no external dependencies."""
+
 from __future__ import annotations
-import random
+
 import copy
-from typing import Optional
+import random
 
 from .models import (
-    Card, Suit, Rank, Trump, Position, Team, Double, GamePhase,
-    Bid, Contract, Trick, TrickCard, BidHistoryEntry, RoundState, GameState,
-    TEAM_OF, PARTNER_OF, NEXT_PLAYER, RIGHT_OF, NEXT_DEALER,
-    TRUMP_STRENGTH, NORMAL_STRENGTH,
+    NEXT_DEALER,
+    NEXT_PLAYER,
+    NORMAL_STRENGTH,
+    PARTNER_OF,
+    RIGHT_OF,
+    TEAM_OF,
+    TRUMP_STRENGTH,
+    Bid,
+    BidHistoryEntry,
+    Card,
+    Contract,
+    Double,
+    GamePhase,
+    GameState,
+    Position,
+    Rank,
+    RoundState,
+    Suit,
+    Team,
+    Trick,
+    TrickCard,
+    Trump,
 )
-
 
 # ---------------------------------------------------------------------------
 # Deck helpers
 # ---------------------------------------------------------------------------
 
-ALL_RANKS = [Rank.SEVEN, Rank.EIGHT, Rank.NINE, Rank.TEN,
-             Rank.JACK, Rank.QUEEN, Rank.KING, Rank.ACE]
+ALL_RANKS = [
+    Rank.SEVEN,
+    Rank.EIGHT,
+    Rank.NINE,
+    Rank.TEN,
+    Rank.JACK,
+    Rank.QUEEN,
+    Rank.KING,
+    Rank.ACE,
+]
 ALL_SUITS = [Suit.HEARTS, Suit.DIAMONDS, Suit.CLUBS, Suit.SPADES]
 
 
@@ -34,12 +60,13 @@ def deal_cards(dealer: Position) -> dict[Position, list[Card]]:
     while p != first:
         order.append(p)
         p = NEXT_PLAYER[p]
-    return {order[i]: deck[i * 8:(i + 1) * 8] for i in range(4)}
+    return {order[i]: deck[i * 8 : (i + 1) * 8] for i in range(4)}
 
 
 # ---------------------------------------------------------------------------
 # Card strength (for trick winner)
 # ---------------------------------------------------------------------------
+
 
 def card_strength(card: Card, trump: Trump, led_suit: Suit) -> int:
     """Higher = stronger. -1 = cannot win."""
@@ -65,7 +92,7 @@ def trick_winner(trick: Trick, trump: Trump) -> Position:
     return best_tc.position
 
 
-def current_trick_winner(trick: Trick, trump: Trump) -> Optional[Position]:
+def current_trick_winner(trick: Trick, trump: Trump) -> Position | None:
     if not trick.cards:
         return None
     return trick_winner(trick, trump)
@@ -75,7 +102,8 @@ def current_trick_winner(trick: Trick, trump: Trump) -> Optional[Position]:
 # Belote detection
 # ---------------------------------------------------------------------------
 
-def detect_belote_team(hands: dict[Position, list[Card]], trump: Trump) -> Optional[Team]:
+
+def detect_belote_team(hands: dict[Position, list[Card]], trump: Trump) -> Team | None:
     """Returns the team holding K+Q of trump suit, or None."""
     if trump in (Trump.NO_TRUMP, Trump.ALL_TRUMP):
         return None
@@ -94,7 +122,7 @@ def detect_belote_team(hands: dict[Position, list[Card]], trump: Trump) -> Optio
     return None
 
 
-def _trump_suit(trump: Trump) -> Optional[Suit]:
+def _trump_suit(trump: Trump) -> Suit | None:
     if trump in (Trump.NO_TRUMP, Trump.ALL_TRUMP):
         return None
     return Suit(trump.value)
@@ -103,6 +131,7 @@ def _trump_suit(trump: Trump) -> Optional[Suit]:
 # ---------------------------------------------------------------------------
 # Legal plays
 # ---------------------------------------------------------------------------
+
 
 def _trump_strength_of_card(card: Card, trump: Trump) -> int:
     """Strength within trump suit only (for escalation check)."""
@@ -199,8 +228,14 @@ def get_legal_plays(round_state: RoundState) -> list[Card]:
 # ---------------------------------------------------------------------------
 
 BID_VALUES = [80, 90, 100, 110, 120, 130, 140, 150, 160]
-ALL_TRUMPS = [Trump.HEARTS, Trump.DIAMONDS, Trump.CLUBS, Trump.SPADES,
-              Trump.NO_TRUMP, Trump.ALL_TRUMP]
+ALL_TRUMPS = [
+    Trump.HEARTS,
+    Trump.DIAMONDS,
+    Trump.CLUBS,
+    Trump.SPADES,
+    Trump.NO_TRUMP,
+    Trump.ALL_TRUMP,
+]
 
 
 def get_legal_bid_actions(round_state: RoundState, player: Position) -> dict:
@@ -241,13 +276,11 @@ def get_legal_bid_actions(round_state: RoundState, player: Position) -> dict:
             result["can_contre"] = True
         # Anyone can raise (if value > current)
         current_val = contract.bid.value
-        if not contract.bid.is_capot:
-            # Can't surenchérir sur soi-même
-            if contract.bid.position != player:
-                next_val = current_val + 10
-                if next_val <= 160:
-                    result["min_bid_value"] = next_val
-                result["can_bid_capot"] = True
+        if not contract.bid.is_capot and contract.bid.position != player:
+            next_val = current_val + 10
+            if next_val <= 160:
+                result["min_bid_value"] = next_val
+            result["can_bid_capot"] = True
         return result
 
     if double == Double.CONTRE:
@@ -263,6 +296,7 @@ def get_legal_bid_actions(round_state: RoundState, player: Position) -> dict:
 # Game actions
 # ---------------------------------------------------------------------------
 
+
 def start_new_round(game: GameState) -> GameState:
     game = copy.deepcopy(game)
     round_num = (game.round.number + 1) if game.round else 1
@@ -271,10 +305,9 @@ def start_new_round(game: GameState) -> GameState:
     hands = deal_cards(dealer)
     first_bidder = RIGHT_OF[dealer]
 
-    belote_team = detect_belote_team(hands, Trump.HEARTS)  # not known yet, placeholder
-    # We don't know trump yet during bidding, so belote is detected after contract is set
-
+    # belote is detected after contract is set (trump unknown during bidding)
     from .models import RoundState
+
     game.round = RoundState(
         number=round_num,
         dealer=dealer,
@@ -292,7 +325,9 @@ def start_new_round(game: GameState) -> GameState:
         belote_queen_played=False,
     )
     game.messages.append(f"Manche {round_num} — Donneur : {dealer.value}")
-    game.messages.append(f"Tour d'enchères — premier enchérisseur : {first_bidder.value}")
+    game.messages.append(
+        f"Tour d'enchères — premier enchérisseur : {first_bidder.value}"
+    )
     return game
 
 
@@ -324,7 +359,9 @@ def apply_pass(game: GameState) -> tuple[GameState, str]:
     return game, "ok"
 
 
-def apply_bid(game: GameState, value: int, is_capot: bool, trump: Trump) -> tuple[GameState, str]:
+def apply_bid(
+    game: GameState, value: int, is_capot: bool, trump: Trump
+) -> tuple[GameState, str]:
     game = copy.deepcopy(game)
     r = game.round
     assert r and r.phase == GamePhase.BIDDING
@@ -422,9 +459,13 @@ def apply_play(game: GameState, card: Card) -> tuple[GameState, str]:
             elif card == Card(ts, Rank.QUEEN):
                 r.belote_queen_played = True
                 if r.belote_king_played:
-                    game.messages.append(f"Rebelote ! ({player.value} joue D{ts.value})")
+                    game.messages.append(
+                        f"Rebelote ! ({player.value} joue D{ts.value})"
+                    )
                 else:
-                    game.messages.append(f"Rebelote ! ({player.value} joue D{ts.value})")
+                    game.messages.append(
+                        f"Rebelote ! ({player.value} joue D{ts.value})"
+                    )
 
     # Add to current trick
     r.current_trick.cards.append(TrickCard(player, card))
@@ -451,6 +492,7 @@ def apply_play(game: GameState, card: Card) -> tuple[GameState, str]:
 
 def _end_round(game: GameState) -> GameState:
     from .scoring import compute_round_result
+
     assert game.round is not None
     result = compute_round_result(game.round)
     game.last_result = result

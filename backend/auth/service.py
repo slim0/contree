@@ -1,12 +1,14 @@
 import os
 import secrets
 import string
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import bcrypt
 import jwt
 
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "change-me-in-production-use-a-long-random-string")
+SECRET_KEY = os.getenv(
+    "JWT_SECRET_KEY", "change-me-in-production-use-a-long-random-string"
+)
 ALGORITHM = "HS256"
 TOKEN_EXPIRE_HOURS = 8
 
@@ -24,8 +26,10 @@ def generate_temp_password(length: int = 12) -> str:
     return "".join(secrets.choice(alphabet) for _ in range(length))
 
 
-def create_token(user_id: int, username: str, is_admin: bool, must_change_password: bool) -> str:
-    expire = datetime.now(timezone.utc) + timedelta(hours=TOKEN_EXPIRE_HOURS)
+def create_token(
+    user_id: int, username: str, is_admin: bool, must_change_password: bool
+) -> str:
+    expire = datetime.now(UTC) + timedelta(hours=TOKEN_EXPIRE_HOURS)
     payload = {
         "sub": str(user_id),
         "username": username,

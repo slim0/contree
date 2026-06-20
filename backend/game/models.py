@@ -1,17 +1,17 @@
 from __future__ import annotations
+
 from dataclasses import dataclass, field
-from enum import Enum
-from typing import Optional
+from enum import StrEnum
 
 
-class Suit(str, Enum):
+class Suit(StrEnum):
     HEARTS = "H"
     DIAMONDS = "D"
     CLUBS = "C"
     SPADES = "S"
 
 
-class Rank(str, Enum):
+class Rank(StrEnum):
     SEVEN = "7"
     EIGHT = "8"
     NINE = "9"
@@ -22,7 +22,7 @@ class Rank(str, Enum):
     ACE = "A"
 
 
-class Trump(str, Enum):
+class Trump(StrEnum):
     HEARTS = "H"
     DIAMONDS = "D"
     CLUBS = "C"
@@ -31,25 +31,25 @@ class Trump(str, Enum):
     ALL_TRUMP = "AT"
 
 
-class Position(str, Enum):
+class Position(StrEnum):
     NORTH = "N"
     EAST = "E"
     SOUTH = "S"
     WEST = "W"
 
 
-class Team(str, Enum):
+class Team(StrEnum):
     NORTH_SOUTH = "NS"
     EAST_WEST = "EW"
 
 
-class Double(str, Enum):
+class Double(StrEnum):
     NONE = "NONE"
     CONTRE = "CONTRE"
     SURCONTRE = "SURCONTRE"
 
 
-class GamePhase(str, Enum):
+class GamePhase(StrEnum):
     WAITING = "WAITING"
     BIDDING = "BIDDING"
     PLAYING = "PLAYING"
@@ -93,34 +93,70 @@ NEXT_DEALER = NEXT_PLAYER
 
 # Card strength tables
 TRUMP_STRENGTH: dict[Rank, int] = {
-    Rank.JACK: 7, Rank.NINE: 6, Rank.ACE: 5, Rank.TEN: 4,
-    Rank.KING: 3, Rank.QUEEN: 2, Rank.EIGHT: 1, Rank.SEVEN: 0,
+    Rank.JACK: 7,
+    Rank.NINE: 6,
+    Rank.ACE: 5,
+    Rank.TEN: 4,
+    Rank.KING: 3,
+    Rank.QUEEN: 2,
+    Rank.EIGHT: 1,
+    Rank.SEVEN: 0,
 }
 
 NORMAL_STRENGTH: dict[Rank, int] = {
-    Rank.ACE: 7, Rank.TEN: 6, Rank.KING: 5, Rank.QUEEN: 4,
-    Rank.JACK: 3, Rank.NINE: 2, Rank.EIGHT: 1, Rank.SEVEN: 0,
+    Rank.ACE: 7,
+    Rank.TEN: 6,
+    Rank.KING: 5,
+    Rank.QUEEN: 4,
+    Rank.JACK: 3,
+    Rank.NINE: 2,
+    Rank.EIGHT: 1,
+    Rank.SEVEN: 0,
 }
 
 # Card points tables
 TRUMP_POINTS: dict[Rank, int] = {
-    Rank.JACK: 20, Rank.NINE: 14, Rank.ACE: 11, Rank.TEN: 10,
-    Rank.KING: 4, Rank.QUEEN: 3, Rank.EIGHT: 0, Rank.SEVEN: 0,
+    Rank.JACK: 20,
+    Rank.NINE: 14,
+    Rank.ACE: 11,
+    Rank.TEN: 10,
+    Rank.KING: 4,
+    Rank.QUEEN: 3,
+    Rank.EIGHT: 0,
+    Rank.SEVEN: 0,
 }
 
 NORMAL_POINTS: dict[Rank, int] = {
-    Rank.ACE: 11, Rank.TEN: 10, Rank.KING: 4, Rank.QUEEN: 3,
-    Rank.JACK: 2, Rank.NINE: 0, Rank.EIGHT: 0, Rank.SEVEN: 0,
+    Rank.ACE: 11,
+    Rank.TEN: 10,
+    Rank.KING: 4,
+    Rank.QUEEN: 3,
+    Rank.JACK: 2,
+    Rank.NINE: 0,
+    Rank.EIGHT: 0,
+    Rank.SEVEN: 0,
 }
 
 NO_TRUMP_POINTS: dict[Rank, int] = {
-    Rank.ACE: 19, Rank.TEN: 10, Rank.KING: 4, Rank.QUEEN: 3,
-    Rank.JACK: 2, Rank.NINE: 0, Rank.EIGHT: 0, Rank.SEVEN: 0,
+    Rank.ACE: 19,
+    Rank.TEN: 10,
+    Rank.KING: 4,
+    Rank.QUEEN: 3,
+    Rank.JACK: 2,
+    Rank.NINE: 0,
+    Rank.EIGHT: 0,
+    Rank.SEVEN: 0,
 }
 
 ALL_TRUMP_POINTS: dict[Rank, int] = {
-    Rank.JACK: 13, Rank.NINE: 9, Rank.ACE: 6, Rank.TEN: 5,
-    Rank.KING: 3, Rank.QUEEN: 2, Rank.EIGHT: 0, Rank.SEVEN: 0,
+    Rank.JACK: 13,
+    Rank.NINE: 9,
+    Rank.ACE: 6,
+    Rank.TEN: 5,
+    Rank.KING: 3,
+    Rank.QUEEN: 2,
+    Rank.EIGHT: 0,
+    Rank.SEVEN: 0,
 }
 
 SUIT_SYMBOLS = {Suit.HEARTS: "♥", Suit.DIAMONDS: "♦", Suit.CLUBS: "♣", Suit.SPADES: "♠"}
@@ -132,7 +168,11 @@ class Card:
     rank: Rank
 
     def __eq__(self, other: object) -> bool:
-        return isinstance(other, Card) and self.suit == other.suit and self.rank == other.rank
+        return (
+            isinstance(other, Card)
+            and self.suit == other.suit
+            and self.rank == other.rank
+        )
 
     def __hash__(self) -> int:
         return hash((self.suit, self.rank))
@@ -151,7 +191,7 @@ class Card:
 @dataclass
 class Bid:
     position: Position
-    value: int      # 80-160 or 0 for capot
+    value: int  # 80-160 or 0 for capot
     is_capot: bool
     trump: Trump
 
@@ -168,7 +208,9 @@ class Bid:
 
     @classmethod
     def from_dict(cls, d: dict) -> Bid:
-        return cls(Position(d["position"]), d["value"], d["is_capot"], Trump(d["trump"]))
+        return cls(
+            Position(d["position"]), d["value"], d["is_capot"], Trump(d["trump"])
+        )
 
 
 @dataclass
@@ -190,7 +232,9 @@ class Contract:
 
     @classmethod
     def from_dict(cls, d: dict) -> Contract:
-        return cls(Bid.from_dict(d["bid"]), Double(d["double"]), Team(d["bidding_team"]))
+        return cls(
+            Bid.from_dict(d["bid"]), Double(d["double"]), Team(d["bidding_team"])
+        )
 
 
 @dataclass
@@ -209,10 +253,10 @@ class TrickCard:
 @dataclass
 class Trick:
     cards: list[TrickCard] = field(default_factory=list)
-    winner: Optional[Position] = None
+    winner: Position | None = None
 
     @property
-    def led_suit(self) -> Optional[Suit]:
+    def led_suit(self) -> Suit | None:
         return self.cards[0].card.suit if self.cards else None
 
     def to_dict(self) -> dict:
@@ -232,7 +276,7 @@ class Trick:
 class BidHistoryEntry:
     position: Position
     action: str  # "bid", "pass", "contre", "surcontre"
-    bid: Optional[Bid] = None
+    bid: Bid | None = None
 
     def to_dict(self) -> dict:
         return {
@@ -250,18 +294,18 @@ class RoundState:
     phase: GamePhase
 
     # Bidding
-    current_bidder: Optional[Position]
+    current_bidder: Position | None
     pass_count: int
     bid_history: list[BidHistoryEntry]
-    contract: Optional[Contract]
+    contract: Contract | None
 
     # Playing
-    current_player: Optional[Position]
+    current_player: Position | None
     tricks: list[Trick]
     current_trick: Trick
 
     # Belote (auto-detected, announced when K or Q of trump is played)
-    belote_team: Optional[Team]
+    belote_team: Team | None
     belote_king_played: bool
     belote_queen_played: bool
 
@@ -269,13 +313,19 @@ class RoundState:
         return {
             "number": self.number,
             "dealer": self.dealer.value,
-            "hands": {p.value: [c.to_dict() for c in cs] for p, cs in self.hands.items()},
+            "hands": {
+                p.value: [c.to_dict() for c in cs] for p, cs in self.hands.items()
+            },
             "phase": self.phase.value,
-            "current_bidder": self.current_bidder.value if self.current_bidder else None,
+            "current_bidder": self.current_bidder.value
+            if self.current_bidder
+            else None,
             "pass_count": self.pass_count,
             "bid_history": [e.to_dict() for e in self.bid_history],
             "contract": self.contract.to_dict() if self.contract else None,
-            "current_player": self.current_player.value if self.current_player else None,
+            "current_player": self.current_player.value
+            if self.current_player
+            else None,
             "tricks": [t.to_dict() for t in self.tricks],
             "current_trick": self.current_trick.to_dict(),
             "belote_team": self.belote_team.value if self.belote_team else None,
@@ -292,7 +342,7 @@ class RoundResult:
     contract_made: bool
     score_ns: int
     score_ew: int
-    belote_team: Optional[Team]
+    belote_team: Team | None
     message: str
 
     def to_dict(self) -> dict:
@@ -314,10 +364,10 @@ class GameState:
     players: dict[Position, str]
     scores: dict[Team, int]
     target_score: int
-    round: Optional[RoundState]
+    round: RoundState | None
     phase: GamePhase
-    winner: Optional[Team]
-    last_result: Optional[RoundResult]
+    winner: Team | None
+    last_result: RoundResult | None
     messages: list[str]
     room_name: str = ""
     # team_choices: position_str → "NS"|"EW", set during WAITING phase

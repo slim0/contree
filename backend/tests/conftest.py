@@ -1,4 +1,5 @@
 """Fixtures partagées pour tous les tests backend."""
+
 from __future__ import annotations
 
 from unittest.mock import patch
@@ -11,8 +12,10 @@ from starlette.testclient import TestClient
 
 from backend.api.limiter import limiter
 from backend.auth.service import create_token, hash_password
+from backend.db import (
+    models as _db_models,  # noqa: F401 — enregistre les modèles ORM dans Base.metadata
+)
 from backend.db.database import Base, get_db
-from backend.db import models as _db_models  # noqa: F401 — enregistre les modèles ORM dans Base.metadata
 from backend.main import app
 from backend.users.repository import UserRepository
 
@@ -53,9 +56,16 @@ def isolated_db():
     db = Session()
     try:
         repo = UserRepository(db)
-        repo.create(TEST_ADMIN, hash_password("Adm1n!pass"), is_admin=True, must_change_password=False)
+        repo.create(
+            TEST_ADMIN,
+            hash_password("Adm1n!pass"),
+            is_admin=True,
+            must_change_password=False,
+        )
         repo.create(TEST_USER, hash_password("testpass123"), must_change_password=False)
-        repo.create(TEST_USER2, hash_password("testpass456"), must_change_password=False)
+        repo.create(
+            TEST_USER2, hash_password("testpass456"), must_change_password=False
+        )
     finally:
         db.close()
 
@@ -78,7 +88,9 @@ def _make_token(isolated_db, username: str) -> str:
     try:
         user = UserRepository(db).get_by_username(username)
         assert user, f"Utilisateur '{username}' introuvable dans la DB de test"
-        return create_token(user.id, user.username, user.is_admin, user.must_change_password)
+        return create_token(
+            user.id, user.username, user.is_admin, user.must_change_password
+        )
     finally:
         db.close()
 

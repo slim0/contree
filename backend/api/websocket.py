@@ -1,16 +1,24 @@
 """WebSocket connection manager and message dispatcher."""
+
 from __future__ import annotations
+
+import asyncio
+import contextlib
 import json
 import logging
-import asyncio
-from typing import Optional
+
 from fastapi import WebSocket, WebSocketDisconnect
 
-from backend.game.models import (
-    Card, Suit, Rank, Trump, Position, GamePhase,
-    GameState,
-)
 from backend.game import rules
+from backend.game.models import (
+    Card,
+    GamePhase,
+    GameState,
+    Position,
+    Rank,
+    Suit,
+    Trump,
+)
 from backend.store import memory_store as store
 
 log = logging.getLogger(__name__)
@@ -44,7 +52,9 @@ async def _unregister(room_id: str, position: Position, conn_id: int) -> None:
             room.pop(position.value)
 
 
-async def broadcast(room_id: str, game: GameState, viewer: Optional[Position] = None) -> None:
+async def broadcast(
+    room_id: str, game: GameState, viewer: Position | None = None
+) -> None:
     """Send game state to all connected players (hiding opponents' hands)."""
     async with _conn_lock:
         sockets = {pos: ws for pos, (ws, _) in _connections.get(room_id, {}).items()}
@@ -52,10 +62,8 @@ async def broadcast(room_id: str, game: GameState, viewer: Optional[Position] = 
     for pos_str, ws in sockets.items():
         pos = Position(pos_str)
         payload = _state_for_player(game, pos)
-        try:
+        with contextlib.suppress(Exception):
             await ws.send_text(json.dumps({"type": "state", "data": payload}))
-        except Exception:
-            pass
 
 
 def _state_for_player(game: GameState, player: Position) -> dict:
@@ -73,9 +81,15 @@ def _state_for_player(game: GameState, player: Position) -> dict:
 
         round_obj = game.round
         if round_obj:
-            if round_obj.phase == GamePhase.BIDDING and round_obj.current_bidder == player:
+            if (
+                round_obj.phase == GamePhase.BIDDING
+                and round_obj.current_bidder == player
+            ):
                 r["legal_bid_actions"] = rules.get_legal_bid_actions(round_obj, player)
-            elif round_obj.phase == GamePhase.PLAYING and round_obj.current_player == player:
+            elif (
+                round_obj.phase == GamePhase.PLAYING
+                and round_obj.current_player == player
+            ):
                 legal = rules.get_legal_plays(round_obj)
                 r["legal_plays"] = [c.to_dict() for c in legal]
 
@@ -96,19 +110,15 @@ async def _close_all_connections(room_id: str) -> None:
         entries = list(_connections.get(room_id, {}).values())
         _connections.pop(room_id, None)
     for ws, _ in entries:
-        try:
+        with contextlib.suppress(Exception):
             await ws.send_text(json.dumps({"type": "restarting"}))
-        except Exception:
-            pass
-        try:
+        with contextlib.suppress(Exception):
             await ws.close()
-        except Exception:
-            pass
 
 
 async def _dispatch_waiting(
     game: GameState, player: Position, msg: dict, room_id: str
-) -> tuple[GameState, Optional[str], bool, bool]:
+) -> tuple[GameState, str | None, bool, bool]:
     """Handle WAITING-phase messages. Returns (game, error, close_all, leave_self)."""
     action = msg.get("type")
     tag = _player_tag(game, player)
@@ -129,7 +139,12 @@ async def _dispatch_waiting(
         ew_pos = [p for p, t in game.team_choices.items() if t == "EW"]
 
         if len(ns_pos) != 2 or len(ew_pos) != 2:
-            return game, "Il faut exactement 2 joueurs NOUS et 2 joueurs EUX", False, False
+            return (
+                game,
+                "Il faut exactement 2 joueurs NOUS et 2 joueurs EUX",
+                False,
+                False,
+            )
 
         # Réassignation : NOUS → N,S ; EUX → E,W
         ns_names = [game.players[Position(p)] for p in ns_pos]
@@ -146,9 +161,16 @@ async def _dispatch_waiting(
 
         log.info(
             "Salon '%s' — GO ! NOUS (NS) : %s | EUX (EW) : %s",
-            room_id, ns_names, ew_names,
+            room_id,
+            ns_names,
+            ew_names,
         )
-        return game, None, True, False  # close_all = True → fermer toutes les connexions
+        return (
+            game,
+            None,
+            True,
+            False,
+        )  # close_all = True → fermer toutes les connexions
 
     elif action == "leave":
         name = game.players.pop(player, None)
@@ -161,15 +183,27 @@ async def _dispatch_waiting(
     return game, f"Action inconnue en salle d'attente : {action}", False, False
 
 
-async def handle_connection(ws: WebSocket, room_id: str, player_name: str, target_score: int = 1000, room_name: str = "") -> None:
+async def handle_connection(
+    ws: WebSocket,
+    room_id: str,
+    player_name: str,
+    target_score: int = 1000,
+    room_name: str = "",
+) -> None:
     await ws.accept()
     log.info("── CONNEXION  %s  →  salon '%s'", player_name, room_id)
 
     game = await store.get_game(room_id)
     if game is None:
         if not room_name:
-            log.warning("Salon '%s' introuvable — %s refusé (aucun room_name fourni)", room_id, player_name)
-            await ws.send_text(json.dumps({"type": "error", "message": "Salon introuvable."}))
+            log.warning(
+                "Salon '%s' introuvable — %s refusé (aucun room_name fourni)",
+                room_id,
+                player_name,
+            )
+            await ws.send_text(
+                json.dumps({"type": "error", "message": "Salon introuvable."})
+            )
             await ws.close()
             return
         log.info("Salon '%s' créé (score cible : %d)", room_id, target_score)
@@ -185,8 +219,8 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
     # If the old connection is still "active" (possible zombie or race), kick it
     # and let the new connection take over. A conn_id guards against the old
     # handler accidentally unregistering the new connection.
-    position: Optional[Position] = None
-    old_ws_to_close: Optional[WebSocket] = None
+    position: Position | None = None
+    old_ws_to_close: WebSocket | None = None
 
     for pos, name in game.players.items():
         if name == player_name:
@@ -197,19 +231,23 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
                     old_ws_to_close, _ = entry
                     log.warning(
                         "Salon '%s' — %s reconnecte avec ancienne connexion active (zombie ?), kick en cours",
-                        room_id, player_name,
+                        room_id,
+                        player_name,
                     )
             position = pos
             break
 
     if old_ws_to_close is not None:
-        try:
+        with contextlib.suppress(Exception):
             await old_ws_to_close.close()
-        except Exception:
-            pass
 
     if position is not None:
-        log.info("Salon '%s' — %s se reconnecte en position %s", room_id, player_name, position.value)
+        log.info(
+            "Salon '%s' — %s se reconnecte en position %s",
+            room_id,
+            player_name,
+            position.value,
+        )
         game.messages.append(f"{player_name} ({position.value}) s'est reconnecté")
         await store.set_game(game)
     else:
@@ -220,13 +258,22 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
             await ws.close()
             return
         assert game is not None
-        log.info("Salon '%s' — %s rejoint en position %s  [%d/4]",
-                 room_id, player_name, position.value, len(game.players))
+        log.info(
+            "Salon '%s' — %s rejoint en position %s  [%d/4]",
+            room_id,
+            player_name,
+            position.value,
+            len(game.players),
+        )
 
     conn_id = await _register(room_id, position, ws)
 
     # Démarrage après GO : quand les 4 joueurs se sont reconnectés suite à la réassignation
-    if game.ready_to_start and game.phase == GamePhase.WAITING and len(game.players) == 4:
+    if (
+        game.ready_to_start
+        and game.phase == GamePhase.WAITING
+        and len(game.players) == 4
+    ):
         async with _conn_lock:
             n_connected = len(_connections.get(room_id, {}))
         if n_connected == 4:
@@ -237,8 +284,12 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
             game.ready_to_start = False
             assert game.round is not None
             assert game.round.current_bidder is not None
-            log.info("Salon '%s' — Manche 1 démarrée, donneur=%s, premier enchérisseur=%s",
-                     room_id, game.round.dealer.value, game.round.current_bidder.value)
+            log.info(
+                "Salon '%s' — Manche 1 démarrée, donneur=%s, premier enchérisseur=%s",
+                room_id,
+                game.round.dealer.value,
+                game.round.current_bidder.value,
+            )
             await store.set_game(game)
 
     await broadcast(room_id, game)
@@ -253,7 +304,9 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
 
             # Phase d'attente : choix d'équipe, démarrage, départ
             if game.phase == GamePhase.WAITING:
-                game, error, close_all, leave_self = await _dispatch_waiting(game, position, msg, room_id)
+                game, error, close_all, leave_self = await _dispatch_waiting(
+                    game, position, msg, room_id
+                )
                 await store.set_game(game)
                 if close_all:
                     await _close_all_connections(room_id)
@@ -269,7 +322,9 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
                     break
                 await broadcast(room_id, game)
                 if error:
-                    log.warning("Salon '%s' — Erreur pour %s : %s", room_id, player_name, error)
+                    log.warning(
+                        "Salon '%s' — Erreur pour %s : %s", room_id, player_name, error
+                    )
                     await ws.send_text(json.dumps({"type": "error", "message": error}))
                 continue
 
@@ -278,12 +333,19 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
             await broadcast(room_id, game)
 
             if error:
-                log.warning("Salon '%s' — Erreur pour %s : %s", room_id, player_name, error)
+                log.warning(
+                    "Salon '%s' — Erreur pour %s : %s", room_id, player_name, error
+                )
                 await ws.send_text(json.dumps({"type": "error", "message": error}))
 
     except WebSocketDisconnect:
         await _unregister(room_id, position, conn_id)
-        log.info("── DÉCONNEXION  %s (%s)  ←  salon '%s'", player_name, position.value, room_id)
+        log.info(
+            "── DÉCONNEXION  %s (%s)  ←  salon '%s'",
+            player_name,
+            position.value,
+            room_id,
+        )
 
         async with _conn_lock:
             no_connections_left = not _connections.get(room_id)
@@ -291,25 +353,36 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
         if no_connections_left:
             # Conserver le salon si une réassignation d'équipes est en cours
             if room_id in _closing_for_start:
-                log.info("Salon '%s' — fermeture temporaire pour réassignation d'équipes", room_id)
+                log.info(
+                    "Salon '%s' — fermeture temporaire pour réassignation d'équipes",
+                    room_id,
+                )
             else:
                 game = await store.get_game(room_id)
                 if game and game.ready_to_start and game.phase == GamePhase.WAITING:
-                    log.info("Salon '%s' — pas de suppression (attente reconnexions post-GO)", room_id)
+                    log.info(
+                        "Salon '%s' — pas de suppression (attente reconnexions post-GO)",
+                        room_id,
+                    )
                 else:
-                    log.info("Salon '%s' — plus aucune connexion active, suppression", room_id)
+                    log.info(
+                        "Salon '%s' — plus aucune connexion active, suppression",
+                        room_id,
+                    )
                     await store.delete_room(room_id)
         else:
             game = await store.get_game(room_id)
             if game:
-                game.messages.append(f"{player_name} ({position.value}) s'est déconnecté")
+                game.messages.append(
+                    f"{player_name} ({position.value}) s'est déconnecté"
+                )
                 await store.set_game(game)
                 await broadcast(room_id, game)
 
 
 async def _dispatch(
     game: GameState, player: Position, msg: dict, room_id: str
-) -> tuple[GameState, Optional[str]]:
+) -> tuple[GameState, str | None]:
     action = msg.get("type")
     r = game.round
     tag = _player_tag(game, player)
@@ -324,8 +397,12 @@ async def _dispatch(
             return game, "Ce n'est pas votre tour d'enchérir"
 
         if action == "pass":
-            log.info("Salon '%s' — %s  PASSE  (passes consécutives : %d)",
-                     room_id, tag, r.pass_count + 1)
+            log.info(
+                "Salon '%s' — %s  PASSE  (passes consécutives : %d)",
+                room_id,
+                tag,
+                r.pass_count + 1,
+            )
             game, _ = rules.apply_pass(game)
 
         elif action == "bid":
@@ -345,7 +422,9 @@ async def _dispatch(
                     return game, f"Valeur d'enchère invalide (min {min_val})"
 
             val_str = "Capot" if is_capot else str(value)
-            log.info("Salon '%s' — %s  ANNONCE  %s à %s", room_id, tag, val_str, trump.value)
+            log.info(
+                "Salon '%s' — %s  ANNONCE  %s à %s", room_id, tag, val_str, trump.value
+            )
             game, _ = rules.apply_bid(game, value, is_capot, trump)
 
             # Log if bidding ended
@@ -376,7 +455,9 @@ async def _dispatch(
             _log_contract(game, room_id)
 
         # Log deal void
-        if action == "pass" and (not game.round or (game.round and game.round.number != r.number)):
+        if action == "pass" and (
+            not game.round or (game.round and game.round.number != r.number)
+        ):
             log.info("Salon '%s' — Donne annulée (4 passes)", room_id)
 
     # ── Jeu ───────────────────────────────────────────────────────────────────
@@ -391,12 +472,19 @@ async def _dispatch(
             except (KeyError, ValueError):
                 return game, "Carte invalide"
 
-            log.info("Salon '%s' — %s  JOUE  %s  (pli %d/8)",
-                     room_id, tag, card, len(r.tricks) + 1)
+            log.info(
+                "Salon '%s' — %s  JOUE  %s  (pli %d/8)",
+                room_id,
+                tag,
+                card,
+                len(r.tricks) + 1,
+            )
 
             game, err = rules.apply_play(game, card)
             if err not in ("ok", "round_end"):
-                log.warning("Salon '%s' — Carte illégale pour %s : %s", room_id, tag, err)
+                log.warning(
+                    "Salon '%s' — Carte illégale pour %s : %s", room_id, tag, err
+                )
                 return game, err
 
             # Log trick completion
@@ -404,12 +492,22 @@ async def _dispatch(
             if prev_round and len(prev_round.tricks) > len(r.tricks):
                 last = prev_round.tricks[-1]
                 winner_name = game.players.get(last.winner, "?") if last.winner else "?"
-                winner_tag = f"{winner_name} ({last.winner.value})" if last.winner else "?"
-                log.info("Salon '%s' — Pli %d remporté par %s",
-                         room_id, len(prev_round.tricks), winner_tag)
+                winner_tag = (
+                    f"{winner_name} ({last.winner.value})" if last.winner else "?"
+                )
+                log.info(
+                    "Salon '%s' — Pli %d remporté par %s",
+                    room_id,
+                    len(prev_round.tricks),
+                    winner_tag,
+                )
 
             # Log round completion
-            if err == "round_end" or (game.round and game.round.number != r.number) or game.phase == GamePhase.FINISHED:
+            if (
+                err == "round_end"
+                or (game.round and game.round.number != r.number)
+                or game.phase == GamePhase.FINISHED
+            ):
                 _log_round_result(game, room_id)
         else:
             return game, f"Action inconnue en phase jeu : {action}"
@@ -431,27 +529,40 @@ def _log_contract(game: GameState, room_id: str) -> None:
     log.info(
         "Salon '%s' — ✦ CONTRAT FIXÉ : %s (%s) joue %s à %s%s  |  premier joueur : %s",
         room_id,
-        bidder_name, c.bidding_team.value,
-        val, c.bid.trump.value,
+        bidder_name,
+        c.bidding_team.value,
+        val,
+        c.bid.trump.value,
         double_str,
         r.current_player.value if r.current_player else "?",
     )
     if r.belote_team:
-        log.info("Salon '%s' — Belote détectée pour l'équipe %s", room_id, r.belote_team.value)
+        log.info(
+            "Salon '%s' — Belote détectée pour l'équipe %s",
+            room_id,
+            r.belote_team.value,
+        )
 
 
 def _log_round_result(game: GameState, room_id: str) -> None:
     from backend.game.models import Team
+
     lr = game.last_result
     if not lr:
         return
     status = "RÉUSSI ✓" if lr.contract_made else "CHUTE ✗"
     log.info(
         "Salon '%s' — ═══ Manche %d %s │ NS +%d (total %d)  EW +%d (total %d)",
-        room_id, lr.round_number, status,
-        lr.score_ns, game.scores[Team.NORTH_SOUTH],
-        lr.score_ew, game.scores[Team.EAST_WEST],
+        room_id,
+        lr.round_number,
+        status,
+        lr.score_ns,
+        game.scores[Team.NORTH_SOUTH],
+        lr.score_ew,
+        game.scores[Team.EAST_WEST],
     )
     log.debug("Salon '%s' — Détail : %s", room_id, lr.message)
     if game.phase == GamePhase.FINISHED:
-        log.info("Salon '%s' — 🏆 PARTIE TERMINÉE — Vainqueur : %s", room_id, game.winner)
+        log.info(
+            "Salon '%s' — 🏆 PARTIE TERMINÉE — Vainqueur : %s", room_id, game.winner
+        )

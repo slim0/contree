@@ -1,11 +1,13 @@
 """Tests pour l'action 'leave' en salle d'attente."""
+
 from __future__ import annotations
 
 import json
+
 import pytest
 
-from backend.game.models import GameState, GamePhase, Position, Team
 from backend.api import websocket as ws_module
+from backend.game.models import GamePhase, GameState, Position, Team
 from backend.store import memory_store as store
 from backend.tests.conftest import TEST_USER, TEST_USER2
 
@@ -35,6 +37,7 @@ def reset_global_state():
 
 # ── Unit: _dispatch_waiting avec action "leave" ────────────────────────────────
 
+
 async def test_leave_removes_player_from_game():
     game = _make_waiting_room("r", {Position.NORTH: "Alice", Position.EAST: "Bob"})
     game.team_choices = {"N": "NS", "E": "EW"}
@@ -62,6 +65,7 @@ async def test_leave_adds_message_to_game():
 
 
 # ── Integration: leave via WebSocket ──────────────────────────────────────────
+
 
 def test_player_can_leave_waiting_room(auth_client):
     """Le joueur reçoit 'left' et sa connexion est fermée proprement."""

@@ -5,20 +5,20 @@ Three scenarios:
   2. Clean reconnect — player disconnects cleanly and reconnects successfully.
   3. Zombie reconnect — old WS still active; new connection kicks it and succeeds.
 """
+
 from __future__ import annotations
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from starlette.testclient import TestClient
 
-from backend.game.models import GameState, GamePhase, Position, Team
+import pytest
+
 from backend.api import websocket as ws_module
+from backend.game.models import GamePhase, GameState, Position, Team
 from backend.store import memory_store as store
-from backend.main import app
 from backend.tests.conftest import TEST_USER
 
-
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
 
 def _make_waiting_room(room_id: str, players: dict[Position, str]) -> GameState:
     return GameState(
@@ -36,6 +36,7 @@ def _make_waiting_room(room_id: str, players: dict[Position, str]) -> GameState:
 
 # ── Fixtures ──────────────────────────────────────────────────────────────────
 
+
 @pytest.fixture(autouse=True)
 def reset_global_state():
     """Isole les tests en vidant l'état partagé des modules."""
@@ -47,6 +48,7 @@ def reset_global_state():
 
 
 # ── 1. Unit tests: conn_id guard ──────────────────────────────────────────────
+
 
 async def test_register_returns_unique_conn_ids():
     ws_a = AsyncMock()
@@ -84,6 +86,7 @@ async def test_unregister_with_stale_id_does_not_evict_new_connection():
 
 # ── 2. Integration: clean reconnect ──────────────────────────────────────────
 
+
 def test_player_can_reconnect_after_clean_disconnect(auth_client):
     # Pré-peupler la room pour ne pas dépendre de la création via WS
     room_id = "room-rc"
@@ -106,6 +109,7 @@ def test_player_can_reconnect_after_clean_disconnect(auth_client):
 
 # ── 3. Integration: zombie kick ───────────────────────────────────────────────
 
+
 def test_zombie_connection_is_kicked_on_reconnect(auth_client):
     zombie_ws = MagicMock()
     zombie_ws.close = AsyncMock()
@@ -124,23 +128,27 @@ def test_zombie_connection_is_kicked_on_reconnect(auth_client):
 
 # ── 4. Unauthenticated WS is rejected ────────────────────────────────────────
 
+
 def test_unauthenticated_ws_is_rejected(client):
-    with pytest.raises(Exception):
-        with client.websocket_connect("/ws/room-unauth") as ws:
-            ws.receive_json()
+    with pytest.raises(Exception), client.websocket_connect("/ws/room-unauth") as ws:  # noqa: B017
+        ws.receive_json()
 
 
 # ── 5. Admin WS is rejected ───────────────────────────────────────────────────
 
+
 def test_admin_ws_is_rejected(admin_client):
-    with pytest.raises(Exception):
-        with admin_client.websocket_connect("/ws/room-admin") as ws:
-            ws.receive_json()
+    with (
+        pytest.raises(Exception),  # noqa: B017
+        admin_client.websocket_connect("/ws/room-admin") as ws,
+    ):
+        ws.receive_json()
 
 
 # ── 6. Regression: joining a non-existent room without room_name returns error ─
 # Bug: connecting to an unknown room_id with no room_name was silently creating
 # a new room instead of returning an error.
+
 
 def test_joining_nonexistent_room_without_room_name_returns_error(auth_client):
     """Connecting to an unknown room without providing room_name must fail."""

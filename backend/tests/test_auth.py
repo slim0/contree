@@ -1,8 +1,9 @@
 """Tests du service d'authentification et des routes /api/auth/*."""
+
 from __future__ import annotations
 
-import pytest
 import jwt
+import pytest
 
 from backend.auth.service import (
     create_token,
@@ -12,8 +13,8 @@ from backend.auth.service import (
     verify_password,
 )
 
-
 # ── Service unitaire ──────────────────────────────────────────────────────────
+
 
 def test_hash_and_verify_password():
     hashed = hash_password("monMotDePasse")
@@ -47,8 +48,11 @@ def test_decode_invalid_token_raises():
 
 # ── Routes HTTP ───────────────────────────────────────────────────────────────
 
+
 def test_login_success(client):
-    r = client.post("/api/auth/login", json={"username": "testuser", "password": "testpass123"})
+    r = client.post(
+        "/api/auth/login", json={"username": "testuser", "password": "testpass123"}
+    )
     assert r.status_code == 200
     body = r.json()
     assert body["username"] == "testuser"
@@ -57,12 +61,16 @@ def test_login_success(client):
 
 
 def test_login_wrong_password(client):
-    r = client.post("/api/auth/login", json={"username": "testuser", "password": "mauvais"})
+    r = client.post(
+        "/api/auth/login", json={"username": "testuser", "password": "mauvais"}
+    )
     assert r.status_code == 401
 
 
 def test_login_unknown_user(client):
-    r = client.post("/api/auth/login", json={"username": "inconnu", "password": "anything"})
+    r = client.post(
+        "/api/auth/login", json={"username": "inconnu", "password": "anything"}
+    )
     assert r.status_code == 401
 
 
