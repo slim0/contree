@@ -10,18 +10,24 @@ Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de 
 | Couche | Technologie |
 |--------|-------------|
 | Back-end | Python 3.12+ / FastAPI / WebSocket |
-| State en mémoire | Redis (rooms, sessions de jeu) |
+| State en mémoire | Dict Python asyncio (rooms, sessions de jeu) |
 | Base de données | SQLite (via SQLAlchemy — swappable via `DATABASE_URL`) |
-| Auth | PyJWT + passlib/bcrypt |
+| Auth | PyJWT + bcrypt |
 | Front-end | React + TypeScript (Vite) |
 | State management | Zustand |
 | CSS | Tailwind CSS |
+| Conteneurisation | Docker + Docker Compose |
 
 ## Structure du repo
 
 ```
 contree
 ├── CLAUDE.md                   ← tu es ici
+├── Dockerfile.backend          ← image Python (targets: dev, prod)
+├── docker-compose.yml          ← dev local (hot-reload)
+├── docker-compose.prod.yml     ← déploiement (nginx + uvicorn)
+├── .dockerignore
+├── pyproject.toml              ← dépendances Python (uv)
 ├── backend/
 │   ├── game/                   ← moteur de jeu pur (pas d'I/O)
 │   │   ├── models.py           ← entités : Card, Trick, Round, GameState...
@@ -34,7 +40,7 @@ contree
 │   │   ├── repository.py       ← UserRepository : SEUL point d'accès DB
 │   │   └── schemas.py          ← Pydantic : UserCreate, UserResponse
 │   ├── auth/
-│   │   ├── service.py          ← hash/verify password, create/decode JWT
+│   │   ├── service.py          ← hash/verify password, create/decode JWT (JWT_SECRET_KEY)
 │   │   ├── dependencies.py     ← FastAPI deps : get_current_user, require_admin
 │   │   └── schemas.py          ← LoginRequest, TokenResponse, ChangePasswordRequest
 │   ├── api/
@@ -42,12 +48,18 @@ contree
 │   │   ├── routes.py           ← routes HTTP (créer room, rejoindre...)
 │   │   ├── auth_routes.py      ← POST /auth/login, POST /auth/change-password
 │   │   └── admin_routes.py     ← POST/GET/DELETE /admin/users
+│   ├── store/
+│   │   └── memory_store.py     ← état des rooms en mémoire (dict asyncio)
 │   └── tests/
 │       ├── test_rules.py
 │       ├── test_scoring.py
 │       ├── test_auth.py
 │       └── test_users.py
 └── frontend/
+    ├── Dockerfile              ← image Node (targets: dev, builder, prod)
+    ├── nginx.conf              ← config nginx pour le target prod
+    ├── .dockerignore
+    ├── vite.config.ts          ← proxy /api et /ws vers BACKEND_URL
     ├── src/
     │   ├── components/
     │   │   ├── auth/           ← LoginPage, ChangePasswordPage
@@ -57,6 +69,35 @@ contree
     │   └── websocket/          ← client WS
     └── ...
 ```
+
+## Lancer l'application avec Docker
+
+### Dev (hot-reload)
+
+```bash
+docker compose up --build
+```
+
+- Backend : http://localhost:8000 (rechargement automatique sur modif Python)
+- Frontend : http://localhost:3000 (hot-reload Vite sur modif TypeScript/React)
+- La base SQLite est persistée dans le volume `sqlite_data`
+
+### Prod
+
+```bash
+JWT_SECRET_KEY=<clé-longue-aléatoire> docker compose -f docker-compose.prod.yml up --build -d
+```
+
+- Un seul port exposé : http://localhost:80
+- nginx sert le build statique React et proxie `/api` et `/ws` vers le backend
+
+### Variables d'environnement
+
+| Variable | Défaut | Description |
+|----------|--------|-------------|
+| `DATABASE_URL` | `sqlite:////app/data/contree.db` | URI SQLAlchemy |
+| `JWT_SECRET_KEY` | `change-me-in-production…` | Clé de signature JWT — **obligatoire en prod** |
+| `BACKEND_URL` | `http://localhost:8000` | URL backend vue du container frontend (dev only) |
 
 ## Règles métier critiques — NE JAMAIS VIOLER
 

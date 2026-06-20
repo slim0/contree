@@ -1,0 +1,31 @@
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.backend
+      target: dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend   # hot-reload Python
+      - sqlite_data:/app/data
+    environment:
+      DATABASE_URL: sqlite:////app/data/contree.db
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      target: dev
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src         # hot-reload Vite
+      - ./frontend/public:/app/public
+    environment:
+      BACKEND_URL: http://backend:8000
+    depends_on:
+      - backend
+
+volumes:
+  sqlite_data:

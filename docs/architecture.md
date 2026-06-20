@@ -27,11 +27,11 @@ Application web multijoueur temps réel. Architecture simple et pragmatique pour
 │    │   models.py / rules.py / scoring.py   │       │
 │    └────────────────────────────────────────┘       │
 │                                                     │
-│    ┌────────────────┐  ┌─────────────────────────┐  │
-│    │     Redis      │  │  SQLite (SQLAlchemy)    │  │
-│    │ state rooms/   │  │  utilisateurs + auth    │  │
-│    │ sessions jeu   │  │  (swappable via env)    │  │
-│    └────────────────┘  └─────────────────────────┘  │
+│    ┌────────────────────────┐  ┌─────────────────┐  │
+│    │  memory_store.py       │  │  SQLite         │  │
+│    │  dict Python asyncio   │  │  (SQLAlchemy)   │  │
+│    │  rooms / sessions jeu  │  │  utilisateurs   │  │
+│    └────────────────────────┘  └─────────────────┘  │
 └─────────────────────────────────────────────────────┘
 ```
 
@@ -79,9 +79,11 @@ backend/
 ```
 
 ### État du jeu
-- **Redis** pour stocker le `GameState` sérialisé (JSON) par room
-- Clé Redis : `room:{room_id}:state`
-- L'état de jeu n'est **pas** persisté en base de données relationnelle (scope POC)
+- **Dict Python asyncio** (`memory_store.py`) — stocke les objets `GameState` en mémoire par room
+- Clé : `room_id` → `GameState`
+- Accès protégé par un `asyncio.Lock` pour éviter les races conditions entre coroutines
+- L'état n'est **pas** persisté : une relance du serveur remet toutes les rooms à zéro (acceptable pour le POC)
+- En cas de montée en charge future, Redis peut remplacer ce dict sans toucher au moteur de jeu
 
 ### Base de données (utilisateurs)
 - **SQLAlchemy** comme ORM — abstraction DB complète
@@ -177,18 +179,53 @@ frontend/src/
 
 ---
 
-## Déploiement (POC)
+## Déploiement
 
-Pour le POC entre amis, déploiement minimal :
+### Dev local — hot-reload
 
-| Composant | Option |
-|-----------|--------|
-| Serveur back | VPS OVH/Hetzner, ou Railway.app |
-| Redis | Redis Cloud free tier, ou Redis sur le même VPS |
-| Front | Vercel (gratuit) ou servi par FastAPI (static files) |
-| HTTPS/WSS | Caddy (reverse proxy + TLS automatique) |
+```bash
+docker compose up --build
+```
 
-Pas de CI/CD complexe pour le POC — un `docker-compose.yml` suffit.
+| Service | URL locale | Description |
+|---------|-----------|-------------|
+| backend | http://localhost:8000 | FastAPI, rechargement sur modif Python |
+| frontend | http://localhost:3000 | Vite, hot-reload React/TypeScript |
+
+Les sources sont montées en volumes : aucun rebuild nécessaire pour voir les changements.  
+La base SQLite est persistée dans le volume Docker `sqlite_data`.
+
+### Prod — VPS
+
+```bash
+JWT_SECRET_KEY=<clé-longue-aléatoire> docker compose -f docker-compose.prod.yml up --build -d
+```
+
+```
+┌──────────────────────────────────┐
+│  VPS (Hetzner / OVH)            │
+│                                  │
+│  nginx (port 80)                 │
+│   /          → React build       │
+│   /api/      → backend:8000      │
+│   /ws        → backend:8000 (WS) │
+│                                  │
+│  backend (interne :8000)         │
+│  SQLite  (volume sqlite_data)    │
+└──────────────────────────────────┘
+```
+
+Nginx proxie `/api` et `/ws` vers le backend — le frontend et l'API partagent la même origine, pas de problème CORS en prod.
+
+Pour HTTPS : placer Caddy ou Traefik devant Docker Compose (reverse proxy + TLS automatique Let's Encrypt).
+
+### Variables d'environnement
+
+| Variable | Défaut | Requis en prod |
+|----------|--------|---------------|
+| `DATABASE_URL` | `sqlite:////app/data/contree.db` | non |
+| `JWT_SECRET_KEY` | `change-me-in-production…` | **oui** |
+| `BACKEND_URL` | `http://localhost:8000` | non (dev uniquement) |
 
 ---
 
