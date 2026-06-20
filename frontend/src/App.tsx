@@ -83,7 +83,6 @@ export default function App() {
       shouldReconnect.current = true
       setConnected(true)
       setReconnecting(false)
-      setStartingGame(false)
       setError(null)
       sessionStorage.setItem(STORAGE_ROOM, room)
     }
@@ -92,6 +91,9 @@ export default function App() {
       const msg = JSON.parse(e.data)
       if (msg.type === 'state') {
         setGame(msg.data)
+        if (msg.data.phase !== 'WAITING') {
+          setStartingGame(false)
+        }
       } else if (msg.type === 'restarting') {
         setStartingGame(true)
       } else if (msg.type === 'error') {
@@ -205,6 +207,11 @@ export default function App() {
 
   if (reconnecting) {
     return <div className="lp-reconnect">{startingGame ? 'Démarrage de la partie…' : 'Reconnexion en cours…'}</div>
+  }
+
+  // Reconnecté mais en attente que tous les joueurs soient de retour pour démarrer
+  if (startingGame) {
+    return <div className="lp-reconnect">Démarrage de la partie…</div>
   }
 
   // ── Lobby ──────────────────────────────────────────────────────────────────
