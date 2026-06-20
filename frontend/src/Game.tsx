@@ -160,13 +160,7 @@ function PlayerSlot({ pos, game, r, onPlay }: {
             {sortedHand.length === 0 && r?.phase === 'PLAYING' && <span style={{color:'#666', position:'absolute', bottom: 4}}>—</span>}
           </div>
         </div>
-      ) : (
-        <div className="card-backs-row">
-          {hand.length > 0
-            ? hand.map((_, i) => <div key={i} className="card-back" />)
-            : <span style={{color:'#555'}}>—</span>}
-        </div>
-      )}
+      ) : null}
     </div>
   )
 }
