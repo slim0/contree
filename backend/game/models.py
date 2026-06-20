@@ -71,13 +71,13 @@ PARTNER_OF: dict[Position, Position] = {
     Position.WEST: Position.EAST,
 }
 
-# Anti-clockwise play order: E→N→W→S→E
+# Clockwise play order: N→E→S→W→N
 # When dealer is NORTH, first to act is EAST (dealer's right)
 NEXT_PLAYER: dict[Position, Position] = {
-    Position.EAST: Position.NORTH,
-    Position.NORTH: Position.WEST,
-    Position.WEST: Position.SOUTH,
-    Position.SOUTH: Position.EAST,
+    Position.NORTH: Position.EAST,
+    Position.EAST: Position.SOUTH,
+    Position.SOUTH: Position.WEST,
+    Position.WEST: Position.NORTH,
 }
 
 # Clockwise = physical "right" of each player (first to act after dealer deals)
@@ -88,7 +88,7 @@ RIGHT_OF: dict[Position, Position] = {
     Position.WEST: Position.NORTH,
 }
 
-# Dealer rotates anti-clockwise
+# Dealer rotates clockwise
 NEXT_DEALER = NEXT_PLAYER
 
 # Card strength tables

@@ -16,10 +16,10 @@
 
 ## 2. La distribution
 
-- Le premier donneur est tiré au sort ; ensuite, le donneur tourne dans le sens **anti-horaire**
+- Le premier donneur est tiré au sort ; ensuite, le donneur tourne dans le sens **horaire**
 - Mélange obligatoire avant chaque distribution
-- Coupe par le joueur à **gauche** du donneur (min. 3 cartes par tas)
-- Distribution : **8 cartes par joueur**, en anti-horaire depuis le voisin de droite du donneur
+- Coupe par le joueur à **droite** du donneur (min. 3 cartes par tas)
+- Distribution : **8 cartes par joueur**, en sens horaire depuis le voisin de gauche du donneur
 - Schéma autorisé : 3+2+3, 3+3+2 ou 2+3+3
 
 ---
@@ -27,7 +27,7 @@
 ## 3. Les enchères
 
 ### Tour de parole
-- Commence au joueur à **droite** du donneur, tourne en anti-horaire
+- Commence au joueur à **gauche** du donneur, tourne en sens horaire
 - Chaque joueur peut : **Passer**, **Enchérir**, **Contrer**, **Surcontrer**
 
 ### Enchérir
@@ -63,7 +63,7 @@
 ## 4. Le jeu de la carte
 
 ### Entame
-- Le joueur à **droite** du donneur ouvre le premier pli (entame libre)
+- Le joueur à **gauche** du donneur ouvre le premier pli (entame libre)
 - La couleur de la première carte posée = **couleur demandée** pour ce pli
 
 ### Règles de jeu (par ordre de priorité)
@@ -83,7 +83,7 @@ Quand on est amené à jouer atout (couleur demandée ou coupe) → on doit joue
 - Exception : si le **partenaire** a coupé et qu'on n'a plus que de l'atout → pas d'obligation de monter
 
 ### Déroulement
-- Sens anti-horaire
+- Sens horaire
 - Le gagnant du pli entame le suivant
 - Toute carte montrée doit être jouée (sauf accord adverse)
 - Le dernier pli peut être consulté après que les 4 cartes ont été jouées

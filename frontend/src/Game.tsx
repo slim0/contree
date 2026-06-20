@@ -11,8 +11,11 @@ const TRUMP_LABELS: Record<string, string> = {
 const ALL_TRUMPS = ['H', 'D', 'C', 'S', 'NT', 'AT']
 const PARTNER: Record<string, string> = { N: 'S', S: 'N', E: 'W', W: 'E' }
 // Screen layout: me=bottom → who appears on left/right of screen
-const SCREEN_LEFT: Record<string, string>  = { S: 'W', N: 'E', E: 'N', W: 'S' }
-const SCREEN_RIGHT: Record<string, string> = { S: 'E', N: 'W', E: 'S', W: 'N' }
+// Each player faces the table center, so my right-hand neighbor sits in the
+// seat *before* mine in the clockwise N→E→S→W→N order, and my left-hand
+// neighbor sits in the seat *after* mine — same convention as around a real table.
+const SCREEN_LEFT: Record<string, string>  = { N: 'E', E: 'S', S: 'W', W: 'N' }
+const SCREEN_RIGHT: Record<string, string> = { N: 'W', E: 'N', S: 'E', W: 'S' }
 const TEAM: Record<string, string> = { N: 'NS', S: 'NS', E: 'EW', W: 'EW' }
 const TEAM_LABEL: Record<string, string> = { NS: 'TEAM RED', EW: 'TEAM BLUE' }
 
