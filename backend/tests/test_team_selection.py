@@ -145,9 +145,14 @@ async def test_unknown_action_returns_error():
 
 def test_choose_team_broadcast_to_all(auth_client, auth_client2):
     """Après choose_team, les deux joueurs connectés reçoivent team_choices mis à jour."""
-    with auth_client.websocket_connect("/ws/room-ct") as ws1:
+    from backend.tests.conftest import TEST_USER, TEST_USER2
+    room_id = "room-ct"
+    store._rooms[room_id] = _waiting_game(room_id, n_players=0)
+    store._rooms[room_id].players = {}
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws1:
         ws1.receive_json()  # état initial testuser
-        with auth_client2.websocket_connect("/ws/room-ct") as ws2:
+        with auth_client2.websocket_connect(f"/ws/{room_id}") as ws2:
             ws2.receive_json()   # état initial testuser2
             ws1.receive_json()   # broadcast testuser (testuser2 vient d'arriver)
 
@@ -166,7 +171,11 @@ def test_choose_team_broadcast_to_all(auth_client, auth_client2):
 
 def test_start_game_rejected_without_balance(auth_client):
     """start_game avec déséquilibre d'équipes retourne une erreur WS."""
-    with auth_client.websocket_connect("/ws/room-sg") as ws:
+    room_id = "room-sg"
+    store._rooms[room_id] = _waiting_game(room_id, n_players=0)
+    store._rooms[room_id].players = {}
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
         ws.receive_json()  # état initial
         ws.send_json({"type": "start_game"})
         ws.receive_json()  # broadcast state

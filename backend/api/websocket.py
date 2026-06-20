@@ -159,6 +159,11 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
 
     game = await store.get_game(room_id)
     if game is None:
+        if not room_name:
+            log.warning("Salon '%s' introuvable — %s refusé (aucun room_name fourni)", room_id, player_name)
+            await ws.send_text(json.dumps({"type": "error", "message": "Salon introuvable."}))
+            await ws.close()
+            return
         log.info("Salon '%s' créé (score cible : %d)", room_id, target_score)
         game = await store.create_room(room_id, target_score, room_name)
 

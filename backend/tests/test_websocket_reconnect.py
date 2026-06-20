@@ -85,12 +85,20 @@ async def test_unregister_with_stale_id_does_not_evict_new_connection():
 # ── 2. Integration: clean reconnect ──────────────────────────────────────────
 
 def test_player_can_reconnect_after_clean_disconnect(auth_client):
-    with auth_client.websocket_connect("/ws/room-rc") as ws:
+    # Pré-peupler la room pour ne pas dépendre de la création via WS
+    room_id = "room-rc"
+    store._rooms[room_id] = _make_waiting_room(room_id, {Position.NORTH: TEST_USER})
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
         msg = ws.receive_json()
         assert msg["type"] == "state"
         assert msg["data"]["players"]["N"] == TEST_USER
 
-    with auth_client.websocket_connect("/ws/room-rc") as ws2:
+    # Après déconnexion propre, la room est supprimée (WAITING sans ready_to_start).
+    # On la recrée pour simuler un vrai scénario de reconnexion post-partie.
+    store._rooms[room_id] = _make_waiting_room(room_id, {Position.NORTH: TEST_USER})
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws2:
         msg2 = ws2.receive_json()
         assert msg2["type"] == "state"
         assert msg2["data"]["players"]["N"] == TEST_USER
@@ -128,3 +136,28 @@ def test_admin_ws_is_rejected(admin_client):
     with pytest.raises(Exception):
         with admin_client.websocket_connect("/ws/room-admin") as ws:
             ws.receive_json()
+
+
+# ── 6. Regression: joining a non-existent room without room_name returns error ─
+# Bug: connecting to an unknown room_id with no room_name was silently creating
+# a new room instead of returning an error.
+
+def test_joining_nonexistent_room_without_room_name_returns_error(auth_client):
+    """Connecting to an unknown room without providing room_name must fail."""
+    with auth_client.websocket_connect("/ws/UNKNOWN") as ws:
+        msg = ws.receive_json()
+        assert msg["type"] == "error"
+        assert "introuvable" in msg["message"].lower()
+
+    # The phantom room must NOT have been created
+    assert "UNKNOWN" not in store._rooms
+
+
+def test_joining_nonexistent_room_with_room_name_creates_it(auth_client):
+    """Connecting to an unknown room WITH room_name must create the room (creator flow)."""
+    with auth_client.websocket_connect("/ws/NEWRM?room_name=Ma+partie") as ws:
+        msg = ws.receive_json()
+        assert msg["type"] == "state"
+        # La room doit exister pendant la connexion
+        assert "NEWRM" in store._rooms
+        assert store._rooms["NEWRM"].room_name == "Ma partie"

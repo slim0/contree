@@ -98,7 +98,9 @@ export default function App() {
         setStartingGame(true)
       } else if (msg.type === 'error') {
         setError(msg.message)
-        if (msg.message === 'Partie terminée.') {
+        // Erreurs terminales : pas de reconnexion automatique
+        const terminalErrors = ['Partie terminée.', 'Salon introuvable.', 'Salon plein.']
+        if (terminalErrors.includes(msg.message)) {
           shouldReconnect.current = false
           sessionStorage.removeItem(STORAGE_ROOM)
         }
