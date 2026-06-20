@@ -11,6 +11,8 @@ Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de 
 |--------|-------------|
 | Back-end | Python 3.12+ / FastAPI / WebSocket |
 | State en mémoire | Redis (rooms, sessions de jeu) |
+| Base de données | SQLite (via SQLAlchemy — swappable via `DATABASE_URL`) |
+| Auth | PyJWT + passlib/bcrypt |
 | Front-end | React + TypeScript (Vite) |
 | State management | Zustand |
 | CSS | Tailwind CSS |
@@ -25,16 +27,33 @@ contree
 │   │   ├── models.py           ← entités : Card, Trick, Round, GameState...
 │   │   ├── rules.py            ← is_legal(), logique de jeu
 │   │   └── scoring.py          ← calcul du score
+│   ├── db/
+│   │   ├── database.py         ← engine SQLAlchemy + session factory (DATABASE_URL)
+│   │   └── models.py           ← modèles ORM (User...)
+│   ├── users/
+│   │   ├── repository.py       ← UserRepository : SEUL point d'accès DB
+│   │   └── schemas.py          ← Pydantic : UserCreate, UserResponse
+│   ├── auth/
+│   │   ├── service.py          ← hash/verify password, create/decode JWT
+│   │   ├── dependencies.py     ← FastAPI deps : get_current_user, require_admin
+│   │   └── schemas.py          ← LoginRequest, TokenResponse, ChangePasswordRequest
 │   ├── api/
 │   │   ├── websocket.py        ← handlers WebSocket
-│   │   └── routes.py           ← routes HTTP (créer room, rejoindre...)
+│   │   ├── routes.py           ← routes HTTP (créer room, rejoindre...)
+│   │   ├── auth_routes.py      ← POST /auth/login, POST /auth/change-password
+│   │   └── admin_routes.py     ← POST/GET/DELETE /admin/users
 │   └── tests/
 │       ├── test_rules.py
-│       └── test_scoring.py
+│       ├── test_scoring.py
+│       ├── test_auth.py
+│       └── test_users.py
 └── frontend/
     ├── src/
     │   ├── components/
+    │   │   ├── auth/           ← LoginPage, ChangePasswordPage
+    │   │   └── admin/          ← AdminPanel (gestion utilisateurs)
     │   ├── store/              ← Zustand stores
+    │   │   └── authStore.ts    ← user courant (username, is_admin, must_change_password) — pas de JWT
     │   └── websocket/          ← client WS
     └── ...
 ```
@@ -94,6 +113,46 @@ Capot comme contrat = 160 pts.
 - Le moteur de jeu (`backend/game/`) doit être **pur** : aucune dépendance externe, aucun I/O, testable seul
 - Les WebSockets transportent des événements typés (voir `docs/architecture.md`)
 - Ne pas utiliser Socket.io — WebSocket natif côté front
+
+## Système d'authentification
+
+### Principes fondamentaux
+
+- **Repository pattern** : toutes les requêtes DB passent par `UserRepository`. C'est le seul endroit à modifier pour changer de base de données.
+- **DB-agnostic** : SQLAlchemy comme ORM. Passer de SQLite à PostgreSQL = changer uniquement la variable d'environnement `DATABASE_URL`.
+- **État de jeu séparé** : la DB ne stocke que les utilisateurs. Le `GameState` reste dans Redis.
+- **JWT stateless** : tokens 8h, pas de refresh token pour le POC. Payload : `user_id`, `username`, `is_admin`, `must_change_password`.
+- **Cookie HttpOnly** : le JWT n'est jamais exposé au JavaScript. Il transite uniquement dans un cookie `access_token` (HttpOnly, Secure, SameSite=Lax) posé par le serveur à la connexion.
+- **CORS** : `allow_credentials=True` avec origines explicites — jamais de wildcard `*` quand les cookies sont en jeu.
+
+### Modèle User
+
+```python
+id: int
+username: str          # unique, pas d'email
+hashed_password: str   # bcrypt via passlib
+is_admin: bool
+must_change_password: bool   # True à la création, False après premier changement
+created_at: datetime
+```
+
+### Flux d'authentification
+
+1. **Bootstrap** : au démarrage, si aucun utilisateur n'existe → création automatique d'un compte `admin` avec mot de passe temporaire affiché dans les logs serveur (une seule fois).
+2. **Création** : `POST /admin/users` (admin only) → mot de passe aléatoire 12 chars retourné dans la réponse (une seule fois, non re-consultable).
+3. **Login** : `POST /auth/login` → cookie HttpOnly `access_token` posé + corps `{ username, is_admin, must_change_password }`. Si `must_change_password=True` → le frontend bloque l'accès au jeu.
+4. **Changement de mot de passe** : `POST /auth/change-password` → cookie présent, authentifié automatiquement → flag `must_change_password` passé à `False` en DB → nouveau cookie émis.
+5. **Connexion WebSocket** : le navigateur envoie le cookie automatiquement lors du handshake — pas de token dans l'URL. Le serveur le lit depuis les headers de l'upgrade request.
+6. **Logout** : `POST /auth/logout` → cookie supprimé (max_age=0).
+
+### Conventions auth
+
+- Ne jamais stocker le mot de passe en clair, même temporairement
+- Le mot de passe temporaire n'est retourné qu'une seule fois (à la création) — aucune route de consultation
+- Les routes `/admin/*` vérifient `is_admin=True` via la dépendance `require_admin`
+- Les routes de jeu (rooms, WebSocket) vérifient l'auth via `get_current_user`
+- Le frontend ne stocke **jamais** le JWT — `authStore` contient uniquement `{ username, is_admin, must_change_password }` reçus dans le corps des réponses
+- Le fetch frontend doit toujours inclure `credentials: 'include'` pour que le cookie parte avec les requêtes cross-origin
 
 
 ## Stratégie de tests
