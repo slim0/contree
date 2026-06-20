@@ -108,28 +108,28 @@ async def _close_all_connections(room_id: str) -> None:
 
 async def _dispatch_waiting(
     game: GameState, player: Position, msg: dict, room_id: str
-) -> tuple[GameState, Optional[str], bool]:
-    """Handle WAITING-phase messages. Returns (game, error, close_all_connections)."""
+) -> tuple[GameState, Optional[str], bool, bool]:
+    """Handle WAITING-phase messages. Returns (game, error, close_all, leave_self)."""
     action = msg.get("type")
     tag = _player_tag(game, player)
 
     if action == "choose_team":
         team = msg.get("team")
         if team not in ("NS", "EW"):
-            return game, "Équipe invalide (NS ou EW attendu)", False
+            return game, "Équipe invalide (NS ou EW attendu)", False, False
         game.team_choices[player.value] = team
         log.info("Salon '%s' — %s choisit l'équipe %s", room_id, tag, team)
-        return game, None, False
+        return game, None, False, False
 
     elif action == "start_game":
         if len(game.players) != 4:
-            return game, "Il faut 4 joueurs pour démarrer", False
+            return game, "Il faut 4 joueurs pour démarrer", False, False
 
         ns_pos = [p for p, t in game.team_choices.items() if t == "NS"]
         ew_pos = [p for p, t in game.team_choices.items() if t == "EW"]
 
         if len(ns_pos) != 2 or len(ew_pos) != 2:
-            return game, "Il faut exactement 2 joueurs NOUS et 2 joueurs EUX", False
+            return game, "Il faut exactement 2 joueurs NOUS et 2 joueurs EUX", False, False
 
         # Réassignation : NOUS → N,S ; EUX → E,W
         ns_names = [game.players[Position(p)] for p in ns_pos]
@@ -148,9 +148,17 @@ async def _dispatch_waiting(
             "Salon '%s' — GO ! NOUS (NS) : %s | EUX (EW) : %s",
             room_id, ns_names, ew_names,
         )
-        return game, None, True  # close_all = True → fermer toutes les connexions
+        return game, None, True, False  # close_all = True → fermer toutes les connexions
 
-    return game, f"Action inconnue en salle d'attente : {action}", False
+    elif action == "leave":
+        name = game.players.pop(player, None)
+        game.team_choices.pop(player.value, None)
+        if name:
+            game.messages.append(f"{name} ({player.value}) a quitté le salon")
+        log.info("Salon '%s' — %s quitte le salon", room_id, tag)
+        return game, None, False, True
+
+    return game, f"Action inconnue en salle d'attente : {action}", False, False
 
 
 async def handle_connection(ws: WebSocket, room_id: str, player_name: str, target_score: int = 1000, room_name: str = "") -> None:
@@ -240,12 +248,21 @@ async def handle_connection(ws: WebSocket, room_id: str, player_name: str, targe
             if game is None:
                 break
 
-            # Phase d'attente : choix d'équipe et démarrage
+            # Phase d'attente : choix d'équipe, démarrage, départ
             if game.phase == GamePhase.WAITING:
-                game, error, close_all = await _dispatch_waiting(game, position, msg, room_id)
+                game, error, close_all, leave_self = await _dispatch_waiting(game, position, msg, room_id)
                 await store.set_game(game)
                 if close_all:
                     await _close_all_connections(room_id)
+                    break
+                if leave_self:
+                    await _unregister(room_id, position, conn_id)
+                    if len(game.players) == 0:
+                        await store.delete_room(room_id)
+                    else:
+                        await broadcast(room_id, game)
+                    await ws.send_text(json.dumps({"type": "left"}))
+                    await ws.close()
                     break
                 await broadcast(room_id, game)
                 if error:

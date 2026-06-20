@@ -44,27 +44,29 @@ def reset_state():
 
 async def test_choose_team_stores_ns():
     game = _waiting_game()
-    game2, error, close_all = await ws_module._dispatch_waiting(
+    game2, error, close_all, leave_self = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "choose_team", "team": "NS"}, "r"
     )
     assert error is None
     assert not close_all
+    assert not leave_self
     assert game2.team_choices["N"] == "NS"
 
 
 async def test_choose_team_stores_ew():
     game = _waiting_game()
-    game2, error, close_all = await ws_module._dispatch_waiting(
+    game2, error, close_all, leave_self = await ws_module._dispatch_waiting(
         game, Position.EAST, {"type": "choose_team", "team": "EW"}, "r"
     )
     assert error is None
     assert not close_all
+    assert not leave_self
     assert game2.team_choices["E"] == "EW"
 
 
 async def test_choose_team_invalid_value_returns_error():
     game = _waiting_game()
-    _, error, _ = await ws_module._dispatch_waiting(
+    _, error, _, _ = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "choose_team", "team": "BLEU"}, "r"
     )
     assert error is not None
@@ -73,7 +75,7 @@ async def test_choose_team_invalid_value_returns_error():
 async def test_start_game_requires_4_players():
     game = _waiting_game(n_players=3)
     game.team_choices = {"N": "NS", "E": "EW", "S": "NS"}
-    _, error, _ = await ws_module._dispatch_waiting(
+    _, error, _, _ = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
     )
     assert error is not None
@@ -83,7 +85,7 @@ async def test_start_game_requires_4_players():
 async def test_start_game_requires_balanced_teams_3_1():
     game = _waiting_game()
     game.team_choices = {"N": "NS", "E": "NS", "S": "NS", "W": "EW"}
-    _, error, _ = await ws_module._dispatch_waiting(
+    _, error, _, _ = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
     )
     assert error is not None
@@ -92,7 +94,7 @@ async def test_start_game_requires_balanced_teams_3_1():
 async def test_start_game_requires_all_players_to_have_chosen():
     game = _waiting_game()
     game.team_choices = {"N": "NS", "E": "EW"}
-    _, error, _ = await ws_module._dispatch_waiting(
+    _, error, _, _ = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
     )
     assert error is not None
@@ -102,12 +104,13 @@ async def test_start_game_valid_sets_ready_to_start_and_reassigns():
     game = _waiting_game()
     game.team_choices = {"N": "EW", "E": "NS", "S": "NS", "W": "EW"}
 
-    game2, error, close_all = await ws_module._dispatch_waiting(
+    game2, error, close_all, leave_self = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
     )
 
     assert error is None
     assert close_all is True
+    assert leave_self is False
     assert game2.ready_to_start is True
     assert game2.team_choices == {}
 
@@ -121,12 +124,13 @@ async def test_start_game_already_balanced_default_positions():
     game = _waiting_game()
     game.team_choices = {"N": "NS", "E": "EW", "S": "NS", "W": "EW"}
 
-    game2, error, close_all = await ws_module._dispatch_waiting(
+    game2, error, close_all, leave_self = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
     )
 
     assert error is None
     assert close_all is True
+    assert leave_self is False
     ns_names = {game2.players[Position.NORTH], game2.players[Position.SOUTH]}
     ew_names = {game2.players[Position.EAST], game2.players[Position.WEST]}
     assert ns_names == {"Player1", "Player3"}
@@ -135,7 +139,7 @@ async def test_start_game_already_balanced_default_positions():
 
 async def test_unknown_action_returns_error():
     game = _waiting_game()
-    _, error, _ = await ws_module._dispatch_waiting(
+    _, error, _, _ = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "play", "suit": "H", "rank": "A"}, "r"
     )
     assert error is not None

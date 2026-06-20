@@ -148,4 +148,16 @@ describe('WaitingRoom', () => {
     render(<Game game={game} error={null} send={vi.fn()} />)
     expect(screen.getAllByText('en attente').length).toBe(3)
   })
+
+  it('affiche un bouton pour quitter le salon', () => {
+    render(<Game game={makeWaitingGame()} error={null} send={vi.fn()} />)
+    expect(screen.getByText('Quitter le salon')).toBeInTheDocument()
+  })
+
+  it('envoie leave quand on clique sur Quitter le salon', () => {
+    const send = vi.fn()
+    render(<Game game={makeWaitingGame()} error={null} send={send} />)
+    fireEvent.click(screen.getByText('Quitter le salon'))
+    expect(send).toHaveBeenCalledWith({ type: 'leave' })
+  })
 })

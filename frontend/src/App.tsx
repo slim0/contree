@@ -104,6 +104,12 @@ export default function App() {
           shouldReconnect.current = false
           sessionStorage.removeItem(STORAGE_ROOM)
         }
+      } else if (msg.type === 'left') {
+        shouldReconnect.current = false
+        sessionStorage.removeItem(STORAGE_ROOM)
+        setGame(null)
+        setCreatedRoom(null)
+        setRoomId('')
       }
     }
 

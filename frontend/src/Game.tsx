@@ -448,6 +448,14 @@ export default function Game({ game, error, send }: {
             GO !
           </button>
 
+          <button
+            className="lp-btn-secondary"
+            style={{ marginTop: 8 }}
+            onClick={() => send({ type: 'leave' })}
+          >
+            Quitter le salon
+          </button>
+
           {error && <p className="lp-error">{error}</p>}
         </div>
       </div>
