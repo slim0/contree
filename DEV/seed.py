@@ -10,6 +10,7 @@ from backend.users.repository import UserRepository
 from backend.auth.service import hash_password
 
 PLAYERS = [
+    {"username": "admin",   "password": "tuzjIk-hyrcom-mopfa1"},
     {"username": "alice",   "password": "alice1234"},
     {"username": "bob",     "password": "bob12345!"},
     {"username": "charlie", "password": "charlie1"},
@@ -24,16 +25,20 @@ def seed() -> None:
     try:
         repo = UserRepository(db)
         for p in PLAYERS:
-            if repo.get_by_username(p["username"]):
-                print(f"[skip]   {p['username']} existe déjà")
+            username = p["username"]
+            password = p["password"]
+            user = repo.get_by_username(username)
+            if user:
+                repo.update_password(user=user, hashed_password=hash_password(password))
+                print(f"[update] {user.username}  (id={user.id})  mot de passe : {password}")
                 continue
             user = repo.create(
-                username=p["username"],
-                hashed_password=hash_password(p["password"]),
+                username=username,
+                hashed_password=hash_password(password),
                 is_admin=False,
                 must_change_password=False,
             )
-            print(f"[create] {user.username}  (id={user.id})  mot de passe : {p['password']}")
+            print(f"[create] {user.username}  (id={user.id})  mot de passe : {password}")
     finally:
         db.close()
     print("Seed terminé.")
