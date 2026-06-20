@@ -13,6 +13,7 @@ Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de 
 | State en mémoire | Dict Python asyncio (rooms, sessions de jeu) |
 | Base de données | SQLite (via SQLAlchemy — swappable via `DATABASE_URL`) |
 | Auth | PyJWT + bcrypt |
+| Rate limiting | slowapi (en mémoire, par IP) |
 | Front-end | React + TypeScript (Vite) |
 | State management | Zustand |
 | CSS | Tailwind CSS |
@@ -195,6 +196,39 @@ created_at: datetime
 - Le frontend ne stocke **jamais** le JWT — `authStore` contient uniquement `{ username, is_admin, must_change_password }` reçus dans le corps des réponses
 - Le fetch frontend doit toujours inclure `credentials: 'include'` pour que le cookie parte avec les requêtes cross-origin
 
+
+## Rate limiting
+
+Tous les endpoints HTTP utilisent `slowapi` avec le rate limiter par IP (`get_remote_address`).
+
+### Règle : tout nouvel endpoint doit avoir un `@limiter.limit(...)`
+
+```python
+from backend.api.limiter import limiter
+from fastapi import Request
+
+@router.post("/mon-endpoint")
+@limiter.limit("10/minute")  # ← obligatoire
+async def mon_endpoint(request: Request, ...):
+    ...
+```
+
+Le paramètre `request: Request` est **obligatoire** pour que slowapi fonctionne.
+
+### Rates de référence par catégorie
+
+| Catégorie | Rate | Exemples |
+|-----------|------|----------|
+| Credential (login, change-password) | **5/minute** | POST /auth/login, POST /auth/change-password |
+| Écriture légère | **10/minute** | logout, create_user, delete_user, create_room |
+| Lecture admin / modération | **30/minute** | GET /admin/users |
+| Lecture fréquente (polling, me) | **60/minute** | GET /auth/me, GET /rooms, GET /rooms/{id} |
+
+### Tests
+
+Chaque nouvel endpoint limité doit avoir un test dans `backend/tests/test_rate_limiting.py` qui vérifie que le (N+1)e appel retourne `429`. Le limiter est réinitialisé automatiquement entre chaque test via la fixture `reset_rate_limiter` dans `conftest.py`.
+
+---
 
 ## Stratégie de tests
 

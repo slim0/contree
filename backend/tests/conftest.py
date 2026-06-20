@@ -9,6 +9,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import StaticPool
 from starlette.testclient import TestClient
 
+from backend.api.limiter import limiter
 from backend.auth.service import create_token, hash_password
 from backend.db.database import Base, get_db
 from backend.db import models as _db_models  # noqa: F401 — enregistre les modèles ORM dans Base.metadata
@@ -18,6 +19,14 @@ from backend.users.repository import UserRepository
 TEST_ADMIN = "admin"
 TEST_USER = "testuser"
 TEST_USER2 = "testuser2"
+
+
+@pytest.fixture(autouse=True)
+def reset_rate_limiter():
+    """Réinitialise le compteur du rate limiter entre chaque test."""
+    yield
+    if hasattr(limiter, "_storage") and hasattr(limiter._storage, "reset"):
+        limiter._storage.reset()
 
 
 @pytest.fixture(autouse=True)

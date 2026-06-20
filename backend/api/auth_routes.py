@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlalchemy.orm import Session
 
+from backend.api.limiter import limiter
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import ChangePasswordRequest, LoginRequest, UserInfo
 from backend.auth.service import TOKEN_EXPIRE_HOURS, create_token, hash_password, verify_password
@@ -25,7 +26,8 @@ def _set_auth_cookie(response: Response, token: str) -> None:
 
 
 @router.post("/login", response_model=UserInfo)
-async def login(body: LoginRequest, response: Response, db: Session = Depends(get_db)) -> UserInfo:
+@limiter.limit("5/minute")
+async def login(request: Request, body: LoginRequest, response: Response, db: Session = Depends(get_db)) -> UserInfo:
     repo = UserRepository(db)
     user = repo.get_by_username(body.username)
     if not user or not verify_password(body.password, user.hashed_password):
@@ -36,13 +38,15 @@ async def login(body: LoginRequest, response: Response, db: Session = Depends(ge
 
 
 @router.post("/logout")
-async def logout(response: Response) -> dict:
+@limiter.limit("10/minute")
+async def logout(request: Request, response: Response) -> dict:
     response.delete_cookie(key="access_token", path="/")
     return {"ok": True}
 
 
 @router.get("/me", response_model=UserInfo)
-async def me(current_user: User = Depends(get_current_user)) -> UserInfo:
+@limiter.limit("60/minute")
+async def me(request: Request, current_user: User = Depends(get_current_user)) -> UserInfo:
     return UserInfo(
         username=current_user.username,
         is_admin=current_user.is_admin,
@@ -51,7 +55,9 @@ async def me(current_user: User = Depends(get_current_user)) -> UserInfo:
 
 
 @router.post("/change-password", response_model=UserInfo)
+@limiter.limit("5/minute")
 async def change_password(
+    request: Request,
     body: ChangePasswordRequest,
     response: Response,
     current_user: User = Depends(get_current_user),

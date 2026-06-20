@@ -1,6 +1,7 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
+from backend.api.limiter import limiter
 from backend.auth.dependencies import require_admin
 from backend.auth.service import generate_temp_password, hash_password
 from backend.db.database import get_db
@@ -12,7 +13,9 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/users", response_model=list[UserResponse])
+@limiter.limit("30/minute")
 async def list_users(
+    request: Request,
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
 ) -> list[UserResponse]:
@@ -20,7 +23,9 @@ async def list_users(
 
 
 @router.post("/users", response_model=UserWithTempPassword, status_code=status.HTTP_201_CREATED)
+@limiter.limit("10/minute")
 async def create_user(
+    request: Request,
     body: UserCreate,
     db: Session = Depends(get_db),
     _: User = Depends(require_admin),
@@ -34,7 +39,9 @@ async def create_user(
 
 
 @router.delete("/users/{username}", status_code=status.HTTP_204_NO_CONTENT)
+@limiter.limit("10/minute")
 async def delete_user(
+    request: Request,
     username: str,
     db: Session = Depends(get_db),
     admin: User = Depends(require_admin),
