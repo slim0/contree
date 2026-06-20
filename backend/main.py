@@ -96,5 +96,8 @@ async def websocket_endpoint(
     if payload.get("must_change_password"):
         await ws.close(code=status.WS_1008_POLICY_VIOLATION)
         return
+    if payload.get("is_admin"):
+        await ws.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
     player_name: str = payload["username"]
     await handle_connection(ws, room_id, player_name, target_score, room_name)

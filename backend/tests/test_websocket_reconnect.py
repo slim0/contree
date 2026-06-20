@@ -120,3 +120,11 @@ def test_unauthenticated_ws_is_rejected(client):
     with pytest.raises(Exception):
         with client.websocket_connect("/ws/room-unauth") as ws:
             ws.receive_json()
+
+
+# ── 5. Admin WS is rejected ───────────────────────────────────────────────────
+
+def test_admin_ws_is_rejected(admin_client):
+    with pytest.raises(Exception):
+        with admin_client.websocket_connect("/ws/room-admin") as ws:
+            ws.receive_json()

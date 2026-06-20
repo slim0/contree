@@ -53,6 +53,12 @@ describe('AdminPanel', () => {
     expect(onClose).toHaveBeenCalled()
   })
 
+  it('affiche un label personnalisé pour le bouton retour', async () => {
+    render(<AdminPanel onClose={onClose} backLabel="Déconnexion" />)
+    expect(screen.getByText('Déconnexion')).toBeInTheDocument()
+    expect(screen.queryByText(/Retour au jeu/i)).not.toBeInTheDocument()
+  })
+
   it('crée un utilisateur et affiche le mot de passe temporaire', async () => {
     mockFetch
       .mockResolvedValueOnce({ ok: true, json: async () => mockUsers }) // GET initial

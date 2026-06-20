@@ -17,6 +17,7 @@ from backend.users.repository import UserRepository
 
 TEST_ADMIN = "admin"
 TEST_USER = "testuser"
+TEST_USER2 = "testuser2"
 
 
 @pytest.fixture(autouse=True)
@@ -45,6 +46,7 @@ def isolated_db():
         repo = UserRepository(db)
         repo.create(TEST_ADMIN, hash_password("Adm1n!pass"), is_admin=True, must_change_password=False)
         repo.create(TEST_USER, hash_password("testpass123"), must_change_password=False)
+        repo.create(TEST_USER2, hash_password("testpass456"), must_change_password=False)
     finally:
         db.close()
 
@@ -82,5 +84,12 @@ def admin_client(isolated_db):
 @pytest.fixture
 def auth_client(isolated_db):
     token = _make_token(isolated_db, TEST_USER)
+    with TestClient(app, cookies={"access_token": token}) as c:
+        yield c
+
+
+@pytest.fixture
+def auth_client2(isolated_db):
+    token = _make_token(isolated_db, TEST_USER2)
     with TestClient(app, cookies={"access_token": token}) as c:
         yield c

@@ -193,6 +193,10 @@ export default function App() {
     )
   }
 
+  if (user.is_admin) {
+    return <AdminPanel onClose={handleLogout} backLabel="Déconnexion" />
+  }
+
   if (showAdmin) {
     return <AdminPanel onClose={() => setShowAdmin(false)} />
   }

@@ -10,9 +10,10 @@ interface UserRecord {
 
 interface Props {
   onClose: () => void
+  backLabel?: string
 }
 
-export default function AdminPanel({ onClose }: Props) {
+export default function AdminPanel({ onClose, backLabel = '← Retour au jeu' }: Props) {
   const [users, setUsers] = useState<UserRecord[]>([])
   const [newUsername, setNewUsername] = useState('')
   const [tempPassword, setTempPassword] = useState<string | null>(null)
@@ -87,7 +88,7 @@ export default function AdminPanel({ onClose }: Props) {
   return (
     <div className="lp-root" style={{ zIndex: 100 }}>
       <div className="lp-card" style={{ maxWidth: 520 }}>
-        <button className="lp-back" onClick={onClose}>← Retour au jeu</button>
+        <button className="lp-back" onClick={onClose}>{backLabel}</button>
         <h1 className="lp-title" style={{ textAlign: 'left' }}>Gestion des joueurs</h1>
 
         {/* Créer un joueur */}

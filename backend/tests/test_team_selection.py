@@ -143,13 +143,13 @@ async def test_unknown_action_returns_error():
 
 # ── Integration tests ─────────────────────────────────────────────────────────
 
-def test_choose_team_broadcast_to_all(admin_client, auth_client):
+def test_choose_team_broadcast_to_all(auth_client, auth_client2):
     """Après choose_team, les deux joueurs connectés reçoivent team_choices mis à jour."""
-    with admin_client.websocket_connect("/ws/room-ct") as ws1:
-        ws1.receive_json()  # état initial admin
-        with auth_client.websocket_connect("/ws/room-ct") as ws2:
-            ws2.receive_json()   # état initial testuser
-            ws1.receive_json()   # broadcast admin (testuser vient d'arriver)
+    with auth_client.websocket_connect("/ws/room-ct") as ws1:
+        ws1.receive_json()  # état initial testuser
+        with auth_client2.websocket_connect("/ws/room-ct") as ws2:
+            ws2.receive_json()   # état initial testuser2
+            ws1.receive_json()   # broadcast testuser (testuser2 vient d'arriver)
 
             ws1.send_json({"type": "choose_team", "team": "NS"})
 
@@ -158,7 +158,7 @@ def test_choose_team_broadcast_to_all(admin_client, auth_client):
 
     assert state1["type"] == "state"
     assert state2["type"] == "state"
-    # admin est en position N (premier arrivé), vérifie son choix d'équipe
+    # testuser est en position N (premier arrivé), vérifie son choix d'équipe
     pos1 = state1["data"]["my_position"]
     assert state1["data"]["team_choices"][pos1] == "NS"
     assert state2["data"]["team_choices"][pos1] == "NS"
