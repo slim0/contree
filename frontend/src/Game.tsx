@@ -215,11 +215,11 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
         </div>
         {phase === 'PLAYING' && lastTrick && (
           <button
-            style={{marginTop:4, fontSize:'0.65em', padding:'2px 5px'}}
+            className="trick-toggle-btn"
             onClick={() => setShowLast(v => !v)}
-            title={showLast ? 'Voir pli en cours' : 'Voir dernier pli'}
+            title={showLast ? 'pli en cours' : 'dernier pli'}
           >
-            {showLast ? '▶ En cours' : '↩ Dernier'}
+            {showLast ? 'Pli en cours' : 'Dernier pli'}
           </button>
         )}
       </div>
