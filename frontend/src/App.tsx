@@ -1,9 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import type { GameData } from './types'
+import type { AuthUser } from './store/authStore'
+import { useAuthStore } from './store/authStore'
 import Game from './Game'
+import LoginPage from './components/auth/LoginPage'
+import ChangePasswordPage from './components/auth/ChangePasswordPage'
+import AdminPanel from './components/admin/AdminPanel'
 
 const STORAGE_ROOM = 'contree_room'
-const STORAGE_NAME = 'contree_name'
 
 interface RoomSummary {
   room_id: string
@@ -18,9 +22,10 @@ function genRoomCode(): string {
 }
 
 export default function App() {
+  const { user, loading, setUser, setLoading } = useAuthStore()
+  const [showAdmin, setShowAdmin] = useState(false)
   const [roomId, setRoomId] = useState(() => sessionStorage.getItem(STORAGE_ROOM) ?? '')
-  const [playerName, setPlayerName] = useState(() => sessionStorage.getItem(STORAGE_NAME) ?? '')
-  const [step, setStep] = useState<'name' | 'lobby'>('name')
+  const [step, setStep] = useState<'lobby'>('lobby')
   const [joinMode, setJoinMode] = useState(false)
   const [joinCodeMode, setJoinCodeMode] = useState(false)
   const [rooms, setRooms] = useState<RoomSummary[]>([])
@@ -37,15 +42,27 @@ export default function App() {
   const shouldReconnect = useRef(false)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  const connect = useCallback((room: string, name: string, score: number = 1000, rName: string = '') => {
-    if (!name.trim() || !room.trim()) return
+  // Vérification de session au montage
+  useEffect(() => {
+    fetch('/api/auth/me', { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then((data: AuthUser | null) => {
+        setUser(data)
+        setLoading(false)
+      })
+      .catch(() => {
+        setUser(null)
+        setLoading(false)
+      })
+  }, [setUser, setLoading])
+
+  const connect = useCallback((room: string, score: number = 1000, rName: string = '') => {
+    if (!room.trim()) return
     if (reconnectTimer.current) {
       clearTimeout(reconnectTimer.current)
       reconnectTimer.current = null
     }
 
-    // Neutralise stale handlers before replacing the connection (guards against
-    // React StrictMode double-effect and rapid reconnect races).
     if (wsRef.current) {
       const stale = wsRef.current
       stale.onopen = null
@@ -57,7 +74,8 @@ export default function App() {
 
     const params = new URLSearchParams({ target_score: String(score) })
     if (rName.trim()) params.set('room_name', rName.trim())
-    const url = `ws://${location.hostname}:8000/ws/${room}/${encodeURIComponent(name)}?${params}`
+    const proto = location.protocol === 'https:' ? 'wss' : 'ws'
+    const url = `${proto}://${location.host}/ws/${room}?${params}`
     const ws = new WebSocket(url)
     wsRef.current = ws
 
@@ -68,7 +86,6 @@ export default function App() {
       setStartingGame(false)
       setError(null)
       sessionStorage.setItem(STORAGE_ROOM, room)
-      sessionStorage.setItem(STORAGE_NAME, name)
     }
 
     ws.onmessage = (e) => {
@@ -79,11 +96,9 @@ export default function App() {
         setStartingGame(true)
       } else if (msg.type === 'error') {
         setError(msg.message)
-        // Only a finished game permanently blocks reconnection
         if (msg.message === 'Partie terminée.') {
           shouldReconnect.current = false
           sessionStorage.removeItem(STORAGE_ROOM)
-          sessionStorage.removeItem(STORAGE_NAME)
         }
       }
     }
@@ -92,33 +107,31 @@ export default function App() {
       setConnected(false)
       if (shouldReconnect.current) {
         setReconnecting(true)
-        reconnectTimer.current = setTimeout(() => connect(room, name), 2000)
+        reconnectTimer.current = setTimeout(() => connect(room, score, rName), 2000)
       } else {
         setReconnecting(false)
       }
     }
 
-    ws.onerror = () => {} // onclose fires after onerror and handles reconnect
+    ws.onerror = () => {}
   }, [])
 
-  // On mount: auto-connect if credentials are saved in sessionStorage
+  // Auto-reconnexion si une room est sauvegardée en session
   useEffect(() => {
+    if (!user || user.must_change_password) return
     const savedRoom = sessionStorage.getItem(STORAGE_ROOM)
-    const savedName = sessionStorage.getItem(STORAGE_NAME)
-    if (savedRoom && savedName) {
-      connect(savedRoom, savedName)
-    }
+    if (savedRoom) connect(savedRoom)
     return () => {
       shouldReconnect.current = false
       if (reconnectTimer.current) clearTimeout(reconnectTimer.current)
       wsRef.current?.close()
     }
-  }, [connect])
+  }, [user, connect])
 
   // Fetch room list when join panel opens
   useEffect(() => {
     if (!joinMode) return
-    fetch(`http://${location.hostname}:8000/api/rooms`)
+    fetch('/api/rooms', { credentials: 'include' })
       .then(r => r.json())
       .then(data => setRooms(data.rooms ?? []))
       .catch(() => setRooms([]))
@@ -128,6 +141,16 @@ export default function App() {
     wsRef.current?.send(JSON.stringify(msg))
     setError(null)
   }, [])
+
+  async function handleLogout() {
+    shouldReconnect.current = false
+    wsRef.current?.close()
+    sessionStorage.removeItem(STORAGE_ROOM)
+    await fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    setUser(null)
+    setGame(null)
+    setConnected(false)
+  }
 
   function handleCreate() {
     const code = genRoomCode()
@@ -151,50 +174,62 @@ export default function App() {
     setRoomId('')
   }
 
+  // ── États de chargement / auth ─────────────────────────────────────────────
+
+  if (loading) {
+    return <div className="lp-reconnect">Chargement…</div>
+  }
+
+  if (!user) {
+    return <LoginPage onLogin={user => setUser(user)} />
+  }
+
+  if (user.must_change_password) {
+    return (
+      <ChangePasswordPage
+        username={user.username}
+        onChanged={updated => setUser(updated)}
+      />
+    )
+  }
+
+  if (showAdmin) {
+    return <AdminPanel onClose={() => setShowAdmin(false)} />
+  }
+
+  // ── Reconnexion en cours ───────────────────────────────────────────────────
+
   if (reconnecting) {
     return <div className="lp-reconnect">{startingGame ? 'Démarrage de la partie…' : 'Reconnexion en cours…'}</div>
   }
 
-  if (!connected) {
-    if (step === 'name') {
-      return (
-        <div className="lp-root">
-          <div className="lp-card">
-            <div className="lp-logo">
-              <img src="/ace.webp" alt="As de cœur" className="lp-logo-img" />
-            </div>
-            <h1 className="lp-title">Belote Contrée</h1>
-            <p className="lp-subtitle">Joue avec tes potes en live !</p>
-            <label className="lp-label" htmlFor="lp-name">Ton pseudo</label>
-            <input
-              id="lp-name"
-              className="lp-input"
-              value={playerName}
-              placeholder="Ex. funkypants"
-              autoFocus
-              onChange={e => setPlayerName(e.target.value)}
-              onKeyDown={e => e.key === 'Enter' && playerName.trim() && setStep('lobby')}
-            />
-            <button
-              className="lp-btn-primary"
-              disabled={!playerName.trim()}
-              onClick={() => setStep('lobby')}
-            >
-              Continuer
-            </button>
-            {error && <p className="lp-error">{error}</p>}
-          </div>
-        </div>
-      )
-    }
+  // ── Lobby ──────────────────────────────────────────────────────────────────
 
+  if (!connected) {
     return (
       <div className="lp-root">
         <div className="lp-card">
-          <button className="lp-back" onClick={() => { setStep('name'); setJoinMode(false); setJoinCodeMode(false); setCreatedRoom(null) }}>
-            ← Retour
-          </button>
-          <h1 className="lp-title">Bonjour, {playerName}&nbsp;!</h1>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+            <div>
+              <span style={{ fontSize: 14, color: '#62625b' }}>Connecté en tant que </span>
+              <strong style={{ fontSize: 14 }}>{user.username}</strong>
+            </div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {user.is_admin && (
+                <button className="lp-btn-copy" style={{ width: 'auto', marginTop: 0 }} onClick={() => setShowAdmin(true)}>
+                  Admin
+                </button>
+              )}
+              <button className="lp-btn-copy" style={{ width: 'auto', marginTop: 0 }} onClick={handleLogout}>
+                Déconnexion
+              </button>
+            </div>
+          </div>
+
+          <div className="lp-logo">
+            <img src="/ace.webp" alt="As de cœur" className="lp-logo-img" />
+          </div>
+          <h1 className="lp-title">Belote Contrée</h1>
           <p className="lp-subtitle">Créez un salon et partagez le code, ou rejoignez une partie existante.</p>
 
           {createdRoom ? (
@@ -229,7 +264,11 @@ export default function App() {
                   ))}
                 </div>
               </div>
-              <button className="lp-btn-primary" disabled={!roomName.trim()} onClick={() => connect(createdRoom, playerName, targetScore, roomName)}>
+              <button
+                className="lp-btn-primary"
+                disabled={!roomName.trim()}
+                onClick={() => connect(createdRoom, targetScore, roomName)}
+              >
                 Entrer dans le salon
               </button>
               <button className="lp-btn-secondary" onClick={() => setCreatedRoom(null)}>
@@ -254,12 +293,12 @@ export default function App() {
                       placeholder="Ex. A3BX"
                       autoFocus
                       onChange={e => setRoomId(e.target.value.toUpperCase())}
-                      onKeyDown={e => e.key === 'Enter' && roomId.trim() && connect(roomId, playerName)}
+                      onKeyDown={e => e.key === 'Enter' && roomId.trim() && connect(roomId)}
                     />
                     <button
                       className="lp-btn-secondary"
                       disabled={!roomId.trim()}
-                      onClick={() => connect(roomId, playerName)}
+                      onClick={() => connect(roomId)}
                     >
                       Rejoindre
                     </button>
@@ -271,7 +310,7 @@ export default function App() {
                     ) : (
                       <ul className="lp-room-list">
                         {rooms.map(r => (
-                          <li key={r.room_id} className="lp-room-item" onClick={() => handleSelectRoom()}>
+                          <li key={r.room_id} className="lp-room-item" onClick={handleSelectRoom}>
                             <span className="lp-room-item-name">{r.room_name || r.room_id}</span>
                             <span className="lp-room-item-players">{r.player_count}/4</span>
                           </li>

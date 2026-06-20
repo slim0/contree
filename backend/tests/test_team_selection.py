@@ -8,6 +8,7 @@ from backend.game.models import GameState, GamePhase, Position, Team
 from backend.api import websocket as ws_module
 from backend.store import memory_store as store
 from backend.main import app
+from backend.tests.conftest import TEST_ADMIN, TEST_USER
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -90,7 +91,7 @@ async def test_start_game_requires_balanced_teams_3_1():
 
 async def test_start_game_requires_all_players_to_have_chosen():
     game = _waiting_game()
-    game.team_choices = {"N": "NS", "E": "EW"}  # S et W n'ont pas choisi
+    game.team_choices = {"N": "NS", "E": "EW"}
     _, error, _ = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
     )
@@ -98,9 +99,7 @@ async def test_start_game_requires_all_players_to_have_chosen():
 
 
 async def test_start_game_valid_sets_ready_to_start_and_reassigns():
-    """Avec 2 NS et 2 EW, le GO réassigne les positions et retourne close_all=True."""
     game = _waiting_game()
-    # N=Player1 (EW), E=Player2 (NS), S=Player3 (NS), W=Player4 (EW)
     game.team_choices = {"N": "EW", "E": "NS", "S": "NS", "W": "EW"}
 
     game2, error, close_all = await ws_module._dispatch_waiting(
@@ -119,7 +118,6 @@ async def test_start_game_valid_sets_ready_to_start_and_reassigns():
 
 
 async def test_start_game_already_balanced_default_positions():
-    """Cas nominal : N,S → NOUS ; E,W → EUX (positions inchangées)."""
     game = _waiting_game()
     game.team_choices = {"N": "NS", "E": "EW", "S": "NS", "W": "EW"}
 
@@ -145,35 +143,33 @@ async def test_unknown_action_returns_error():
 
 # ── Integration tests ─────────────────────────────────────────────────────────
 
-def test_choose_team_broadcast_to_all():
-    """Après choose_team, tous les joueurs connectés reçoivent team_choices mis à jour."""
-    client = TestClient(app)
-    with client.websocket_connect("/ws/room-ct/Alice") as ws_alice:
-        ws_alice.receive_json()  # state initial
+def test_choose_team_broadcast_to_all(admin_client, auth_client):
+    """Après choose_team, les deux joueurs connectés reçoivent team_choices mis à jour."""
+    with admin_client.websocket_connect("/ws/room-ct") as ws1:
+        ws1.receive_json()  # état initial admin
+        with auth_client.websocket_connect("/ws/room-ct") as ws2:
+            ws2.receive_json()   # état initial testuser
+            ws1.receive_json()   # broadcast admin (testuser vient d'arriver)
 
-        with client.websocket_connect("/ws/room-ct/Bob") as ws_bob:
-            ws_bob.receive_json()   # state initial Bob
-            ws_alice.receive_json() # broadcast Alice (Bob vient d'arriver)
+            ws1.send_json({"type": "choose_team", "team": "NS"})
 
-            ws_alice.send_json({"type": "choose_team", "team": "NS"})
+            state1 = ws1.receive_json()
+            state2 = ws2.receive_json()
 
-            # Les deux reçoivent l'état mis à jour
-            state_alice = ws_alice.receive_json()
-            state_bob = ws_bob.receive_json()
-
-    assert state_alice["type"] == "state"
-    assert state_alice["data"]["team_choices"]["N"] == "NS"
-    assert state_bob["type"] == "state"
-    assert state_bob["data"]["team_choices"]["N"] == "NS"
+    assert state1["type"] == "state"
+    assert state2["type"] == "state"
+    # admin est en position N (premier arrivé), vérifie son choix d'équipe
+    pos1 = state1["data"]["my_position"]
+    assert state1["data"]["team_choices"][pos1] == "NS"
+    assert state2["data"]["team_choices"][pos1] == "NS"
 
 
-def test_start_game_rejected_without_balance():
+def test_start_game_rejected_without_balance(auth_client):
     """start_game avec déséquilibre d'équipes retourne une erreur WS."""
-    client = TestClient(app)
-    with client.websocket_connect("/ws/room-sg/Alice") as ws:
-        ws.receive_json()  # state initial
+    with auth_client.websocket_connect("/ws/room-sg") as ws:
+        ws.receive_json()  # état initial
         ws.send_json({"type": "start_game"})
-        ws.receive_json()  # broadcast state (pas de changement)
+        ws.receive_json()  # broadcast state
         err = ws.receive_json()  # message d'erreur
     assert err["type"] == "error"
     assert "4 joueurs" in err["message"]
