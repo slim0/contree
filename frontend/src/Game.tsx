@@ -226,8 +226,8 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
 
   return (
     <div className="trick-grid">
-      <div className="trick-pos-top">{renderTrickCard(posTop, displayCard(posTop), isWinner(posTop))}</div>
-      <div className="trick-pos-left">{renderTrickCard(posLeft, displayCard(posLeft), isWinner(posLeft))}</div>
+      <div className="trick-pos-top">{renderTrickCard(posTop, displayCard(posTop), isWinner(posTop), 'top')}</div>
+      <div className="trick-pos-left">{renderTrickCard(posLeft, displayCard(posLeft), isWinner(posLeft), 'left')}</div>
       <div className="trick-pos-center">
         <div style={{textAlign:'center', color:'#555', fontSize:'0.7em'}}>
           {viewing
@@ -244,15 +244,19 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
           </button>
         )}
       </div>
-      <div className="trick-pos-right">{renderTrickCard(posRight, displayCard(posRight), isWinner(posRight))}</div>
-      <div className="trick-pos-bottom">{renderTrickCard(posBottom, displayCard(posBottom), isWinner(posBottom))}</div>
+      <div className="trick-pos-right">{renderTrickCard(posRight, displayCard(posRight), isWinner(posRight), 'right')}</div>
+      <div className="trick-pos-bottom">{renderTrickCard(posBottom, displayCard(posBottom), isWinner(posBottom), 'bottom')}</div>
     </div>
   )
 }
 
-function renderTrickCard(pos: string, card: CardData | null, winner: boolean) {
+function renderTrickCard(pos: string, card: CardData | null, winner: boolean, dir: 'top' | 'left' | 'right' | 'bottom') {
   if (!card) return <span style={{color:'#444',fontSize:'0.7em'}}>{pos}</span>
-  return <PlayingCard card={card} compact winner={winner} />
+  return (
+    <div key={`${card.rank}${card.suit}`} className={`card-arrive-${dir}`}>
+      <PlayingCard card={card} compact winner={winner} />
+    </div>
+  )
 }
 
 function getLastTrick(r: RoundData | null) {

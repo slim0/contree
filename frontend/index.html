@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
       * { box-sizing: border-box; }
-      body { font-family: monospace; margin: 0; padding: 10px; background: #1a1a1a; color: #eee; font-size: 15px; }
+      body { font-family: Inter, -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; background: #1a1a1a; color: #eee; font-size: 15px; }
 
       /* ── LANDING PAGE (préfixe lp- pour isolation) ── */
       .lp-root {
@@ -216,19 +216,19 @@
       .wr-toggle.readonly { cursor: default; }
       .wr-toggle:not(.readonly):hover { opacity: 0.8; }
 
-      button { margin: 2px; padding: 8px 14px; cursor: pointer; background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%); color: #eee; border: 1px solid #555; border-radius: 6px; font-family: monospace; font-size: 0.9em; min-height: 38px; touch-action: manipulation; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
+      button { margin: 2px; padding: 8px 14px; cursor: pointer; background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%); color: #eee; border: 1px solid #555; border-radius: 6px; font-family: inherit; font-size: 0.9em; min-height: 38px; touch-action: manipulation; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
       button:hover { background: linear-gradient(180deg, #5a5a5a 0%, #4a4a4a 100%); }
       button.action { border-color: #c87; color: #f96; background: linear-gradient(180deg, #5a3a20 0%, #4a2a10 100%); }
       button.action:hover { background: linear-gradient(180deg, #6a4a20 0%, #5a3a10 100%); }
       button:disabled { opacity: 0.4; cursor: default; }
 
-      input, select { background: #2a2a2a; color: #eee; border: 1px solid #555; padding: 7px 10px; border-radius: 6px; font-family: monospace; font-size: 0.9em; min-height: 38px; }
+      input, select { background: #2a2a2a; color: #eee; border: 1px solid #555; padding: 7px 10px; border-radius: 6px; font-family: inherit; font-size: 0.9em; min-height: 38px; }
 
       h3 { margin: 0 0 7px 0; color: #888; font-size: 0.78em; text-transform: uppercase; letter-spacing: 0.05em; }
 
       .panel {
         border: 1px solid #333;
-        padding: 9px 12px;
+        padding: 11px 14px;
         margin: 5px 0;
         border-radius: 8px;
         background: linear-gradient(180deg, #2a2a2a 0%, #1e1e1e 100%);
@@ -249,7 +249,7 @@
       .game-wrap {
         display: flex;
         flex-direction: column;
-        gap: 5px;
+        gap: 8px;
         max-width: 960px;
         margin: 0 auto;
         min-height: 100vh;
@@ -262,7 +262,7 @@
         flex-wrap: wrap;
         gap: 8px 16px;
         align-items: center;
-        padding: 8px 12px;
+        padding: 10px 14px;
         background: #222;
         border: 1px solid #333;
         border-radius: 8px;
@@ -359,7 +359,7 @@
       .player-slot {
         border: 2px solid #3a3a3a;
         border-radius: 12px;
-        padding: 10px 12px;
+        padding: 12px 14px;
         background:
           linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 50%, rgba(0,0,0,0.2) 100%),
           repeating-linear-gradient(45deg, #2a2a2a 0, #2a2a2a 2px, #242424 2px, #242424 4px);
@@ -368,8 +368,16 @@
         text-align: center;
         box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
       }
-      .player-slot.active-bidder { border-color: #fa6; box-shadow: 0 0 16px rgba(255,170,100,0.4), 0 4px 12px rgba(0,0,0,0.4); }
-      .player-slot.active-player { border-color: #4d9; box-shadow: 0 0 16px rgba(68,200,150,0.4), 0 4px 12px rgba(0,0,0,0.4); }
+      @keyframes slot-pulse-bid  {
+        0%, 100% { box-shadow: 0 0 10px rgba(255,170,100,0.3), 0 4px 12px rgba(0,0,0,0.4); }
+        50%       { box-shadow: 0 0 22px rgba(255,170,100,0.7), 0 4px 12px rgba(0,0,0,0.4); }
+      }
+      @keyframes slot-pulse-play {
+        0%, 100% { box-shadow: 0 0 10px rgba(68,200,150,0.3), 0 4px 12px rgba(0,0,0,0.4); }
+        50%       { box-shadow: 0 0 22px rgba(68,200,150,0.7), 0 4px 12px rgba(0,0,0,0.4); }
+      }
+      .player-slot.active-bidder { border-color: #fa6; animation: slot-pulse-bid  2s ease-in-out infinite; }
+      .player-slot.active-player { border-color: #4d9; animation: slot-pulse-play 2s ease-in-out infinite; }
       .player-slot.dealer { border-color: #887; }
       .player-name { font-size: 1em; font-weight: bold; margin-bottom: 4px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
       .player-pos  { font-size: 0.82em; color: #aaa; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; align-items: center; }
@@ -406,7 +414,8 @@
         0%, 100% { transform: translateY(0); }
         50% { transform: translateY(-3px); }
       }
-      .playing-card.playable:hover { transform: translateY(-10px) scale(1.05); }
+      .playing-card.playable:hover  { transform: translateY(-10px) scale(1.05); }
+      .playing-card.playable:active { transform: translateY(2px) scale(0.94) !important; box-shadow: 0 1px 6px rgba(60,170,90,0.4) !important; transition: transform 0.06s, box-shadow 0.06s; }
       .playing-card.winner {
         box-shadow: 0 0 20px rgba(255,215,0,0.8), 0 4px 12px rgba(0,0,0,0.5);
         border-color: #ffd700;
@@ -448,6 +457,21 @@
             rgba(255,255,255,0.06) 4px, rgba(255,255,255,0.06) 8px),
           repeating-linear-gradient(-45deg, transparent, transparent 4px,
             rgba(255,255,255,0.03) 4px, rgba(255,255,255,0.03) 8px);
+      }
+
+      /* ── TRICK CARD ANIMATIONS ── */
+      @keyframes trick-from-top    { from { opacity: 0; transform: translateY(-110px) scale(0.65); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      @keyframes trick-from-left   { from { opacity: 0; transform: translateX(-130px) scale(0.65); } to { opacity: 1; transform: translateX(0) scale(1); } }
+      @keyframes trick-from-right  { from { opacity: 0; transform: translateX(130px)  scale(0.65); } to { opacity: 1; transform: translateX(0) scale(1); } }
+      @keyframes trick-from-bottom { from { opacity: 0; transform: translateY(140px)  scale(0.65); } to { opacity: 1; transform: translateY(0) scale(1); } }
+      .card-arrive-top    { animation: trick-from-top    0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
+      .card-arrive-left   { animation: trick-from-left   0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
+      .card-arrive-right  { animation: trick-from-right  0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
+      .card-arrive-bottom { animation: trick-from-bottom 0.38s cubic-bezier(0.22, 0.61, 0.36, 1); }
+
+      @media (prefers-reduced-motion: reduce) {
+        .card-arrive-top, .card-arrive-left, .card-arrive-right, .card-arrive-bottom,
+        .player-slot.active-bidder, .player-slot.active-player { animation: none; }
       }
 
       /* ── TRICK CENTER ── */
