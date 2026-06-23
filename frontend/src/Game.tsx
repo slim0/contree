@@ -84,6 +84,14 @@ function getCurrentTrump(r: RoundData): string | null {
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
+function CardBack({ compact }: { compact?: boolean }) {
+  return (
+    <div className={`card-back${compact ? ' compact' : ''}`}>
+      <div className="cb-pattern" />
+    </div>
+  )
+}
+
 function PlayingCard({ card, playable, onClick, style, compact, winner }: {
   card: CardData; playable?: boolean; onClick?: () => void
   style?: React.CSSProperties; compact?: boolean; winner?: boolean
@@ -121,11 +129,15 @@ function PlayerSlot({ pos, game, r, onPlay }: {
 
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
-  const n = sortedHand.length
+  const n = isMe ? sortedHand.length : hand.length
   const cardW = 46
   const spacing = n > 1 ? Math.min(cardW, Math.floor(260 / (n - 1))) : 0
   const maxAngle = Math.min(24, n * 2.8)
   const fanW = n > 0 ? spacing * (n - 1) + cardW : cardW
+
+  const oppCardW = 38
+  const oppSpacing = n > 1 ? Math.min(oppCardW, Math.floor(180 / (n - 1))) : 0
+  const oppFanW = n > 0 ? oppSpacing * (n - 1) + oppCardW : oppCardW
 
   let slotClass = 'player-slot'
   if (isBidder) slotClass += ' active-bidder'
@@ -158,6 +170,21 @@ function PlayerSlot({ pos, game, r, onPlay }: {
               )
             })}
             {sortedHand.length === 0 && r?.phase === 'PLAYING' && <span style={{color:'#666', position:'absolute', bottom: 4}}>—</span>}
+          </div>
+        </div>
+      ) : n > 0 ? (
+        <div className="hand-fan-wrap">
+          <div className="hand-fan" style={{width: oppFanW}}>
+            {Array.from({ length: n }).map((_, i) => {
+              const k = n > 1 ? i / (n - 1) : 0.5
+              const angle = n > 1 ? maxAngle * (2 * k - 1) : 0
+              return (
+                <div key={i} style={{position:'absolute', left: i * oppSpacing, bottom: 0,
+                  transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
+                  <CardBack compact />
+                </div>
+              )
+            })}
           </div>
         </div>
       ) : null}
