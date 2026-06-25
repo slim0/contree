@@ -270,57 +270,87 @@ function getLastTrick(r: RoundData | null) {
   }
 }
 
-function BidPanel({ r, game, send }: { r: RoundData; game: GameData; send: (m: object) => void }) {
+function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: object) => void }) {
   const actions = r.legal_bid_actions
-  if (!actions) return null
 
-  const [bidVal, setBidVal] = useState<number>(actions.min_bid_value ?? 80)
+  const [bidVal, setBidVal] = useState<number>(actions?.min_bid_value ?? 80)
   const [trump, setTrump] = useState('H')
 
-  const validVals = [80, 90, 100, 110, 120, 130, 140, 150, 160].filter(
+  const validVals = actions ? [80, 90, 100, 110, 120, 130, 140, 150, 160].filter(
     v => actions.min_bid_value !== null && v >= (actions.min_bid_value ?? 80)
-  )
+  ) : []
+
+  const bidLabel = (e: { action: string; bid?: { is_capot: boolean; value: number; trump: string } | null }) => {
+    if (e.action === 'bid' && e.bid)
+      return e.bid.is_capot ? 'Capot' : `${e.bid.value} ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}`
+    if (e.action === 'contre')    return 'Contre !'
+    if (e.action === 'surcontre') return 'Surcontre !'
+    return 'Passe'
+  }
+
+  const currentBidder = r.current_bidder ? (game.players[r.current_bidder] ?? r.current_bidder) : null
+  const currentTeam   = r.current_bidder ? TEAM[r.current_bidder] : null
 
   return (
-    <div className="panel bid-panel-wrap">
-      <h3>Enchères <span className="my-turn">— À VOUS</span></h3>
-      <div className="bid-panel">
-        {actions.can_pass && (
-          <button className="action" onClick={() => send({ type: 'pass' })}>Passer</button>
-        )}
-        {actions.can_contre && (
-          <button className="action" onClick={() => send({ type: 'contre' })}>Contre !</button>
-        )}
-        {actions.can_surcontre && (
-          <button className="action" onClick={() => send({ type: 'surcontre' })}>Surcontre !</button>
-        )}
-        {(actions.min_bid_value !== null || actions.can_bid_capot) && (
-          <>
-            <select
-              value={bidVal}
-              onChange={e => setBidVal(+e.target.value)}
-              disabled={actions.min_bid_value === null}
-            >
-              {validVals.map(v => <option key={v} value={v}>{v}</option>)}
-            </select>
-            <select value={trump} onChange={e => setTrump(e.target.value)}>
-              {ALL_TRUMPS.map(t => <option key={t} value={t}>{TRUMP_LABELS[t]}</option>)}
-            </select>
-            {actions.min_bid_value !== null && (
-              <button className="action"
-                onClick={() => send({ type: 'bid', value: bidVal, trump, is_capot: false })}>
-                Annoncer {bidVal}
-              </button>
-            )}
-            {actions.can_bid_capot && (
-              <button className="action"
-                onClick={() => send({ type: 'bid', value: 0, trump, is_capot: true })}>
-                Capot
-              </button>
-            )}
-          </>
-        )}
-      </div>
+    <div className="bid-center">
+      <div className="bid-center-label">Enchères</div>
+
+      {r.bid_history.length > 0 && (
+        <div className="bid-center-history">
+          {r.bid_history.map((e, i) => {
+            const team = TEAM[e.position]
+            const isPass = e.action === 'pass'
+            return (
+              <div key={i} className={`bid-entry-row ${isPass ? 'bid-pass' : 'bid-bid'}`}>
+                <span className={team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
+                  {game.players[e.position] ?? e.position}
+                </span>
+                <span className="bid-entry-sep">·</span>
+                <span className="bid-entry-value">{bidLabel(e)}</span>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {actions ? (
+        <div className="bid-center-controls">
+          {actions.can_pass && (
+            <button className="action" onClick={() => send({ type: 'pass' })}>Passer</button>
+          )}
+          {actions.can_contre && (
+            <button className="action" onClick={() => send({ type: 'contre' })}>Contre !</button>
+          )}
+          {actions.can_surcontre && (
+            <button className="action" onClick={() => send({ type: 'surcontre' })}>Surcontre !</button>
+          )}
+          {(actions.min_bid_value !== null || actions.can_bid_capot) && (
+            <>
+              <select value={bidVal} onChange={e => setBidVal(+e.target.value)} disabled={actions.min_bid_value === null}>
+                {validVals.map(v => <option key={v} value={v}>{v}</option>)}
+              </select>
+              <select value={trump} onChange={e => setTrump(e.target.value)}>
+                {ALL_TRUMPS.map(t => <option key={t} value={t}>{TRUMP_LABELS[t]}</option>)}
+              </select>
+              {actions.min_bid_value !== null && (
+                <button className="action" onClick={() => send({ type: 'bid', value: bidVal, trump, is_capot: false })}>
+                  Annoncer {bidVal}
+                </button>
+              )}
+              {actions.can_bid_capot && (
+                <button className="action" onClick={() => send({ type: 'bid', value: 0, trump, is_capot: true })}>
+                  Capot
+                </button>
+              )}
+            </>
+          )}
+        </div>
+      ) : currentBidder ? (
+        <div className="bid-center-waiting">
+          <span className={currentTeam === 'NS' ? 'player-team-ns' : 'player-team-ew'}>{currentBidder}</span>
+          {' '}réfléchit…
+        </div>
+      ) : null}
     </div>
   )
 }
@@ -550,7 +580,9 @@ export default function Game({ game, error, send }: {
             <PlayerSlot pos={left} game={game} r={r} />
           </div>
           <div className="slot-center">
-            <TrickArea r={r} lastTrick={lastTrick ?? undefined} me={me} />
+            {r?.phase === 'BIDDING'
+              ? <BidCenter r={r} game={game} send={send} />
+              : <TrickArea r={r} lastTrick={lastTrick ?? undefined} me={me} />}
           </div>
           <div className="slot-right">
             <PlayerSlot pos={right} game={game} r={r} />
@@ -590,26 +622,6 @@ export default function Game({ game, error, send }: {
           </div>
         </div>
       </div>
-
-      {/* ── Historique enchères (phase BIDDING seulement) ── */}
-      {r?.phase === 'BIDDING' && r.bid_history.length > 0 && (
-        <div className="panel">
-          <h3>Enchères</h3>
-          <div style={{display:'flex', flexWrap:'wrap', gap:8}}>
-            {r.bid_history.map((e, i) => (
-              <span key={i} style={{fontSize:'0.85em', color: e.action === 'pass' ? '#666' : '#ccc'}}>
-                <span style={{color:'#888'}}>{game.players[e.position] ?? e.position}:</span>{' '}
-                {e.action === 'bid' && e.bid
-                  ? <>{e.bid.is_capot ? 'Capot' : e.bid.value} {TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}</>
-                  : e.action}
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* ── Panel enchères (quand c'est mon tour) ── */}
-      {isMyTurnBid && r && <BidPanel r={r} game={game} send={send} />}
 
       {/* ── Erreur ── */}
       {error && <p className="error">⚠ {error}</p>}
