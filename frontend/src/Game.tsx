@@ -124,8 +124,7 @@ function PlayerSlot({ pos, game, r, onPlay }: {
   const isPlayer = r?.phase === 'PLAYING' && r?.current_player === pos
   const hand = r?.hands[pos] ?? []
   const trump = r ? getCurrentTrump(r) : null
-  const shouldSort = trump !== null && r !== null && (r.bid_history.some(e => e.action === 'bid'))
-  const sortedHand = shouldSort ? sortHand(hand, trump!) : hand
+  const sortedHand = r ? sortHand(hand, trump ?? 'NT') : hand
 
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
@@ -406,8 +405,7 @@ export default function Game({ game, error, send }: {
 
   const myHand = r?.hands[me] ?? []
   const trump  = r ? getCurrentTrump(r) : null
-  const shouldSort = trump !== null && r !== null && r.bid_history.some(e => e.action === 'bid')
-  const sortedHand = shouldSort ? sortHand(myHand, trump!) : myHand
+  const sortedHand = r ? sortHand(myHand, trump ?? 'NT') : myHand
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
   const fanN = sortedHand.length
