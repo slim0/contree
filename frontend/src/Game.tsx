@@ -595,7 +595,7 @@ export default function Game({ game, error, send }: {
           <div style={{display:'flex', flexWrap:'wrap', gap:8}}>
             {r.bid_history.map((e, i) => (
               <span key={i} style={{fontSize:'0.85em', color: e.action === 'pass' ? '#666' : '#ccc'}}>
-                <span style={{color:'#888'}}>{e.position}:</span>{' '}
+                <span style={{color:'#888'}}>{game.players[e.position] ?? e.position}:</span>{' '}
                 {e.action === 'bid' && e.bid
                   ? <>{e.bid.is_capot ? 'Capot' : e.bid.value} {TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}</>
                   : e.action}
