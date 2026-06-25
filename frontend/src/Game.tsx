@@ -202,15 +202,18 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
   }
 
   const viewing = showLast && !!lastTrick
+  // Quand le pli vient d'être remporté et que le nouveau n'a pas encore commencé,
+  // afficher automatiquement le dernier pli jusqu'à la première carte du suivant.
+  const autoShowLast = !viewing && (trick?.cards.length === 0) && !!lastTrick
 
   const isWinner = (pos: string) => {
-    if (viewing) return lastTrick!.winner === pos
+    if (viewing || autoShowLast) return lastTrick!.winner === pos
     if (trick?.winner) return trick.winner === pos
     return false
   }
 
   const displayCard = (pos: string): CardData | null => {
-    if (viewing) return lastTrick!.cardAt(pos)
+    if (viewing || autoShowLast) return lastTrick!.cardAt(pos)
     if (phase === 'PLAYING') return cardAt(pos)
     if (phase === 'BIDDING') return null
     return lastTrick?.cardAt(pos) ?? null
