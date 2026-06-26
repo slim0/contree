@@ -9,7 +9,7 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <style>
       * { box-sizing: border-box; }
-      body { font-family: Inter, -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 10px; background: #1a1a1a; color: #eee; font-size: 15px; }
+      body { font-family: Inter, -apple-system, system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; margin: 0; padding: 0; background: #1a1a1a; color: #eee; font-size: 15px; overflow: hidden; }
 
       /* ── LANDING PAGE (préfixe lp- pour isolation) ── */
       .lp-root {
@@ -247,13 +247,13 @@
 
       /* ── GAME WRAPPER ── */
       .game-wrap {
+        position: fixed;
+        inset: 0;
         display: flex;
         flex-direction: column;
-        gap: 8px;
-        max-width: 960px;
-        margin: 0 auto;
-        min-height: 100vh;
+        gap: 6px;
         padding: 8px;
+        overflow: hidden;
       }
 
       /* ── HEADER COMPACT ── */
@@ -330,17 +330,24 @@
       .score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
 
       /* ── TABLE LOSANGE ── */
-      .table-wrap { display: flex; justify-content: center; padding: 8px 0; }
+      .table-wrap {
+        flex: 1;
+        min-height: 0;
+        display: flex;
+        justify-content: center;
+        align-items: stretch;
+      }
       .table-grid {
         display: grid;
         grid-template-areas:
           ". top ."
           "left center right"
           ". bottom .";
-        grid-template-columns: minmax(120px, 190px) 1fr minmax(120px, 190px);
-        grid-template-rows: auto auto auto;
+        grid-template-columns: minmax(155px, 220px) 1fr minmax(155px, 220px);
+        grid-template-rows: auto 1fr auto;
         gap: 6px;
         width: 100%;
+        height: 100%;
         align-items: center;
         justify-items: center;
         background: radial-gradient(ellipse at center, #2d5a2d 0%, #1e3d1e 50%, #152815 100%);
@@ -351,7 +358,7 @@
       }
       .slot-top    { grid-area: top; }
       .slot-left   { grid-area: left; }
-      .slot-center { grid-area: center; }
+      .slot-center { grid-area: center; align-self: stretch; width: 100%; }
       .slot-right  { grid-area: right; }
       .slot-bottom { grid-area: bottom; }
 
@@ -367,6 +374,8 @@
         width: 100%;
         text-align: center;
         box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+        overflow: hidden;
+        min-height: 168px;
       }
       @keyframes slot-pulse-bid  {
         0%, 100% { box-shadow: 0 0 10px rgba(255,170,100,0.3), 0 4px 12px rgba(0,0,0,0.4); }
@@ -485,6 +494,8 @@
         justify-items: center;
         min-width: 170px;
         min-height: 130px;
+        width: 100%;
+        height: 100%;
         border: 2px solid #3a3a2a;
         border-radius: 16px;
         padding: 10px;
@@ -498,26 +509,81 @@
       .trick-pos-right  { grid-area: te; }
       .trick-pos-bottom { grid-area: ts; }
 
-      /* ── BID PANEL ── */
-      .bid-panel {
+      /* ── BID CENTER ── */
+      .bid-center {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px 14px;
+        border: 2px solid #3a3a2a;
+        border-radius: 16px;
+        background: radial-gradient(ellipse at center, #2d5a2d 0%, #1e3d1e 70%, #152815 100%);
+        box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+        min-width: 170px;
+        width: 100%;
+        height: 100%;
+      }
+      .bid-center-label {
+        font-size: 0.68em;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #888;
+        text-align: center;
+      }
+      .bid-center-history {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        border-bottom: 1px solid rgba(255,255,255,0.07);
+        padding-bottom: 8px;
+      }
+      .bid-entry-row {
+        display: flex;
+        align-items: center;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 0.82em;
+        gap: 6px;
+      }
+      .bid-entry-sep {
+        color: #444;
+        flex-shrink: 0;
+      }
+      .bid-entry-row.bid-pass {
+        background: rgba(0,0,0,0.2);
+        opacity: 0.55;
+      }
+      .bid-entry-row.bid-bid {
+        background: rgba(255,255,255,0.06);
+      }
+      .bid-entry-value {
+        font-weight: 600;
+        color: #ddd;
+        white-space: nowrap;
+      }
+      .bid-entry-row.bid-pass .bid-entry-value {
+        color: #555;
+        font-weight: 400;
+      }
+      .bid-center-controls {
         display: flex;
         flex-wrap: wrap;
-        gap: 8px;
+        gap: 5px;
         align-items: center;
-        background: linear-gradient(180deg, #2a2a2a 0%, #1e1e1e 100%);
-        padding: 10px 14px;
-        border-radius: 8px;
-        border: 1px solid #333;
-        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
       }
-      .bid-panel-wrap { margin-top: 4px; }
-      .bid-panel h3 { color: #fa6; }
+      .bid-center-waiting {
+        text-align: center;
+        color: #888;
+        font-size: 0.82em;
+        padding: 4px 0 2px;
+        font-style: italic;
+      }
 
       /* ── PAYSAGE MOBILE (≤ 600px de hauteur) ── */
       @media (orientation: landscape) and (max-height: 520px) {
-        body { padding: 4px 8px; font-size: 13px; }
+        body { font-size: 13px; }
 
-        .game-wrap { gap: 3px; }
+        .game-wrap { gap: 3px; padding: 4px 6px; }
 
         .game-header {
           padding: 5px 10px;
@@ -529,12 +595,12 @@
         .score-num { font-size: 1.1em; }
 
         .table-grid {
-          grid-template-columns: minmax(90px, 130px) 1fr minmax(90px, 130px);
+          grid-template-columns: minmax(110px, 150px) 1fr minmax(110px, 150px);
           gap: 3px;
-          padding: 16px;
+          padding: 12px;
         }
 
-        .player-slot { padding: 6px 8px; min-width: 80px; }
+        .player-slot { padding: 6px 8px; min-width: 100px; min-height: 122px; }
         .player-name { font-size: 0.9em; margin-bottom: 2px; }
         .player-pos  { font-size: 0.75em; margin-bottom: 2px; gap: 2px; }
 
@@ -558,7 +624,9 @@
 
         h3 { font-size: 0.72em; margin-bottom: 4px; }
         .panel { padding: 6px 10px; margin: 3px 0; border-radius: 6px; }
-        .bid-panel { gap: 5px; }
+        .bid-center { padding: 6px; gap: 5px; min-width: 120px; }
+        .bid-center-history { font-size: 0.72em; gap: 2px 6px; padding-bottom: 4px; }
+        .bid-center-controls { gap: 4px; }
       }
 
       /* ── PORTRAIT MOBILE (≤ 640px de largeur) ── */
@@ -570,7 +638,7 @@
           gap: 3px;
         }
 
-        .player-slot { padding: 5px 7px; min-width: 70px; }
+        .player-slot { padding: 5px 7px; min-width: 80px; min-height: 130px; }
         .player-name { font-size: 0.9em; }
         .player-pos  { font-size: 0.76em; gap: 2px; }
 
@@ -592,7 +660,8 @@
 
         h3 { font-size: 0.74em; margin-bottom: 5px; }
         .panel { padding: 7px 10px; margin: 4px 0; }
-        .bid-panel { gap: 6px; }
+        .bid-center { padding: 8px; gap: 6px; }
+        .bid-center-controls { gap: 5px; }
 
         .game-header { gap: 6px 10px; padding: 6px 10px; }
       }

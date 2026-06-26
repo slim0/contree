@@ -135,7 +135,7 @@ function PlayerSlot({ pos, game, r, onPlay }: {
   const fanW = n > 0 ? spacing * (n - 1) + cardW : cardW
 
   const oppCardW = 38
-  const oppSpacing = n > 1 ? Math.min(oppCardW, Math.floor(180 / (n - 1))) : 0
+  const oppSpacing = n > 1 ? Math.min(oppCardW, Math.floor(110 / (n - 1))) : 0
   const oppFanW = n > 0 ? oppSpacing * (n - 1) + oppCardW : oppCardW
 
   let slotClass = 'player-slot'
@@ -171,22 +171,24 @@ function PlayerSlot({ pos, game, r, onPlay }: {
             {sortedHand.length === 0 && r?.phase === 'PLAYING' && <span style={{color:'#666', position:'absolute', bottom: 4}}>—</span>}
           </div>
         </div>
-      ) : n > 0 ? (
+      ) : (
         <div className="hand-fan-wrap">
-          <div className="hand-fan" style={{width: oppFanW}}>
-            {Array.from({ length: n }).map((_, i) => {
-              const k = n > 1 ? i / (n - 1) : 0.5
-              const angle = n > 1 ? maxAngle * (2 * k - 1) : 0
-              return (
-                <div key={i} style={{position:'absolute', left: i * oppSpacing, bottom: 0,
-                  transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
-                  <CardBack compact />
-                </div>
-              )
-            })}
-          </div>
+          {n > 0 && (
+            <div className="hand-fan" style={{width: oppFanW}}>
+              {Array.from({ length: n }).map((_, i) => {
+                const k = n > 1 ? i / (n - 1) : 0.5
+                const angle = n > 1 ? maxAngle * (2 * k - 1) : 0
+                return (
+                  <div key={i} style={{position:'absolute', left: i * oppSpacing, bottom: 0,
+                    transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
+                    <CardBack compact />
+                  </div>
+                )
+              })}
+            </div>
+          )}
         </div>
-      ) : null}
+      )}
     </div>
   )
 }
