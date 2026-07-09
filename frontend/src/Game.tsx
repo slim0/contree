@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import type { GameData, CardData, LegalBidActions, RoundData, RoundResult } from './types'
+import { VoiceManager, type VoicePeer } from './voice/VoiceManager'
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -428,8 +429,154 @@ export default function Game({ game, error, send }: {
 }) {
   if (!game) return <p style={{color:'#4af'}}>Connexion en cours…</p>
 
-  const r = game.round
+  // ─── Chat vocal ─────────────────────────────────────────────────────────────
+  const wsRef = useRef<WebSocket | null>(null)
+  const voiceManagerRef = useRef<VoiceManager | null>(null)
+  const [voicePeers, setVoicePeers] = useState<Map<string, VoicePeer>>(new Map())
+  const [localIsSpeaking, setLocalIsSpeaking] = useState(false)
+  const [isMuted, setIsMuted] = useState(false)
+  const [voiceError, setVoiceError] = useState<string | null>(null)
+  const voiceInitializedRef = useRef(false)
+
   const me = game.my_position
+
+  // Créer un WebSocket interne pour la signalisation WebRTC (même connexion)
+  // On réutilise le WebSocket existant via les événements custom
+  useEffect(() => {
+    // Initialiser le VoiceManager
+    if (!voiceInitializedRef.current && game.players[me]) {
+      // Créer un manager de voix
+      const initVoice = async () => {
+        try {
+          // Demander accès micro
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: {
+              echoCancellation: true,
+              noiseSuppression: true,
+              autoGainControl: true,
+            },
+            video: false,
+          })
+
+          voiceManagerRef.current = new VoiceManager({
+            ws: {
+              send: (data: string) => {
+                // Intercepter l'envoi et transformer les messages voice-XX en type original
+                const msg = JSON.parse(data)
+                if (msg.type === 'webrtc-offer') msg.type = 'webrtc-offer'
+                if (msg.type === 'webrtc-answer') msg.type = 'webrtc-answer'
+                if (msg.type === 'webrtc-ice-candidate') msg.type = 'webrtc-ice-candidate'
+                send(msg)
+              },
+            } as WebSocket,
+            myPosition: me,
+          })
+
+          // Configurer callbacks
+          voiceManagerRef.current.setOnSpeakingChange((position, speaking) => {
+            if (position === 'local') {
+              setLocalIsSpeaking(speaking)
+            } else {
+              setVoicePeers(prev => {
+                const peer = prev.get(position)
+                if (!peer) return prev
+                const updated = new Map(prev)
+                updated.set(position, { ...peer, isSpeaking: speaking })
+                return updated
+              })
+            }
+          })
+
+          voiceManagerRef.current.setOnPeerConnect((position, connected) => {
+            setVoicePeers(prev => {
+              const peer = prev.get(position)
+              if (!peer) return prev
+              const updated = new Map(prev)
+              updated.set(position, {
+                ...peer,
+                connectionState: connected ? 'connected' : 'disconnected',
+              })
+              return updated
+            })
+          })
+
+          await voiceManagerRef.current.init()
+          setIsMuted(false)
+          voiceInitializedRef.current = true
+
+          // Créer les connexions P2P vers tous les autres joueurs
+          Object.keys(game.players).forEach(p => {
+            if (p !== me) {
+              voiceManagerRef.current?.createPeerConnection(p).catch(err => {
+                console.error('[Voice] P2P failed:', p, err)
+              })
+            }
+          })
+        } catch (err) {
+          console.error('[Voice] Init failed:', err)
+          setVoiceError(err instanceof Error ? err.message : 'Erreur voix')
+        }
+      }
+
+      initVoice()
+    }
+
+    // Gérer les événements custom pour la signalisation
+    const offerHandler = (e: CustomEvent) => {
+      const msg = e.detail
+      const from = msg.from
+      voiceManagerRef.current?.handleOffer(from, msg.data.sdp)
+    }
+    const answerHandler = (e: CustomEvent) => {
+      const msg = e.detail
+      const from = msg.from
+      voiceManagerRef.current?.handleAnswer(from, msg.data.sdp)
+    }
+    const iceHandler = (e: CustomEvent) => {
+      const msg = e.detail
+      const from = msg.from
+      voiceManagerRef.current?.handleIceCandidate(from, msg.data.candidate)
+    }
+
+    window.addEventListener('voice-offer', offerHandler as EventListener)
+    window.addEventListener('voice-answer', answerHandler as EventListener)
+    window.addEventListener('voice-ice', iceHandler as EventListener)
+
+    // Mettre à jour les peers
+    const interval = setInterval(() => {
+      if (voiceManagerRef.current) {
+        setVoicePeers(new Map(voiceManagerRef.current.getPeers()))
+      }
+    }, 200)
+
+    return () => {
+      window.removeEventListener('voice-offer', offerHandler as EventListener)
+      window.removeEventListener('voice-answer', answerHandler as EventListener)
+      window.removeEventListener('voice-ice', iceHandler as EventListener)
+      clearInterval(interval)
+    }
+  }, [game.players, me])
+
+  const toggleMute = () => {
+    if (voiceManagerRef.current) {
+      const muted = voiceManagerRef.current.toggleMute()
+      setIsMuted(muted)
+    }
+  }
+
+  // Raccourci clavier pour couper le micro
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.key.toLowerCase() === 'm' && !e.shiftKey && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault()
+        toggleMute()
+      }
+    }
+    window.addEventListener('keydown', handler)
+    return () => window.removeEventListener('keydown', handler)
+  }, [])
+
+  const r = game.round
   const top    = PARTNER[me]
   const left   = SCREEN_LEFT[me]
   const right  = SCREEN_RIGHT[me]
@@ -475,6 +622,123 @@ export default function Game({ game, error, send }: {
               ? `En attente de ${missing} joueur${missing > 1 ? 's' : ''}…`
               : 'Choisissez vos équipes puis appuyez sur GO'}
           </p>
+
+          {/* ─── Chat vocal ── */}
+          <div style={{ marginBottom: 16 }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                flexWrap: 'wrap',
+                gap: 8,
+                padding: '8px 12px',
+                backgroundColor: '#1a1a1a',
+                borderRadius: 16,
+              }}
+            >
+              {voiceError && <span style={{ color: '#f66', fontSize: 12 }}>{voiceError}</span>}
+
+              {/* Indicateur pour moi */}
+              <span
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  padding: '4px 8px',
+                  borderRadius: 12,
+                  backgroundColor: localIsSpeaking ? '#2a2' : '#222',
+                  transition: 'background-color 0.15s ease',
+                }}
+              >
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    borderRadius: '50%',
+                    backgroundColor: isMuted ? '#666' : '#4a4',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                  title={isMuted ? 'Micro coupé' : 'Micro activé'}
+                />
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#ffa' }}>
+                  {game.players[me] ?? me}
+                </span>
+                <span
+                  style={{
+                    fontSize: 10,
+                    padding: '2px 5px',
+                    borderRadius: 6,
+                    backgroundColor: localIsSpeaking ? '#383' : '#444',
+                    color: '#fff',
+                    fontWeight: 700,
+                    transition: 'all 0.15s ease',
+                  }}
+                >
+                  {me}
+                </span>
+              </span>
+
+              {/* Indicateurs pour les autres joueurs */}
+              {Array.from(voicePeers.entries()).map(([position, peer]) => (
+                <span
+                  key={position}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '4px 8px',
+                    borderRadius: 12,
+                    backgroundColor: peer.isSpeaking ? '#2a2' : '#222',
+                    transition: 'background-color 0.15s ease',
+                  }}
+                >
+                  <span
+                    style={{
+                      width: 14,
+                      height: 14,
+                      borderRadius: '50%',
+                      backgroundColor: peer.connectionState === 'connected' ? '#4a4' : '#666',
+                    }}
+                  />
+                  <span style={{ fontSize: 11, fontWeight: 600, color: '#ccc' }}>
+                    {game.players[position] ?? position}
+                  </span>
+                  <span
+                    style={{
+                      fontSize: 10,
+                      padding: '2px 5px',
+                      borderRadius: 6,
+                      backgroundColor: peer.isSpeaking ? '#383' : '#444',
+                      color: '#fff',
+                      fontWeight: 700,
+                      transition: 'all 0.15s ease',
+                    }}
+                  >
+                    {position}
+                  </span>
+                </span>
+              ))}
+
+              <button
+                onClick={toggleMute}
+                style={{
+                  background: isMuted ? '#333' : '#2a2',
+                  border: 'none',
+                  borderRadius: 8,
+                  padding: '6px 12px',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                  fontWeight: 600,
+                  color: isMuted ? '#888' : '#fff',
+                  marginLeft: 8,
+                  transition: 'background 0.15s ease',
+                }}
+                title={isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
+              >
+                {isMuted ? 'MICRO MUTE' : 'MICRO ON'}
+              </button>
+            </div>
+          </div>
 
           <div className="wr-player-list">
             {slots.map(pos => {
@@ -622,6 +886,114 @@ export default function Game({ game, error, send }: {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* ─── Chat vocal pendant le jeu ── */}
+        <div style={{
+          marginTop: 12,
+          display: 'flex',
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: 8,
+          padding: '6px 10px',
+          backgroundColor: '#1a1a1a',
+          borderRadius: 12,
+        }}>
+          {/* Indicateur pour moi */}
+          <span
+            style={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              padding: '3px 6px',
+              borderRadius: 10,
+              backgroundColor: localIsSpeaking ? '#2a2' : '#222',
+              transition: 'background-color 0.15s ease',
+            }}
+          >
+            <span
+              style={{
+                width: 12,
+                height: 12,
+                borderRadius: '50%',
+                backgroundColor: isMuted ? '#666' : '#4a4',
+                transition: 'background-color 0.15s ease',
+              }}
+              title={isMuted ? 'Micro coupé' : 'Micro activé'}
+            />
+            <span style={{ fontSize: 10, fontWeight: 600, color: '#ffa' }}>
+              ME
+            </span>
+            {localIsSpeaking && (
+              <span
+                style={{
+                  fontSize: 9,
+                  color: '#8f8',
+                  fontWeight: 700,
+                }}
+              >
+                SPEAKING
+              </span>
+            )}
+          </span>
+
+          {/* Indicateurs pour les autres joueurs */}
+          {Array.from(voicePeers.entries()).map(([position, peer]) => (
+            <span
+              key={position}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 5,
+                padding: '3px 6px',
+                borderRadius: 10,
+                backgroundColor: peer.isSpeaking ? '#2a2' : '#222',
+                transition: 'background-color 0.15s ease',
+              }}
+            >
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: '50%',
+                  backgroundColor: peer.connectionState === 'connected' ? '#4a4' : '#666',
+                }}
+              />
+              <span style={{ fontSize: 10, fontWeight: 600, color: '#ccc' }}>
+                {position}
+              </span>
+              {peer.isSpeaking && (
+                <span
+                  style={{
+                    fontSize: 9,
+                    color: '#8f8',
+                    fontWeight: 700,
+                  }}
+                >
+                  SPEAKING
+                </span>
+              )}
+            </span>
+          ))}
+
+          <button
+            onClick={toggleMute}
+            style={{
+              background: isMuted ? '#333' : '#2a2',
+              border: 'none',
+              borderRadius: 6,
+              padding: '4px 8px',
+              cursor: 'pointer',
+              fontSize: 10,
+              fontWeight: 700,
+              color: isMuted ? '#888' : '#fff',
+              marginLeft: 4,
+              transition: 'background 0.15s ease',
+            }}
+            title={isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
+          >
+            {isMuted ? 'MUTE' : 'ON'}
+          </button>
         </div>
       </div>
 

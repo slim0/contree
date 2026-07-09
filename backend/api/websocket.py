@@ -32,6 +32,40 @@ _conn_serial: int = 0
 # Rooms currently closing all connections for team reassignment; do not delete them.
 _closing_for_start: set[str] = set()
 
+# ─── WebRTC signalisation ──────────────────────────────────────────────────────
+# room_id -> {position_str -> set of peer positions this player is connected to}
+_voice_peers: dict[str, dict[str, set[str]]] = {}
+
+
+async def _init_voice_peers(room_id: str, position: Position) -> None:
+    """Initialize voice peer set for a new connection."""
+    async with _conn_lock:
+        _voice_peers.setdefault(room_id, {}).setdefault(position.value, set())
+
+
+async def _cleanup_voice_peers(room_id: str, position: Position) -> None:
+    """Clean up voice peer state for a disconnected player."""
+    async with _conn_lock:
+        if room_id in _voice_peers:
+            _voice_peers[room_id].pop(position.value, None)
+            # Remove this player from others' peer sets
+            for peers in _voice_peers[room_id].values():
+                peers.discard(position.value)
+            if not _voice_peers[room_id]:
+                _voice_peers.pop(room_id, None)
+
+
+async def _broadcast_voice(room_id: str, event: dict, exclude_position: Position | None = None) -> None:
+    """Broadcast a voice event to all players in the room."""
+    async with _conn_lock:
+        sockets = {pos: ws for pos, (ws, _) in _connections.get(room_id, {}).items()}
+
+    for pos_str, ws in sockets.items():
+        if exclude_position and pos_str == exclude_position.value:
+            continue
+        with contextlib.suppress(Exception):
+            await ws.send_text(json.dumps(event))
+
 
 async def _register(room_id: str, position: Position, ws: WebSocket) -> int:
     global _conn_serial
@@ -268,6 +302,9 @@ async def handle_connection(
 
     conn_id = await _register(room_id, position, ws)
 
+    # Initialize voice peer tracking for this player
+    await _init_voice_peers(room_id, position)
+
     # Démarrage après GO : quand les 4 joueurs se sont reconnectés suite à la réassignation
     if (
         game.ready_to_start
@@ -328,6 +365,23 @@ async def handle_connection(
                     await ws.send_text(json.dumps({"type": "error", "message": error}))
                 continue
 
+            # ─── WebRTC signalisation ─────────────────────────────────────────────────
+            msg_type = msg.get("type")
+            if msg_type in ("webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"):
+                peer_position = msg.get("peer_position")
+                if not peer_position:
+                    await ws.send_text(json.dumps({"type": "error", "message": "peer_position required for voice signaling"}))
+                    continue
+
+                # Forward the signaling message to the target peer
+                event = {
+                    "type": f"voice-{msg_type}",
+                    "from": position.value,
+                    "data": msg.get("data"),
+                }
+                await _broadcast_voice(room_id, event, exclude_position=position)
+                continue
+
             game, error = await _dispatch(game, position, msg, room_id)
             await store.set_game(game)
             await broadcast(room_id, game)
@@ -340,6 +394,7 @@ async def handle_connection(
 
     except WebSocketDisconnect:
         await _unregister(room_id, position, conn_id)
+        await _cleanup_voice_peers(room_id, position)
         log.info(
             "── DÉCONNEXION  %s (%s)  ←  salon '%s'",
             player_name,
