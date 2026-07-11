@@ -30,6 +30,8 @@ export class VoiceManager {
   private localStream: MediaStream | null = null;
   private onSpeakingChange: ((position: string, isSpeaking: boolean) => void) | null = null;
   private onPeerConnect: ((position: string, connected: boolean) => void) | null = null;
+  private rafHandles: number[] = [];
+  private audioElements: HTMLAudioElement[] = [];
 
   constructor(config: VoiceManagerConfig) {
     this.config = config;
@@ -89,10 +91,10 @@ export class VoiceManager {
         this.onSpeakingChange?.('local', isSpeaking);
       }
 
-      requestAnimationFrame(checkVoice);
+      this.rafHandles.push(requestAnimationFrame(checkVoice));
     };
 
-    checkVoice();
+    this.rafHandles.push(requestAnimationFrame(checkVoice));
   }
 
   /**
@@ -261,9 +263,16 @@ export class VoiceManager {
   }
 
   /**
-   * Configurer la détection de voix pour un stream distant
+   * Configurer la détection de voix pour un stream distant et le jouer
    */
   private setupRemoteVoiceDetection(peerPosition: string, stream: MediaStream): void {
+    // Lire l'audio distant via un élément <audio> — seule façon fiable de l'envoyer aux hauts-parleurs
+    const audio = new Audio();
+    audio.srcObject = stream;
+    audio.autoplay = true;
+    audio.play().catch(() => {/* autoplay peut être bloqué avant interaction utilisateur */});
+    this.audioElements.push(audio);
+
     const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
@@ -271,30 +280,23 @@ export class VoiceManager {
     const source = audioContext.createMediaStreamSource(stream);
     source.connect(analyser);
 
-    // Jouer le son distant
-    const destination = audioContext.createMediaStreamDestination();
-    source.connect(destination);
-
     const dataArray = new Uint8Array(analyser.frequencyBinCount);
 
     const checkVoice = () => {
       analyser.getByteFrequencyData(dataArray);
       const average = dataArray.reduce((a, b) => a + b, 0) / dataArray.length;
-      const isSpeaking = average > 15; // Seuil plus bas pour le distant
+      const isSpeaking = average > 15;
 
       const peer = this.peers.get(peerPosition);
       if (peer && isSpeaking !== peer.isSpeaking) {
-        this.peers.set(peerPosition, {
-          ...peer,
-          isSpeaking,
-        });
+        this.peers.set(peerPosition, { ...peer, isSpeaking });
         this.onSpeakingChange?.(peerPosition, isSpeaking);
       }
 
-      requestAnimationFrame(checkVoice);
+      this.rafHandles.push(requestAnimationFrame(checkVoice));
     };
 
-    checkVoice();
+    this.rafHandles.push(requestAnimationFrame(checkVoice));
   }
 
   /**
@@ -303,10 +305,12 @@ export class VoiceManager {
   toggleMute(): boolean {
     if (!this.localStream) return false;
 
-    const muted = this.localStream.getAudioTracks().some(t => t.muted);
-    this.localStream.getAudioTracks().forEach(t => t.enabled = !muted);
+    // track.muted est en lecture seule (géré par le navigateur/OS)
+    // track.enabled est ce qu'on contrôle pour couper le micro
+    const currentlyMuted = this.localStream.getAudioTracks().some(t => !t.enabled);
+    this.localStream.getAudioTracks().forEach(t => { t.enabled = currentlyMuted; });
 
-    return !muted;
+    return !currentlyMuted; // retourne le nouvel état muted
   }
 
   /**
@@ -333,6 +337,17 @@ export class VoiceManager {
    */
   disconnectAll(): void {
     this.peers.forEach((_, position) => this.cleanupPeer(position));
+
+    // Stopper les boucles RAF
+    this.rafHandles.forEach(id => cancelAnimationFrame(id));
+    this.rafHandles = [];
+
+    // Libérer les éléments audio distants
+    this.audioElements.forEach(audio => {
+      audio.srcObject = null;
+      audio.pause();
+    });
+    this.audioElements = [];
 
     if (this.localStream) {
       this.localStream.getTracks().forEach(track => track.stop());

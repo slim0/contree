@@ -373,13 +373,18 @@ async def handle_connection(
                     await ws.send_text(json.dumps({"type": "error", "message": "peer_position required for voice signaling"}))
                     continue
 
-                # Forward the signaling message to the target peer
+                # Route the signaling message to the specific target peer only
                 event = {
                     "type": f"voice-{msg_type}",
                     "from": position.value,
                     "data": msg.get("data"),
                 }
-                await _broadcast_voice(room_id, event, exclude_position=position)
+                async with _conn_lock:
+                    target = _connections.get(room_id, {}).get(peer_position)
+                if target:
+                    target_ws, _ = target
+                    with contextlib.suppress(Exception):
+                        await target_ws.send_text(json.dumps(event))
                 continue
 
             game, error = await _dispatch(game, position, msg, room_id)

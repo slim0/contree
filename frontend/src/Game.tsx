@@ -448,16 +448,6 @@ export default function Game({ game, error, send }: {
       // Créer un manager de voix
       const initVoice = async () => {
         try {
-          // Demander accès micro
-          const stream = await navigator.mediaDevices.getUserMedia({
-            audio: {
-              echoCancellation: true,
-              noiseSuppression: true,
-              autoGainControl: true,
-            },
-            video: false,
-          })
-
           voiceManagerRef.current = new VoiceManager({
             ws: {
               send: (data: string) => {
