@@ -2,16 +2,14 @@
 
 from __future__ import annotations
 
-from backend.auth.service import hash_password
 from backend.users.repository import UserRepository
 
 # ── UserRepository ────────────────────────────────────────────────────────────
 
 
-def test_create_and_get_user(isolated_db):
-    db = isolated_db()
-    repo = UserRepository(db)
-    user = repo.create("newuser", hash_password("pass"), must_change_password=True)
+def test_create_and_get_user(pb_client):
+    repo = UserRepository(pb_client)
+    user = repo.create("newuser", "pass1234", must_change_password=True)
     assert user.id is not None
     assert user.username == "newuser"
     assert user.must_change_password is True
@@ -19,46 +17,49 @@ def test_create_and_get_user(isolated_db):
     fetched = repo.get_by_username("newuser")
     assert fetched is not None
     assert fetched.id == user.id
-    db.close()
 
 
-def test_get_by_id(isolated_db):
-    db = isolated_db()
-    repo = UserRepository(db)
+def test_get_by_id(pb_client):
+    repo = UserRepository(pb_client)
     user = repo.get_by_username("testuser")
     assert user is not None
     by_id = repo.get_by_id(user.id)
     assert by_id is not None
     assert by_id.username == "testuser"
-    db.close()
 
 
-def test_list_all_includes_seeded_users(isolated_db):
-    db = isolated_db()
-    users = UserRepository(db).list_all()
+def test_list_all_includes_seeded_users(pb_client):
+    users = UserRepository(pb_client).list_all()
     names = [u.username for u in users]
     assert "admin" in names
     assert "testuser" in names
-    db.close()
 
 
-def test_update_password_clears_must_change(isolated_db):
-    db = isolated_db()
-    repo = UserRepository(db)
-    user = repo.create("needschange", hash_password("tmp"), must_change_password=True)
-    updated = repo.update_password(user, hash_password("newpass"))
+def test_update_password_clears_must_change(pb_client):
+    repo = UserRepository(pb_client)
+    user = repo.create("needschange", "tmp12345", must_change_password=True)
+    updated = repo.update_password(user, "newpass123")
     assert updated.must_change_password is False
-    db.close()
 
 
-def test_delete_user(isolated_db):
-    db = isolated_db()
-    repo = UserRepository(db)
+def test_verify_credentials_success(pb_client):
+    repo = UserRepository(pb_client)
+    user = repo.verify_credentials("testuser", "testpass123")
+    assert user is not None
+    assert user.username == "testuser"
+
+
+def test_verify_credentials_wrong_password(pb_client):
+    repo = UserRepository(pb_client)
+    assert repo.verify_credentials("testuser", "wrongpass") is None
+
+
+def test_delete_user(pb_client):
+    repo = UserRepository(pb_client)
     user = repo.get_by_username("testuser")
     assert user is not None
     repo.delete(user)
     assert repo.get_by_username("testuser") is None
-    db.close()
 
 
 # ── Routes admin ──────────────────────────────────────────────────────────────

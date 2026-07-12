@@ -5,21 +5,9 @@ from __future__ import annotations
 import jwt
 import pytest
 
-from backend.auth.service import (
-    create_token,
-    decode_token,
-    generate_temp_password,
-    hash_password,
-    verify_password,
-)
+from backend.auth.service import create_token, decode_token, generate_temp_password
 
 # ── Service unitaire ──────────────────────────────────────────────────────────
-
-
-def test_hash_and_verify_password():
-    hashed = hash_password("monMotDePasse")
-    assert verify_password("monMotDePasse", hashed)
-    assert not verify_password("mauvaisPass", hashed)
 
 
 def test_generate_temp_password_length():
@@ -33,9 +21,9 @@ def test_generate_temp_password_uniqueness():
 
 
 def test_create_and_decode_token():
-    token = create_token(42, "alice", False, False)
+    token = create_token("abc123def456xyz", "alice", False, False)
     payload = decode_token(token)
-    assert payload["sub"] == "42"
+    assert payload["sub"] == "abc123def456xyz"
     assert payload["username"] == "alice"
     assert payload["is_admin"] is False
     assert payload["must_change_password"] is False

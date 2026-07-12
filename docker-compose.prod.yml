@@ -1,14 +1,33 @@
 services:
+  pocketbase:
+    build:
+      context: .
+      dockerfile: Dockerfile.pocketbase
+    volumes:
+      - pocketbase_data:/pb/pb_data
+    environment:
+      PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL:?PB_SUPERUSER_EMAIL is required}
+      PB_SUPERUSER_PASSWORD: ${PB_SUPERUSER_PASSWORD:?PB_SUPERUSER_PASSWORD is required}
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
       target: prod
-    volumes:
-      - sqlite_data:/app/data
     environment:
-      DATABASE_URL: sqlite:////app/data/contree.db
+      PB_URL: http://pocketbase:8090
+      PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL:?PB_SUPERUSER_EMAIL is required}
+      PB_SUPERUSER_PASSWORD: ${PB_SUPERUSER_PASSWORD:?PB_SUPERUSER_PASSWORD is required}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+    depends_on:
+      pocketbase:
+        condition: service_healthy
     restart: unless-stopped
 
   frontend:
@@ -23,4 +42,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  sqlite_data:
+  pocketbase_data:
