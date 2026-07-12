@@ -9,7 +9,6 @@ const TRUMP_LABELS: Record<string, string> = {
   H: '♥ Cœur', D: '♦ Carreau', C: '♣ Trèfle', S: '♠ Pique',
   NT: 'Sans Atout', AT: 'Tout Atout',
 }
-const ALL_TRUMPS = ['H', 'D', 'C', 'S', 'NT', 'AT']
 const PARTNER: Record<string, string> = { N: 'S', S: 'N', E: 'W', W: 'E' }
 // Screen layout: me=bottom → who appears on left/right of screen
 // Each player faces the table center, so my right-hand neighbor sits in the
@@ -83,6 +82,40 @@ function getCurrentTrump(r: RoundData): string | null {
   return lastBid?.bid?.trump ?? null
 }
 
+// ─── Responsive card sizing ───────────────────────────────────────────────────
+// Mirrors the breakpoints of the `.playing-card` media queries in index.html so the
+// JS fan-spacing math always matches the actually-rendered card size.
+
+interface CardSizes { mine: number; opponent: number; fanBudget: number; oppFanBudget: number }
+
+const CARD_SIZES: Record<'default' | 'landscapeMobile' | 'portraitMobile', CardSizes> = {
+  default:         { mine: 60, opponent: 48, fanBudget: 340, oppFanBudget: 150 },
+  landscapeMobile: { mine: 54, opponent: 42, fanBudget: 320, oppFanBudget: 130 },
+  portraitMobile:  { mine: 56, opponent: 44, fanBudget: 300, oppFanBudget: 130 },
+}
+
+function getCardBreakpoint(): keyof typeof CARD_SIZES {
+  if (typeof window === 'undefined') return 'default'
+  const isLandscape = window.matchMedia('(orientation: landscape)').matches
+  if (isLandscape && window.innerHeight <= 520) return 'landscapeMobile'
+  if (!isLandscape && window.innerWidth <= 640) return 'portraitMobile'
+  return 'default'
+}
+
+function useCardSizes(): CardSizes {
+  const [bp, setBp] = useState(getCardBreakpoint)
+  useEffect(() => {
+    const onChange = () => setBp(getCardBreakpoint())
+    window.addEventListener('resize', onChange)
+    window.addEventListener('orientationchange', onChange)
+    return () => {
+      window.removeEventListener('resize', onChange)
+      window.removeEventListener('orientationchange', onChange)
+    }
+  }, [])
+  return CARD_SIZES[bp]
+}
+
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function CardBack({ compact }: { compact?: boolean }) {
@@ -112,9 +145,9 @@ function PlayingCard({ card, playable, onClick, style, compact, winner }: {
   )
 }
 
-function PlayerSlot({ pos, game, r, onPlay }: {
+function PlayerSlot({ pos, game, r, onPlay, cardSizes }: {
   pos: string; game: GameData; r: RoundData | null
-  onPlay?: (card: CardData) => void
+  onPlay?: (card: CardData) => void; cardSizes: CardSizes
 }) {
   const name = game.players[pos]
   const isMe = pos === game.my_position
@@ -130,22 +163,22 @@ function PlayerSlot({ pos, game, r, onPlay }: {
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
   const n = isMe ? sortedHand.length : hand.length
-  const cardW = 46
-  const spacing = n > 1 ? Math.min(cardW, Math.floor(260 / (n - 1))) : 0
+  const cardW = cardSizes.mine
+  const spacing = n > 1 ? Math.min(cardW, Math.floor(cardSizes.fanBudget / (n - 1))) : 0
   const maxAngle = Math.min(24, n * 2.8)
   const fanW = n > 0 ? spacing * (n - 1) + cardW : cardW
 
-  const oppCardW = 38
-  const oppSpacing = n > 1 ? Math.min(oppCardW, Math.floor(110 / (n - 1))) : 0
+  const oppCardW = cardSizes.opponent
+  const oppSpacing = n > 1 ? Math.min(oppCardW, Math.floor(cardSizes.oppFanBudget / (n - 1))) : 0
   const oppFanW = n > 0 ? oppSpacing * (n - 1) + oppCardW : oppCardW
 
   let slotClass = 'player-slot'
   if (isBidder) slotClass += ' active-bidder'
   else if (isPlayer) slotClass += ' active-player'
-  else if (isDealer) slotClass += ' dealer'
 
   return (
     <div className={slotClass}>
+      <div className="player-marker">▼</div>
       <div className="player-pos">
         <span className={teamClass}>{TEAM_LABEL[team] ?? team}</span>
         {isDealer && <span className="badge-dealer" title="Donneur"> 🃏</span>}
@@ -196,8 +229,23 @@ function PlayerSlot({ pos, game, r, onPlay }: {
 
 function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: ReturnType<typeof getLastTrick>; me: string }) {
   const [showLast, setShowLast] = useState(false)
+  const [holdLastTrick, setHoldLastTrick] = useState(false)
+  const prevTricksCount = useRef(0)
   const phase = r?.phase
   const trick = r?.current_trick
+  const tricksCount = r?.tricks?.length ?? 0
+
+  // Un pli qui vient d'être remporté reste affiché 4s, même si la carte
+  // suivante est jouée entre-temps.
+  useEffect(() => {
+    if (tricksCount > prevTricksCount.current) {
+      setHoldLastTrick(true)
+      const timer = setTimeout(() => setHoldLastTrick(false), 4000)
+      prevTricksCount.current = tricksCount
+      return () => clearTimeout(timer)
+    }
+    prevTricksCount.current = tricksCount
+  }, [tricksCount])
 
   const cardAt = (pos: string): CardData | null => {
     const tc = trick?.cards.find(c => c.position === pos)
@@ -205,9 +253,9 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
   }
 
   const viewing = showLast && !!lastTrick
-  // Quand le pli vient d'être remporté et que le nouveau n'a pas encore commencé,
-  // afficher automatiquement le dernier pli jusqu'à la première carte du suivant.
-  const autoShowLast = !viewing && (trick?.cards.length === 0) && !!lastTrick
+  // Quand le pli vient d'être remporté et que le nouveau n'a pas encore commencé
+  // (ou pendant les 4s suivant sa fin), afficher automatiquement le dernier pli.
+  const autoShowLast = !viewing && (holdLastTrick || trick?.cards.length === 0) && !!lastTrick
 
   const isWinner = (pos: string) => {
     if (viewing || autoShowLast) return lastTrick!.winner === pos
@@ -221,8 +269,6 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
     if (phase === 'BIDDING') return null
     return lastTrick?.cardAt(pos) ?? null
   }
-
-  const tricksCount = r?.tricks?.length ?? 0
 
   const posTop    = PARTNER[me]
   const posLeft   = SCREEN_LEFT[me]
@@ -273,79 +319,97 @@ function getLastTrick(r: RoundData | null) {
   }
 }
 
+const BID_SUIT_GRID = ['H', 'C', 'S', 'D', 'NT', 'AT']
+const BID_SUIT_BTN_LABEL: Record<string, string> = { ...SUIT_SYM, NT: 'SA', AT: 'TA' }
+const VALUE_PAGE_SIZE = 4
+
+function bidActionLabel(e: { action: string; bid?: { is_capot: boolean; value: number; trump: string } | null }) {
+  if (e.action === 'bid' && e.bid)
+    return e.bid.is_capot ? `Capot ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}` : `${e.bid.value} ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}`
+  if (e.action === 'contre')    return 'Contre !'
+  if (e.action === 'surcontre') return 'Surcontre !'
+  return 'Passe'
+}
+
 function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: object) => void }) {
   const actions = r.legal_bid_actions
-
-  const [bidVal, setBidVal] = useState<number>(actions?.min_bid_value ?? 80)
-  const [trump, setTrump] = useState('H')
 
   const validVals = actions ? [80, 90, 100, 110, 120, 130, 140, 150, 160].filter(
     v => actions.min_bid_value !== null && v >= (actions.min_bid_value ?? 80)
   ) : []
 
-  const bidLabel = (e: { action: string; bid?: { is_capot: boolean; value: number; trump: string } | null }) => {
-    if (e.action === 'bid' && e.bid)
-      return e.bid.is_capot ? 'Capot' : `${e.bid.value} ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}`
-    if (e.action === 'contre')    return 'Contre !'
-    if (e.action === 'surcontre') return 'Surcontre !'
-    return 'Passe'
-  }
+  const [bidVal, setBidVal] = useState<number>(validVals[0] ?? 80)
+  const [page, setPage] = useState(0)
+  const [capotMode, setCapotMode] = useState(false)
+
+  useEffect(() => {
+    setBidVal(validVals[0] ?? 80)
+    setPage(0)
+    setCapotMode(false)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [actions?.min_bid_value, r.current_bidder])
+
+  const maxPage = Math.max(0, Math.ceil(validVals.length / VALUE_PAGE_SIZE) - 1)
+  const visibleVals = validVals.slice(page * VALUE_PAGE_SIZE, page * VALUE_PAGE_SIZE + VALUE_PAGE_SIZE)
 
   const currentBidder = r.current_bidder ? (game.players[r.current_bidder] ?? r.current_bidder) : null
   const currentTeam   = r.current_bidder ? TEAM[r.current_bidder] : null
+
+  const chooseSuit = (trump: string) => {
+    if (capotMode) send({ type: 'bid', value: 0, trump, is_capot: true })
+    else send({ type: 'bid', value: bidVal, trump, is_capot: false })
+  }
 
   return (
     <div className="bid-center">
       <div className="bid-center-label">Enchères</div>
 
-      {r.bid_history.length > 0 && (
-        <div className="bid-center-history">
-          {r.bid_history.map((e, i) => {
-            const team = TEAM[e.position]
-            const isPass = e.action === 'pass'
-            return (
-              <div key={i} className={`bid-entry-row ${isPass ? 'bid-pass' : 'bid-bid'}`}>
-                <span className={team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
-                  {game.players[e.position] ?? e.position}
-                </span>
-                <span className="bid-entry-sep">·</span>
-                <span className="bid-entry-value">{bidLabel(e)}</span>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
       {actions ? (
         <div className="bid-center-controls">
-          {actions.can_pass && (
-            <button className="action" onClick={() => send({ type: 'pass' })}>Passer</button>
+          {(actions.can_contre || actions.can_surcontre) && (
+            <div className="bid-double-row">
+              {actions.can_contre && (
+                <button className="bid-double-btn" onClick={() => send({ type: 'contre' })}>Contre !</button>
+              )}
+              {actions.can_surcontre && (
+                <button className="bid-double-btn" onClick={() => send({ type: 'surcontre' })}>Surcontre !</button>
+              )}
+            </div>
           )}
-          {actions.can_contre && (
-            <button className="action" onClick={() => send({ type: 'contre' })}>Contre !</button>
+
+          {actions.min_bid_value !== null && (
+            <div className="bid-value-row">
+              <button className="bid-page-arrow" disabled={page === 0}
+                onClick={() => setPage(p => Math.max(0, p - 1))} aria-label="Valeurs précédentes">‹</button>
+              {visibleVals.map(v => (
+                <button key={v} className={`bid-value-btn${v === bidVal && !capotMode ? ' selected' : ''}`}
+                  onClick={() => { setBidVal(v); setCapotMode(false) }}>{v}</button>
+              ))}
+              <button className="bid-page-arrow" disabled={page >= maxPage}
+                onClick={() => setPage(p => Math.min(maxPage, p + 1))} aria-label="Valeurs suivantes">›</button>
+            </div>
           )}
-          {actions.can_surcontre && (
-            <button className="action" onClick={() => send({ type: 'surcontre' })}>Surcontre !</button>
-          )}
+
           {(actions.min_bid_value !== null || actions.can_bid_capot) && (
-            <>
-              <select value={bidVal} onChange={e => setBidVal(+e.target.value)} disabled={actions.min_bid_value === null}>
-                {validVals.map(v => <option key={v} value={v}>{v}</option>)}
-              </select>
-              <select value={trump} onChange={e => setTrump(e.target.value)}>
-                {ALL_TRUMPS.map(t => <option key={t} value={t}>{TRUMP_LABELS[t]}</option>)}
-              </select>
-              {actions.min_bid_value !== null && (
-                <button className="action" onClick={() => send({ type: 'bid', value: bidVal, trump, is_capot: false })}>
-                  Annoncer {bidVal}
+            <div className="bid-suit-grid">
+              {BID_SUIT_GRID.map(t => (
+                <button key={t} className="bid-suit-btn" onClick={() => chooseSuit(t)}
+                  disabled={actions.min_bid_value === null && !capotMode}>
+                  {BID_SUIT_BTN_LABEL[t]}
                 </button>
-              )}
+              ))}
               {actions.can_bid_capot && (
-                <button className="action" onClick={() => send({ type: 'bid', value: 0, trump, is_capot: true })}>
-                  Capot
-                </button>
+                <button className={`bid-suit-btn bid-capot-btn${capotMode ? ' selected' : ''}`}
+                  onClick={() => setCapotMode(m => !m)}>Capot</button>
               )}
-            </>
+              {actions.can_pass && (
+                <button className="bid-suit-btn bid-pass-btn" onClick={() => send({ type: 'pass' })}>Passer</button>
+              )}
+            </div>
+          )}
+
+          {actions.min_bid_value === null && !actions.can_bid_capot && actions.can_pass && (
+            <button className="bid-suit-btn bid-pass-btn" onClick={() => send({ type: 'pass' })}>Passer</button>
           )}
         </div>
       ) : currentBidder ? (
@@ -583,9 +647,10 @@ export default function Game({ game, error, send }: {
   const sortedHand = r ? sortHand(myHand, trump ?? 'NT') : myHand
   const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
 
+  const cardSizes = useCardSizes()
   const fanN = sortedHand.length
-  const fanCardW = 46
-  const fanSpacing = fanN > 1 ? Math.min(fanCardW, Math.floor(260 / (fanN - 1))) : 0
+  const fanCardW = cardSizes.mine
+  const fanSpacing = fanN > 1 ? Math.min(fanCardW, Math.floor(cardSizes.fanBudget / (fanN - 1))) : 0
   const fanMaxAngle = Math.min(24, fanN * 2.8)
   const fanW = fanN > 0 ? fanSpacing * (fanN - 1) + fanCardW : fanCardW
 
@@ -839,10 +904,10 @@ export default function Game({ game, error, send }: {
       <div className="table-wrap">
         <div className="table-grid">
           <div className="slot-top">
-            <PlayerSlot pos={top} game={game} r={r} />
+            <PlayerSlot pos={top} game={game} r={r} cardSizes={cardSizes} />
           </div>
           <div className="slot-left">
-            <PlayerSlot pos={left} game={game} r={r} />
+            <PlayerSlot pos={left} game={game} r={r} cardSizes={cardSizes} />
           </div>
           <div className="slot-center">
             {r?.phase === 'BIDDING'
@@ -850,12 +915,11 @@ export default function Game({ game, error, send }: {
               : <TrickArea r={r} lastTrick={lastTrick ?? undefined} me={me} />}
           </div>
           <div className="slot-right">
-            <PlayerSlot pos={right} game={game} r={r} />
+            <PlayerSlot pos={right} game={game} r={r} cardSizes={cardSizes} />
           </div>
           <div className="slot-bottom">
-            <div className="player-slot" style={{
-              borderColor: isMyTurnBid ? '#fa6' : isMyTurnPlay ? '#4d9' : '#333'
-            }}>
+            <div className={`player-slot${isMyTurnBid ? ' active-bidder' : isMyTurnPlay ? ' active-player' : ''}`}>
+              <div className="player-marker">▼</div>
               <div className="player-pos">
                 <span className={TEAM[me] === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
                   {TEAM_LABEL[TEAM[me]] ?? TEAM[me]}
