@@ -148,10 +148,12 @@ export default function App() {
     ws.onerror = () => {}
   }, [])
 
-  // Auto-reconnexion si une room est sauvegardée en session
+  // Auto-reconnexion si une room est sauvegardée en session, ou connexion directe
+  // via ?room=CODE dans l'URL (utilisé par les scripts DEV/init*.sh --quick)
   useEffect(() => {
     if (!user || user.must_change_password) return
-    const savedRoom = sessionStorage.getItem(STORAGE_ROOM)
+    const urlRoom = new URLSearchParams(location.search).get('room')
+    const savedRoom = urlRoom ? urlRoom.toUpperCase() : sessionStorage.getItem(STORAGE_ROOM)
     if (savedRoom) connect(savedRoom)
     return () => {
       shouldReconnect.current = false

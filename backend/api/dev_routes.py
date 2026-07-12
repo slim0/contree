@@ -4,15 +4,22 @@ from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
 
 from backend.auth.service import create_token
+from backend.game import rules
+from backend.game.models import GamePhase, Position
 from backend.pocketbase.client import PocketBaseClient, get_pb_client
+from backend.store import memory_store as store
 from backend.users.repository import UserRepository
 
 router = APIRouter(prefix="/dev", tags=["dev"])
 
+DEFAULT_QUICKSTART_PLAYERS = "alice,bob,charlie,diana"
+
 
 @router.get("/autologin/{username}")
 async def dev_autologin(
-    username: str, pb: PocketBaseClient = Depends(get_pb_client)
+    username: str,
+    room: str | None = None,
+    pb: PocketBaseClient = Depends(get_pb_client),
 ) -> RedirectResponse:
     repo = UserRepository(pb)
     user = repo.get_by_username(username)
@@ -24,7 +31,8 @@ async def dev_autologin(
     token = create_token(
         user.id, user.username, user.is_admin, user.must_change_password
     )
-    response = RedirectResponse(url="/", status_code=302)
+    target = f"/?room={room}" if room else "/"
+    response = RedirectResponse(url=target, status_code=302)
     response.set_cookie(
         key="access_token",
         value=token,
@@ -34,3 +42,40 @@ async def dev_autologin(
         path="/",
     )
     return response
+
+
+@router.post("/quickstart/{room_id}")
+async def dev_quickstart(
+    room_id: str,
+    players: str = DEFAULT_QUICKSTART_PLAYERS,
+    target_score: int = 1000,
+) -> dict:
+    """Crée un salon de test, assigne 4 joueurs (2 équipes) et démarre la 1re manche
+    directement — sans passer par la salle d'attente ni le choix des équipes.
+
+    `players` est une liste de 4 noms séparés par des virgules : les deux premiers
+    forment l'équipe NOUS (N/S), les deux derniers l'équipe EUX (E/W).
+    """
+    names = [n.strip() for n in players.split(",") if n.strip()]
+    if len(names) != 4:
+        raise HTTPException(
+            status_code=400,
+            detail="Il faut exactement 4 joueurs (séparés par des virgules)",
+        )
+
+    game = await store.create_room(room_id, target_score, room_name="Salon de test")
+    game.players = {
+        Position.NORTH: names[0],
+        Position.SOUTH: names[1],
+        Position.EAST: names[2],
+        Position.WEST: names[3],
+    }
+    game = rules.start_new_round(game)
+    game.phase = GamePhase.BIDDING
+    await store.set_game(game)
+
+    return {
+        "room_id": room_id,
+        "players": {pos.value: name for pos, name in game.players.items()},
+        "target_score": target_score,
+    }

@@ -126,4 +126,21 @@ describe('App — rejoindre un salon', () => {
     })
     expect(screen.queryByText(/Reconnexion en cours/i)).not.toBeInTheDocument()
   })
+
+  // Scripts DEV/init*.sh --quick : le salon est déjà créé côté backend (dev quickstart),
+  // le front doit s'y connecter directement sans passer par le lobby.
+  it('se connecte automatiquement au salon donné par ?room=CODE dans l\'URL', async () => {
+    window.history.pushState({}, '', '/?room=test')
+    mockFetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ username: 'alice', is_admin: false, must_change_password: false }),
+    })
+
+    render(<App />)
+
+    await waitFor(() => expect(lastWsInstance).not.toBeNull())
+    expect(lastWsInstance!.url).toContain('/ws/TEST?')
+
+    window.history.pushState({}, '', '/')
+  })
 })

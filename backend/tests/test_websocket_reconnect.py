@@ -169,3 +169,62 @@ def test_joining_nonexistent_room_with_room_name_creates_it(auth_client):
         # La room doit exister pendant la connexion
         assert "NEWRM" in store._rooms
         assert store._rooms["NEWRM"].room_name == "Ma partie"
+
+
+# ── 7. Regression: la salle ne doit pas être supprimée si tout le monde se
+#     déconnecte momentanément alors qu'une manche est en cours (BIDDING/PLAYING).
+#     Bug repro : DEV/init.sh --quick crée un salon déjà en BIDDING avec 0
+#     connexion WS ; en React StrictMode, le premier client se connecte puis se
+#     déconnecte immédiatement (double-effect), passant la salle à 0 connexion
+#     avant que les autres joueurs ne rejoignent → "Salon introuvable." pour eux.
+
+
+def _make_bidding_room(room_id: str, players: dict[Position, str]) -> GameState:
+    from backend.game.rules import start_new_round
+
+    game = GameState(
+        room_id=room_id,
+        players=players,
+        scores={Team.NORTH_SOUTH: 0, Team.EAST_WEST: 0},
+        target_score=1000,
+        round=None,
+        phase=GamePhase.WAITING,
+        winner=None,
+        last_result=None,
+        messages=[],
+    )
+    game = start_new_round(game)
+    game.phase = GamePhase.BIDDING
+    return game
+
+
+def test_disconnect_during_active_round_preserves_room(auth_client):
+    room_id = "room-active"
+    players = {
+        Position.NORTH: TEST_USER,
+        Position.SOUTH: "p2",
+        Position.EAST: "p3",
+        Position.WEST: "p4",
+    }
+    store._rooms[room_id] = _make_bidding_room(room_id, players)
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
+        msg = ws.receive_json()
+        assert msg["type"] == "state"
+        assert msg["data"]["phase"] == "BIDDING"
+
+    # La manche est en cours : la salle doit survivre à une déconnexion totale
+    # pour permettre aux joueurs de se reconnecter.
+    assert room_id in store._rooms
+    assert store._rooms[room_id].phase == GamePhase.BIDDING
+
+
+def test_disconnect_from_waiting_lobby_without_start_still_deletes_room(auth_client):
+    room_id = "room-abandoned"
+    store._rooms[room_id] = _make_waiting_room(room_id, {Position.NORTH: TEST_USER})
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
+        ws.receive_json()
+
+    # Salle jamais démarrée, abandonnée : comportement historique inchangé.
+    assert room_id not in store._rooms

@@ -429,9 +429,14 @@ async def handle_connection(
                 )
             else:
                 game = await store.get_game(room_id)
-                if game and game.ready_to_start and game.phase == GamePhase.WAITING:
+                active_phases = (
+                    GamePhase.BIDDING,
+                    GamePhase.PLAYING,
+                    GamePhase.SCORING,
+                )
+                if game and (game.phase in active_phases or game.ready_to_start):
                     log.info(
-                        "Salon '%s' — pas de suppression (attente reconnexions post-GO)",
+                        "Salon '%s' — partie en cours, pas de suppression (en attente de reconnexions)",
                         room_id,
                     )
                 else:
