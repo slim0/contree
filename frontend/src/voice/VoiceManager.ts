@@ -186,6 +186,11 @@ export class VoiceManager {
 
     const pc = new RTCPeerConnection(config);
 
+    // Ajouter les pistes locales pour que l'offreur nous entende aussi
+    this.localStream?.getTracks().forEach(track => {
+      pc.addTrack(track, this.localStream!);
+    });
+
     pc.ontrack = (event) => {
       const stream = event.streams[0];
       this.peers.set(peerPosition, {

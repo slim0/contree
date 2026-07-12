@@ -494,9 +494,12 @@ export default function Game({ game, error, send }: {
           setIsMuted(false)
           voiceInitializedRef.current = true
 
-          // Créer les connexions P2P vers tous les autres joueurs
+          // Seul le joueur dont la position est inférieure initie l'offre WebRTC.
+          // L'autre attend et répond via handleOffer.
+          // Cela évite le glare (les deux envoient une offre simultanément,
+          // chacun ignore l'offre de l'autre car il a déjà un peer pour cette position).
           Object.keys(game.players).forEach(p => {
-            if (p !== me) {
+            if (p !== me && me < p) {
               voiceManagerRef.current?.createPeerConnection(p).catch(err => {
                 console.error('[Voice] P2P failed:', p, err)
               })
