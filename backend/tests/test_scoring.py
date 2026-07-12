@@ -17,7 +17,7 @@ from backend.game.models import (
     TrickCard,
     Trump,
 )
-from backend.game.scoring import compute_round_result
+from backend.game.scoring import compute_round_result, running_points
 
 
 def _make_round(*, bidding_team: Team, belote_team: Team | None) -> RoundState:
@@ -80,3 +80,41 @@ def test_no_belote_at_all_defense_still_scores_zero_on_contract_made():
     result = compute_round_result(r)
     assert result.score_ew == 0
     assert result.score_ns == 20
+
+
+# ---------------------------------------------------------------------------
+# Score en temps réel (points faits de la manche en cours)
+# ---------------------------------------------------------------------------
+
+
+def test_running_points_before_any_trick_is_zero_zero():
+    r = _make_round(bidding_team=Team.NORTH_SOUTH, belote_team=None)
+    r.tricks = []
+    assert running_points(r) == {"NS": 0, "EW": 0}
+
+
+def test_running_points_reflects_completed_tricks_only():
+    r = _make_round(bidding_team=Team.NORTH_SOUTH, belote_team=None)
+    # Un pli remporté par NORTH (NS) : As+10+Roi+Dame de trèfle = 11+10+4+3 = 28
+    assert running_points(r) == {"NS": 28, "EW": 0}
+
+    # Un second pli, en cours (pas encore de gagnant), ne doit pas être compté
+    r.tricks.append(
+        Trick(
+            cards=[
+                TrickCard(Position.EAST, Card(Suit.SPADES, Rank.ACE)),
+            ],
+            winner=None,
+        )
+    )
+    assert running_points(r) == {"NS": 28, "EW": 0}
+
+
+def test_running_points_ignores_dix_de_der():
+    """running_points ne doit pas ajouter les 10 points de dix de der : la manche n'est pas finie."""
+    r = _make_round(bidding_team=Team.NORTH_SOUTH, belote_team=None)
+    result = compute_round_result(r)  # avec dix de der
+    assert (
+        result.preneurs_eval == 28 + 10
+    )  # 38, dix de der inclus dans le résultat final
+    assert running_points(r) == {"NS": 28, "EW": 0}  # mais pas dans le suivi temps réel

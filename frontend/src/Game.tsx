@@ -799,9 +799,15 @@ export default function Game({ game, error, send }: {
         <div className="header-scores">
           <span className="player-team-ns">{TEAM_LABEL['NS']}</span>
           <strong className="score-num">{ns}</strong>
+          {r?.phase === 'PLAYING' && (
+            <span className="running-points">({r.running_points['NS'] ?? 0})</span>
+          )}
           <span className="score-sep"> · </span>
           <span className="player-team-ew">{TEAM_LABEL['EW']}</span>
           <strong className="score-num">{ew}</strong>
+          {r?.phase === 'PLAYING' && (
+            <span className="running-points">({r.running_points['EW'] ?? 0})</span>
+          )}
           <span className="score-limit"> /{game.target_score}</span>
           {lr && (
             <span className={`last-inline ${lr.contract_made ? 'result-made' : 'result-chute'}`}

@@ -9,7 +9,7 @@ import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from backend.game import rules
+from backend.game import rules, scoring
 from backend.game.models import (
     Card,
     GamePhase,
@@ -55,7 +55,9 @@ async def _cleanup_voice_peers(room_id: str, position: Position) -> None:
                 _voice_peers.pop(room_id, None)
 
 
-async def _broadcast_voice(room_id: str, event: dict, exclude_position: Position | None = None) -> None:
+async def _broadcast_voice(
+    room_id: str, event: dict, exclude_position: Position | None = None
+) -> None:
     """Broadcast a voice event to all players in the room."""
     async with _conn_lock:
         sockets = {pos: ws for pos, (ws, _) in _connections.get(room_id, {}).items()}
@@ -115,6 +117,7 @@ def _state_for_player(game: GameState, player: Position) -> dict:
 
         round_obj = game.round
         if round_obj:
+            r["running_points"] = scoring.running_points(round_obj)
             if (
                 round_obj.phase == GamePhase.BIDDING
                 and round_obj.current_bidder == player
@@ -370,7 +373,14 @@ async def handle_connection(
             if msg_type in ("webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"):
                 peer_position = msg.get("peer_position")
                 if not peer_position:
-                    await ws.send_text(json.dumps({"type": "error", "message": "peer_position required for voice signaling"}))
+                    await ws.send_text(
+                        json.dumps(
+                            {
+                                "type": "error",
+                                "message": "peer_position required for voice signaling",
+                            }
+                        )
+                    )
                     continue
 
                 # Route the signaling message to the specific target peer only

@@ -33,6 +33,7 @@ export interface RoundData {
   belote_team: string | null
   belote_king_played: boolean
   belote_queen_played: boolean
+  running_points: Record<string, number>
   legal_plays?: CardData[]
   legal_bid_actions?: LegalBidActions
 }

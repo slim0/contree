@@ -14,6 +14,7 @@ from .models import (
     RoundState,
     Suit,
     Team,
+    Trick,
     Trump,
 )
 
@@ -29,6 +30,33 @@ def card_points(card: Card, trump: Trump) -> int:
     return NORMAL_POINTS[card.rank]
 
 
+def tricks_won_points(tricks: list[Trick], trump: Trump) -> tuple[int, int]:
+    """Points de cartes déjà remportés par NS et EW sur les plis complets (hors dix de der)."""
+    card_points_ns = 0
+    card_points_ew = 0
+    for trick in tricks:
+        if trick.winner is None:
+            continue
+        winner_team = TEAM_OF[trick.winner]
+        pts = sum(card_points(tc.card, trump) for tc in trick.cards)
+        if winner_team == Team.NORTH_SOUTH:
+            card_points_ns += pts
+        else:
+            card_points_ew += pts
+    return card_points_ns, card_points_ew
+
+
+def running_points(r: RoundState) -> dict[str, int]:
+    """Points faits par équipe dans la manche en cours, mis à jour à chaque pli remporté.
+
+    N'inclut pas le dix de der (inconnu tant que la manche n'est pas terminée).
+    """
+    if r.contract is None:
+        return {"NS": 0, "EW": 0}
+    ns, ew = tricks_won_points(r.tricks, r.contract.bid.trump)
+    return {"NS": ns, "EW": ew}
+
+
 def compute_round_result(r: RoundState) -> RoundResult:
     assert r.contract is not None
     trump = r.contract.bid.trump
@@ -37,17 +65,8 @@ def compute_round_result(r: RoundState) -> RoundResult:
         Team.EAST_WEST if bidding_team == Team.NORTH_SOUTH else Team.NORTH_SOUTH
     )
 
-    # Sum card points per team
-    card_points_ns = 0
-    card_points_ew = 0
-    for trick in r.tricks:
-        assert trick.winner is not None
-        winner_team = TEAM_OF[trick.winner]
-        pts = sum(card_points(tc.card, trump) for tc in trick.cards)
-        if winner_team == Team.NORTH_SOUTH:
-            card_points_ns += pts
-        else:
-            card_points_ew += pts
+    # Sum card points per team over completed tricks
+    card_points_ns, card_points_ew = tricks_won_points(r.tricks, trump)
 
     # Dix de der: always 10 pts for the team that won the last trick
     last_winner = r.tricks[-1].winner
@@ -100,7 +119,9 @@ def compute_round_result(r: RoundState) -> RoundResult:
         if r.belote_team == bidding_team:
             belote_msg = " (belote preneurs : non comptée dans score final)"
         elif r.belote_team == defending_team:
-            belote_msg = " (belote défense : non comptée, seuls les preneurs en profitent)"
+            belote_msg = (
+                " (belote défense : non comptée, seuls les preneurs en profitent)"
+            )
 
         msg = (
             f"Contrat RÉUSSI — {bidding_team.value} marque {preneurs_score}, "
