@@ -1,11 +1,10 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, status
-from sqlalchemy.orm import Session
 
 from backend.api.limiter import limiter
 from backend.auth.dependencies import require_admin
-from backend.auth.service import generate_temp_password, hash_password
-from backend.db.database import get_db
-from backend.db.models import User
+from backend.auth.service import generate_temp_password
+from backend.pocketbase.client import PocketBaseClient, get_pb_client
+from backend.users.models import User
 from backend.users.repository import UserRepository
 from backend.users.schemas import UserCreate, UserResponse, UserWithTempPassword
 
@@ -16,10 +15,10 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 @limiter.limit("30/minute")
 async def list_users(
     request: Request,
-    db: Session = Depends(get_db),
+    pb: PocketBaseClient = Depends(get_pb_client),
     _: User = Depends(require_admin),
 ) -> list[User]:
-    return UserRepository(db).list_all()
+    return UserRepository(pb).list_all()
 
 
 @router.post(
@@ -29,17 +28,17 @@ async def list_users(
 async def create_user(
     request: Request,
     body: UserCreate,
-    db: Session = Depends(get_db),
+    pb: PocketBaseClient = Depends(get_pb_client),
     _: User = Depends(require_admin),
 ) -> UserWithTempPassword:
-    repo = UserRepository(db)
+    repo = UserRepository(pb)
     if repo.get_by_username(body.username):
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
             detail="Ce nom d'utilisateur est déjà pris",
         )
     temp_password = generate_temp_password()
-    user = repo.create(body.username, hash_password(temp_password))
+    user = repo.create(body.username, temp_password)
     return UserWithTempPassword(
         user=UserResponse.model_validate(user), temp_password=temp_password
     )
@@ -50,7 +49,7 @@ async def create_user(
 async def delete_user(
     request: Request,
     username: str,
-    db: Session = Depends(get_db),
+    pb: PocketBaseClient = Depends(get_pb_client),
     admin: User = Depends(require_admin),
 ) -> None:
     if username == admin.username:
@@ -58,7 +57,7 @@ async def delete_user(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Impossible de supprimer son propre compte",
         )
-    repo = UserRepository(db)
+    repo = UserRepository(pb)
     user = repo.get_by_username(username)
     if not user:
         raise HTTPException(

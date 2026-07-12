@@ -1,10 +1,9 @@
 import jwt
 from fastapi import Cookie, Depends, HTTPException, status
-from sqlalchemy.orm import Session
 
 from backend.auth.service import decode_token
-from backend.db.database import get_db
-from backend.db.models import User
+from backend.pocketbase.client import PocketBaseClient, get_pb_client
+from backend.users.models import User
 from backend.users.repository import UserRepository
 
 
@@ -27,11 +26,11 @@ def _payload_from_cookie(access_token: str | None) -> dict:
 
 def get_current_user(
     access_token: str | None = Cookie(default=None),
-    db: Session = Depends(get_db),
+    pb: PocketBaseClient = Depends(get_pb_client),
 ) -> User:
     payload = _payload_from_cookie(access_token)
-    repo = UserRepository(db)
-    user = repo.get_by_id(int(payload["sub"]))
+    repo = UserRepository(pb)
+    user = repo.get_by_id(payload["sub"])
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Utilisateur introuvable"

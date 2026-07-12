@@ -20,4 +20,9 @@ claude_launcher*
 contree.db
 .pytest_cache
 .claude
+.coverage
+
 .vscode
+
+# Secrets
+.env

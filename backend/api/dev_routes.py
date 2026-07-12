@@ -2,10 +2,9 @@
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import RedirectResponse
-from sqlalchemy.orm import Session
 
 from backend.auth.service import create_token
-from backend.db.database import get_db
+from backend.pocketbase.client import PocketBaseClient, get_pb_client
 from backend.users.repository import UserRepository
 
 router = APIRouter(prefix="/dev", tags=["dev"])
@@ -13,9 +12,9 @@ router = APIRouter(prefix="/dev", tags=["dev"])
 
 @router.get("/autologin/{username}")
 async def dev_autologin(
-    username: str, db: Session = Depends(get_db)
+    username: str, pb: PocketBaseClient = Depends(get_pb_client)
 ) -> RedirectResponse:
-    repo = UserRepository(db)
+    repo = UserRepository(pb)
     user = repo.get_by_username(username)
     if not user:
         raise HTTPException(

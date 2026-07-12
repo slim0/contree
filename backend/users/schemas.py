@@ -8,7 +8,7 @@ class UserCreate(BaseModel):
 
 
 class UserResponse(BaseModel):
-    id: int
+    id: str
     username: str
     is_admin: bool
     must_change_password: bool

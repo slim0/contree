@@ -11,8 +11,8 @@ Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de 
 |--------|-------------|
 | Back-end | Python 3.12+ / FastAPI / WebSocket |
 | State en mémoire | Dict Python asyncio (rooms, sessions de jeu) |
-| Base de données | SQLite (via SQLAlchemy — swappable via `DATABASE_URL`) |
-| Auth | PyJWT + bcrypt |
+| Base de données | PocketBase (collection `users`) — le backend y accède en superuser via `httpx` |
+| Auth | PyJWT (cookie de session) + PocketBase (stockage + hachage des mots de passe) |
 | Rate limiting | slowapi (en mémoire, par IP) |
 | Type checking | ty (via uv) |
 | Linter/formatter | ruff (via uv) |
@@ -27,23 +27,27 @@ Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de 
 contree
 ├── CLAUDE.md                   ← tu es ici
 ├── Dockerfile.backend          ← image Python (targets: dev, prod)
+├── Dockerfile.pocketbase       ← image PocketBase (binaire + migrations)
 ├── docker-compose.yml          ← dev local (hot-reload)
 ├── docker-compose.prod.yml     ← déploiement (nginx + uvicorn)
 ├── .dockerignore
 ├── pyproject.toml              ← dépendances Python (uv)
+├── pocketbase/
+│   ├── pb_migrations/          ← migrations JS (schéma de la collection "users")
+│   └── docker-entrypoint.sh    ← upsert du superuser puis `pocketbase serve`
 ├── backend/
 │   ├── game/                   ← moteur de jeu pur (pas d'I/O)
 │   │   ├── models.py           ← entités : Card, Trick, Round, GameState...
 │   │   ├── rules.py            ← is_legal(), logique de jeu
 │   │   └── scoring.py          ← calcul du score
-│   ├── db/
-│   │   ├── database.py         ← engine SQLAlchemy + session factory (DATABASE_URL)
-│   │   └── models.py           ← modèles ORM (User...)
+│   ├── pocketbase/
+│   │   └── client.py           ← PocketBaseClient : auth superuser + REST vers la collection users
 │   ├── users/
-│   │   ├── repository.py       ← UserRepository : SEUL point d'accès DB
+│   │   ├── models.py           ← dataclass User (id str, username, is_admin, must_change_password...)
+│   │   ├── repository.py       ← UserRepository : SEUL point d'accès aux comptes (proxie PocketBaseClient)
 │   │   └── schemas.py          ← Pydantic : UserCreate, UserResponse
 │   ├── auth/
-│   │   ├── service.py          ← hash/verify password, create/decode JWT (JWT_SECRET_KEY)
+│   │   ├── service.py          ← create/decode JWT (JWT_SECRET_KEY), generate_temp_password
 │   │   ├── dependencies.py     ← FastAPI deps : get_current_user, require_admin
 │   │   └── schemas.py          ← LoginRequest, TokenResponse, ChangePasswordRequest
 │   ├── api/
@@ -83,7 +87,8 @@ docker compose up --build
 
 - Backend : http://localhost:8000 (rechargement automatique sur modif Python)
 - Frontend : http://localhost:3000 (hot-reload Vite sur modif TypeScript/React)
-- La base SQLite est persistée dans le volume `sqlite_data`
+- PocketBase : http://localhost:8090 (dashboard admin sur `/_/`)
+- Les données PocketBase sont persistées dans le volume `pocketbase_data`
 
 ### Prod
 
@@ -98,8 +103,10 @@ JWT_SECRET_KEY=<clé-longue-aléatoire> docker compose -f docker-compose.prod.ym
 
 | Variable | Défaut | Description |
 |----------|--------|-------------|
-| `DATABASE_URL` | `sqlite:////app/data/contree.db` | URI SQLAlchemy |
-| `JWT_SECRET_KEY` | `change-me-in-production…` | Clé de signature JWT — **obligatoire en prod** |
+| `PB_URL` | `http://localhost:8090` | URL de l'instance PocketBase vue du backend |
+| `PB_SUPERUSER_EMAIL` | — | Email du superuser PocketBase (service account backend) — **obligatoire en prod** |
+| `PB_SUPERUSER_PASSWORD` | — | Mot de passe du superuser PocketBase — **obligatoire en prod** |
+| `JWT_SECRET_KEY` | `change-me-in-production…` | Clé de signature JWT (cookie de session) — **obligatoire en prod** |
 | `BACKEND_URL` | `http://localhost:8000` | URL backend vue du container frontend (dev only) |
 
 ## Règles métier critiques — NE JAMAIS VIOLER
@@ -162,41 +169,47 @@ Capot comme contrat = 160 pts.
 
 ### Principes fondamentaux
 
-- **Repository pattern** : toutes les requêtes DB passent par `UserRepository`. C'est le seul endroit à modifier pour changer de base de données.
-- **DB-agnostic** : SQLAlchemy comme ORM. Passer de SQLite à PostgreSQL = changer uniquement la variable d'environnement `DATABASE_URL`.
-- **État de jeu séparé** : la DB ne stocke que les utilisateurs. Le `GameState` reste dans Redis.
-- **JWT stateless** : tokens 8h, pas de refresh token pour le POC. Payload : `user_id`, `username`, `is_admin`, `must_change_password`.
+- **PocketBase = source de vérité des comptes** : stockage des utilisateurs, hachage et vérification des mots de passe sont entièrement délégués à PocketBase (collection `users`, voir `pocketbase/pb_migrations/`). Le backend ne hache ni ne compare jamais de mot de passe lui-même.
+- **Backend = superuser PocketBase** : le backend s'authentifie auprès de PocketBase comme superuser (`PB_SUPERUSER_EMAIL`/`PB_SUPERUSER_PASSWORD`, compte de service distinct des comptes métier) et proxie tout accès via `PocketBaseClient` (`backend/pocketbase/client.py`). Aucune règle d'API PocketBase n'est ouverte au public — pas d'inscription ni d'accès direct depuis le frontend.
+- **Repository pattern** : toutes les opérations sur les comptes passent par `UserRepository` (`backend/users/repository.py`), qui enveloppe `PocketBaseClient`. C'est le seul endroit à modifier pour changer de backend de stockage.
+- **État de jeu séparé** : PocketBase ne stocke que les utilisateurs. Le `GameState` reste en mémoire (`backend/store/memory_store.py`).
+- **Cookie de session propre au backend** : malgré PocketBase, le backend continue d'émettre son propre JWT stateless (8h, pas de refresh token) dans le cookie `access_token` — ni le frontend ni le WebSocket ne voient jamais de token PocketBase. Payload : `sub` (id PocketBase, string), `username`, `is_admin`, `must_change_password`.
 - **Cookie HttpOnly** : le JWT n'est jamais exposé au JavaScript. Il transite uniquement dans un cookie `access_token` (HttpOnly, Secure, SameSite=Lax) posé par le serveur à la connexion.
 - **CORS** : `allow_credentials=True` avec origines explicites — jamais de wildcard `*` quand les cookies sont en jeu.
 
-### Modèle User
+### Modèle User (`backend/users/models.py`)
 
 ```python
-id: int
-username: str          # unique, pas d'email
-hashed_password: str   # bcrypt via passlib
+id: str                 # id de record PocketBase (15 caractères), pas un entier
+username: str            # unique, pas d'email — champ custom ajouté à la collection users
 is_admin: bool
 must_change_password: bool   # True à la création, False après premier changement
 created_at: datetime
 ```
 
+Le mot de passe n'apparaît jamais dans ce modèle côté backend : il est écrit en clair
+une seule fois vers PocketBase à la création/au changement (PocketBase le hache),
+et vérifié via `PocketBaseClient.verify_credentials()` (délègue à l'endpoint
+`auth-with-password` de PocketBase).
+
 ### Flux d'authentification
 
-1. **Bootstrap** : au démarrage, si aucun utilisateur n'existe → création automatique d'un compte `admin` avec mot de passe temporaire affiché dans les logs serveur (une seule fois).
-2. **Création** : `POST /admin/users` (admin only) → mot de passe aléatoire 12 chars retourné dans la réponse (une seule fois, non re-consultable).
-3. **Login** : `POST /auth/login` → cookie HttpOnly `access_token` posé + corps `{ username, is_admin, must_change_password }`. Si `must_change_password=True` → le frontend bloque l'accès au jeu.
-4. **Changement de mot de passe** : `POST /auth/change-password` → cookie présent, authentifié automatiquement → flag `must_change_password` passé à `False` en DB → nouveau cookie émis.
-5. **Connexion WebSocket** : le navigateur envoie le cookie automatiquement lors du handshake — pas de token dans l'URL. Le serveur le lit depuis les headers de l'upgrade request.
+1. **Bootstrap** : au démarrage, le backend attend que PocketBase soit joignable (`_wait_for_pocketbase`), puis si aucun utilisateur n'existe → création automatique d'un compte `admin` avec mot de passe temporaire affiché dans les logs serveur (une seule fois).
+2. **Création** : `POST /admin/users` (admin only) → mot de passe aléatoire 12 chars généré par le backend, transmis en clair à PocketBase (qui le hache), retourné dans la réponse HTTP (une seule fois, non re-consultable).
+3. **Login** : `POST /auth/login` → `UserRepository.verify_credentials()` délègue la vérification à PocketBase → cookie HttpOnly `access_token` (JWT du backend) posé + corps `{ username, is_admin, must_change_password }`. Si `must_change_password=True` → le frontend bloque l'accès au jeu.
+4. **Changement de mot de passe** : `POST /auth/change-password` → l'ancien mot de passe est vérifié via `verify_credentials()` (un appel PocketBase), le nouveau est écrit via `UserRepository.update_password()` → flag `must_change_password` passé à `False` côté PocketBase → nouveau cookie émis.
+5. **Connexion WebSocket** : le navigateur envoie le cookie automatiquement lors du handshake — pas de token dans l'URL. Le serveur le lit depuis les headers de l'upgrade request (JWT du backend, jamais PocketBase).
 6. **Logout** : `POST /auth/logout` → cookie supprimé (max_age=0).
 
 ### Conventions auth
 
-- Ne jamais stocker le mot de passe en clair, même temporairement
+- Ne jamais hacher ou comparer de mot de passe côté backend — c'est le rôle de PocketBase
 - Le mot de passe temporaire n'est retourné qu'une seule fois (à la création) — aucune route de consultation
 - Les routes `/admin/*` vérifient `is_admin=True` via la dépendance `require_admin`
 - Les routes de jeu (rooms, WebSocket) vérifient l'auth via `get_current_user`
-- Le frontend ne stocke **jamais** le JWT — `authStore` contient uniquement `{ username, is_admin, must_change_password }` reçus dans le corps des réponses
+- Le frontend ne stocke **jamais** de JWT (ni backend ni PocketBase) — `authStore` contient uniquement `{ username, is_admin, must_change_password }` reçus dans le corps des réponses
 - Le fetch frontend doit toujours inclure `credentials: 'include'` pour que le cookie parte avec les requêtes cross-origin
+- La collection PocketBase `users` n'a aucune règle d'API publique (`listRule`/`viewRule`/`createRule`/`updateRule`/`deleteRule` = `null`) — accès superuser uniquement, via le backend
 
 
 ## Rate limiting
@@ -293,6 +306,11 @@ Stack :
 
 Emplacement : backend/tests/
 Convention de nommage : test_<module_testé>.py
+
+**Prérequis** : les tests d'auth/users tournent contre une vraie instance PocketBase,
+démarrée automatiquement par `conftest.py` (fixture `pb_server`, session-scoped) sur un
+port libre avec un data-dir temporaire. Le binaire `pocketbase` doit être sur le `PATH`
+(ou `POCKETBASE_BIN` pointer dessus) pour lancer les tests backend en local.
 
 Pour chaque feature back, tu dois écrire :
 1. Tests unitaires sur la logique métier pure (indépendants de FastAPI)
