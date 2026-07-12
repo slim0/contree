@@ -85,11 +85,18 @@ function getCurrentTrump(r: RoundData): string | null {
 // ─── Responsive card sizing ───────────────────────────────────────────────────
 // Mirrors the breakpoints of the `.playing-card` media queries in index.html so the
 // JS fan-spacing math always matches the actually-rendered card size.
+// Any new CSS breakpoint added under the tablet media queries in index.html must
+// get a matching entry here with the identical px thresholds — check both together.
 
 interface CardSizes { mine: number; opponent: number; fanBudget: number; oppFanBudget: number }
 
-const CARD_SIZES: Record<'default' | 'landscapeMobile' | 'portraitMobile', CardSizes> = {
+const CARD_SIZES: Record<
+  'default' | 'landscapeMobile' | 'portraitMobile' | 'landscapeTablet' | 'portraitTablet',
+  CardSizes
+> = {
   default:         { mine: 78, opponent: 40, fanBudget: 360, oppFanBudget: 130 },
+  landscapeTablet: { mine: 74, opponent: 36, fanBudget: 380, oppFanBudget: 120 },
+  portraitTablet:  { mine: 76, opponent: 36, fanBudget: 400, oppFanBudget: 130 },
   landscapeMobile: { mine: 64, opponent: 28, fanBudget: 320, oppFanBudget: 90 },
   portraitMobile:  { mine: 72, opponent: 36, fanBudget: 310, oppFanBudget: 110 },
 }
@@ -97,8 +104,13 @@ const CARD_SIZES: Record<'default' | 'landscapeMobile' | 'portraitMobile', CardS
 function getCardBreakpoint(): keyof typeof CARD_SIZES {
   if (typeof window === 'undefined') return 'default'
   const isLandscape = window.matchMedia('(orientation: landscape)').matches
-  if (isLandscape && window.innerHeight <= 520) return 'landscapeMobile'
-  if (!isLandscape && window.innerWidth <= 640) return 'portraitMobile'
+  if (isLandscape) {
+    if (window.innerHeight <= 520) return 'landscapeMobile'
+    if (window.innerHeight <= 900) return 'landscapeTablet'
+    return 'default'
+  }
+  if (window.innerWidth <= 640) return 'portraitMobile'
+  if (window.innerWidth <= 1080) return 'portraitTablet'
   return 'default'
 }
 
