@@ -89,9 +89,9 @@ function getCurrentTrump(r: RoundData): string | null {
 interface CardSizes { mine: number; opponent: number; fanBudget: number; oppFanBudget: number }
 
 const CARD_SIZES: Record<'default' | 'landscapeMobile' | 'portraitMobile', CardSizes> = {
-  default:         { mine: 60, opponent: 48, fanBudget: 340, oppFanBudget: 150 },
-  landscapeMobile: { mine: 46, opponent: 34, fanBudget: 300, oppFanBudget: 110 },
-  portraitMobile:  { mine: 56, opponent: 44, fanBudget: 300, oppFanBudget: 130 },
+  default:         { mine: 78, opponent: 40, fanBudget: 360, oppFanBudget: 130 },
+  landscapeMobile: { mine: 64, opponent: 28, fanBudget: 320, oppFanBudget: 90 },
+  portraitMobile:  { mine: 72, opponent: 36, fanBudget: 310, oppFanBudget: 110 },
 }
 
 function getCardBreakpoint(): keyof typeof CARD_SIZES {
@@ -330,6 +330,7 @@ function getLastTrick(r: RoundData | null) {
 
 const BID_SUIT_GRID = ['H', 'C', 'NT', 'S', 'D', 'AT']
 const BID_SUIT_BTN_LABEL: Record<string, string> = { ...SUIT_SYM, NT: 'SA', AT: 'TA' }
+const BID_SUIT_COLOR_CLASS: Record<string, string> = { H: ' suit-red', D: ' suit-red', C: ' suit-black', S: ' suit-black' }
 const VALUE_PAGE_SIZE = 4
 
 function bidActionLabel(e: { action: string; bid?: { is_capot: boolean; value: number; trump: string } | null }) {
@@ -402,7 +403,7 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
           {(actions.min_bid_value !== null || actions.can_bid_capot) && (
             <div className="bid-suit-grid">
               {BID_SUIT_GRID.map(t => (
-                <button key={t} className="bid-suit-btn" onClick={() => chooseSuit(t)}
+                <button key={t} className={`bid-suit-btn${BID_SUIT_COLOR_CLASS[t] ?? ''}`} onClick={() => chooseSuit(t)}
                   disabled={actions.min_bid_value === null && !capotMode}>
                   {BID_SUIT_BTN_LABEL[t]}
                 </button>

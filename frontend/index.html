@@ -360,6 +360,7 @@
         display: flex;
         justify-content: center;
         align-items: stretch;
+        overflow-y: auto;
       }
       .table-grid {
         display: grid;
@@ -423,7 +424,7 @@
 
       /* ── PLAYING CARD ── */
       .playing-card {
-        width: 60px; height: 86px;
+        width: 78px; height: 112px;
         background: linear-gradient(135deg, #fff8f8 0%, #fff 100%);
         border-radius: 8px;
         border: 1px solid #ccc;
@@ -457,28 +458,28 @@
         box-shadow: 0 0 20px rgba(255,215,0,0.8), 0 4px 12px rgba(0,0,0,0.5);
         border-color: #ffd700;
       }
-      .playing-card.compact { width: 48px; height: 69px; padding: 2px 3px; }
+      .playing-card.compact { width: 62px; height: 90px; padding: 3px 4px; }
       .pc-tl { align-self: flex-start; text-align: center; line-height: 1.1; }
       .pc-br { align-self: flex-end; text-align: center; line-height: 1.1; transform: rotate(180deg); }
-      .pc-rank { font-size: 16px; line-height: 1; }
-      .pc-sym  { font-size: 13px; line-height: 1; }
-      .playing-card.compact .pc-rank { font-size: 13px; }
-      .playing-card.compact .pc-sym  { font-size: 11px; }
+      .pc-rank { font-size: 20px; line-height: 1; }
+      .pc-sym  { font-size: 16px; line-height: 1; }
+      .playing-card.compact .pc-rank { font-size: 17px; }
+      .playing-card.compact .pc-sym  { font-size: 13px; }
       .pc-center {
         position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 26px; line-height: 1; pointer-events: none;
+        font-size: 34px; line-height: 1; pointer-events: none;
       }
-      .playing-card.compact .pc-center { font-size: 20px; }
+      .playing-card.compact .pc-center { font-size: 27px; }
 
       /* ── HAND FAN ── */
       .hand-fan-wrap { display: flex; justify-content: center; overflow: visible; padding: 10px 0 8px; }
-      .hand-fan { position: relative; height: 104px; overflow: visible; }
-      .hand-fan-opp { height: 84px; }
+      .hand-fan { position: relative; height: 135px; overflow: visible; }
+      .hand-fan-opp { height: 70px; }
 
       /* ── CARD BACK ── */
       .card-back {
-        width: 60px; height: 86px;
+        width: 78px; height: 112px;
         border-radius: 8px;
         border: 1px solid #4a5a7a;
         box-shadow: 0 2px 8px rgba(0,0,0,0.5);
@@ -487,7 +488,7 @@
         flex-shrink: 0;
         position: relative;
       }
-      .card-back.compact { width: 48px; height: 69px; }
+      .card-back.compact { width: 40px; height: 58px; }
       .cb-pattern {
         width: 100%; height: 100%;
         background:
@@ -635,6 +636,13 @@
         font-size: 1.05em;
         padding: 8px 4px;
       }
+      .bid-suit-btn.suit-red, .bid-suit-btn.suit-black {
+        background: linear-gradient(135deg, #fff8f8 0%, #fff 100%);
+        border-color: #ccc;
+      }
+      .bid-suit-btn.suit-red { color: #d40000; }
+      .bid-suit-btn.suit-black { color: #1a1a1a; }
+      .bid-suit-btn.suit-red:hover, .bid-suit-btn.suit-black:hover { background: linear-gradient(135deg, #ffecec 0%, #f5f5f5 100%); }
       .bid-action-row {
         display: flex;
         gap: 5px;
@@ -660,15 +668,16 @@
       @media (orientation: landscape) and (max-height: 520px) {
         body { font-size: 12px; }
 
-        .game-wrap { gap: 2px; padding: 3px 5px; }
+        .game-wrap { gap: 1px; padding: 2px 4px; }
 
         .game-header {
-          padding: 3px 8px;
-          gap: 4px 10px;
+          padding: 2px 8px;
+          gap: 2px 10px;
           border-radius: 6px;
           background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
           box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
+        .header-voice-error { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; }
         .score-num { font-size: 1.05em; }
 
         .header-voice { gap: 3px; }
@@ -677,46 +686,47 @@
 
         .table-grid {
           grid-template-columns: minmax(96px, 140px) 1fr minmax(96px, 140px);
-          gap: 2px;
-          padding: 4px;
+          gap: 1px;
+          padding: 2px;
         }
 
-        .player-slot { padding: 1px 6px; min-width: 90px; min-height: 0; }
+        .player-slot { padding: 0px 6px; min-width: 90px; min-height: 0; }
         .player-marker { font-size: 0.6em; margin-bottom: 0; }
-        .player-name { font-size: 0.85em; margin-bottom: 1px; }
-        .player-pos  { font-size: 0.68em; margin-bottom: 1px; gap: 2px; }
-        .bid-entry-row { padding: 1px 5px; font-size: 0.7em; }
+        .player-name { font-size: 0.85em; margin-bottom: 0; }
+        .player-pos  { font-size: 0.68em; margin-bottom: 0; gap: 2px; }
+        .bid-entry-row { padding: 0px 5px; font-size: 0.68em; }
 
-        .trick-grid { min-width: 110px; min-height: 84px; padding: 5px; gap: 3px; }
+        .trick-grid { min-width: 90px; min-height: 74px; padding: 2px; gap: 1px; }
+        .trick-pos-center { font-size: 0.6em; }
 
-        .playing-card { width: 46px; height: 66px; padding: 2px 3px; }
-        .pc-rank { font-size: 12px; }
-        .pc-sym  { font-size: 10px; }
-        .pc-center { font-size: 19px; }
-        .playing-card.compact { width: 34px; height: 49px; }
-        .playing-card.compact .pc-rank { font-size: 9px; }
-        .playing-card.compact .pc-sym  { font-size: 8px; }
-        .playing-card.compact .pc-center { font-size: 13px; }
-        .hand-fan { height: 78px; }
-        .hand-fan-opp { height: 58px; }
-        .hand-fan-wrap { padding: 2px 0 2px; }
-        .card-back { width: 46px; height: 66px; }
-        .card-back.compact { width: 34px; height: 49px; }
+        .playing-card { width: 64px; height: 92px; padding: 2px 3px; }
+        .pc-rank { font-size: 16px; }
+        .pc-sym  { font-size: 13px; }
+        .pc-center { font-size: 26px; }
+        .playing-card.compact { width: 27px; height: 39px; padding: 1px 2px; }
+        .playing-card.compact .pc-rank { font-size: 8px; }
+        .playing-card.compact .pc-sym  { font-size: 6px; }
+        .playing-card.compact .pc-center { font-size: 11px; }
+        .hand-fan { height: 109px; }
+        .hand-fan-opp { height: 47px; }
+        .hand-fan-wrap { padding: 0px 0 0px; }
+        .card-back { width: 64px; height: 92px; }
+        .card-back.compact { width: 28px; height: 40px; }
 
         button { padding: 4px 8px; min-height: 26px; font-size: 0.82em; }
         select, input { padding: 5px 7px; min-height: 26px; font-size: 0.85em; }
 
         h3 { font-size: 0.72em; margin-bottom: 4px; }
         .panel { padding: 6px 10px; margin: 3px 0; border-radius: 6px; }
-        .bid-center { padding: 2px 5px; gap: 2px; min-width: 110px; }
+        .bid-center { padding: 1px 4px; gap: 1px; min-width: 110px; }
         .bid-center-label { display: none; }
-        .bid-center-controls { gap: 2px; }
-        .bid-double-row, .bid-value-row, .bid-action-row { gap: 2px; }
-        .bid-suit-grid { gap: 2px; }
-        .bid-suit-btn { padding: 2px 2px; font-size: 0.8em; min-height: 20px; }
-        .bid-value-btn { padding: 2px 4px; min-height: 20px; }
-        .bid-page-arrow { padding: 2px 6px; min-height: 20px; min-width: 20px; }
-        .bid-double-btn, .bid-pass-btn, .bid-capot-btn { min-height: 20px; }
+        .bid-center-controls { gap: 1px; }
+        .bid-double-row, .bid-value-row, .bid-action-row { gap: 1px; }
+        .bid-suit-grid { gap: 1px; }
+        .bid-suit-btn { padding: 1px 2px; font-size: 0.76em; min-height: 13px; }
+        .bid-value-btn { padding: 1px 4px; min-height: 13px; }
+        .bid-page-arrow { padding: 1px 6px; min-height: 13px; min-width: 18px; }
+        .bid-double-btn, .bid-pass-btn, .bid-capot-btn { min-height: 13px; }
       }
 
       /* ── PORTRAIT MOBILE (≤ 640px de largeur) ── */
@@ -734,17 +744,17 @@
 
         .trick-grid { min-width: 110px; min-height: 105px; padding: 6px; gap: 4px; }
 
-        .playing-card { width: 56px; height: 81px; padding: 2px 3px; }
-        .pc-rank { font-size: 15px; }
-        .pc-sym  { font-size: 12px; }
-        .pc-center { font-size: 23px; }
-        .playing-card.compact { width: 44px; height: 63px; }
-        .playing-card.compact .pc-rank { font-size: 12px; }
-        .playing-card.compact .pc-sym  { font-size: 10px; }
-        .playing-card.compact .pc-center { font-size: 17px; }
-        .hand-fan { height: 96px; }
-        .hand-fan-opp { height: 75px; }
-        .card-back.compact { width: 44px; height: 63px; }
+        .playing-card { width: 72px; height: 104px; padding: 3px 4px; }
+        .pc-rank { font-size: 18px; }
+        .pc-sym  { font-size: 15px; }
+        .pc-center { font-size: 30px; }
+        .playing-card.compact { width: 56px; height: 81px; }
+        .playing-card.compact .pc-rank { font-size: 14px; }
+        .playing-card.compact .pc-sym  { font-size: 12px; }
+        .playing-card.compact .pc-center { font-size: 23px; }
+        .hand-fan { height: 123px; }
+        .hand-fan-opp { height: 62px; }
+        .card-back.compact { width: 36px; height: 52px; }
 
         button { padding: 9px 11px; font-size: 0.88em; min-height: 40px; }
         select, input { padding: 7px 8px; font-size: 0.88em; min-height: 40px; }
