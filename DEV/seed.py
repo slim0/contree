@@ -1,13 +1,12 @@
 #!/usr/bin/env python3
-"""Seed de dev : crée 4 joueurs test en base SQLite avec must_change_password=False."""
+"""Seed de dev : crée 4 joueurs test dans PocketBase avec must_change_password=False."""
 
 import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from backend.auth.service import hash_password
-from backend.db.database import DATABASE_URL, SessionLocal, init_db
+from backend.pocketbase.client import PB_URL, get_pb_client
 from backend.users.repository import UserRepository
 
 PLAYERS = [
@@ -20,32 +19,25 @@ PLAYERS = [
 
 
 def seed() -> None:
-    print(f"Base : {DATABASE_URL}")
-    init_db()
-    db = SessionLocal()
-    try:
-        repo = UserRepository(db)
-        for p in PLAYERS:
-            username = p["username"]
-            password = p["password"]
-            user = repo.get_by_username(username)
-            if user:
-                repo.update_password(user=user, hashed_password=hash_password(password))
-                print(
-                    f"[update] {user.username}  (id={user.id})  mot de passe : {password}"
-                )
-                continue
-            user = repo.create(
-                username=username,
-                hashed_password=hash_password(password),
-                is_admin=False,
-                must_change_password=False,
-            )
+    print(f"PocketBase : {PB_URL}")
+    repo = UserRepository(get_pb_client())
+    for p in PLAYERS:
+        username = p["username"]
+        password = p["password"]
+        user = repo.get_by_username(username)
+        if user:
+            repo.update_password(user=user, new_password=password)
             print(
-                f"[create] {user.username}  (id={user.id})  mot de passe : {password}"
+                f"[update] {user.username}  (id={user.id})  mot de passe : {password}"
             )
-    finally:
-        db.close()
+            continue
+        user = repo.create(
+            username=username,
+            password=password,
+            is_admin=False,
+            must_change_password=False,
+        )
+        print(f"[create] {user.username}  (id={user.id})  mot de passe : {password}")
     print("Seed terminé.")
 
 

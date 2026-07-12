@@ -1,17 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
-from sqlalchemy.orm import Session
 
 from backend.api.limiter import limiter
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import ChangePasswordRequest, LoginRequest, UserInfo
-from backend.auth.service import (
-    TOKEN_EXPIRE_HOURS,
-    create_token,
-    hash_password,
-    verify_password,
-)
-from backend.db.database import get_db
-from backend.db.models import User
+from backend.auth.service import TOKEN_EXPIRE_HOURS, create_token
+from backend.pocketbase.client import PocketBaseClient, get_pb_client
+from backend.users.models import User
 from backend.users.repository import UserRepository
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -36,11 +30,11 @@ async def login(
     request: Request,
     body: LoginRequest,
     response: Response,
-    db: Session = Depends(get_db),
+    pb: PocketBaseClient = Depends(get_pb_client),
 ) -> UserInfo:
-    repo = UserRepository(db)
-    user = repo.get_by_username(body.username)
-    if not user or not verify_password(body.password, user.hashed_password):
+    repo = UserRepository(pb)
+    user = repo.verify_credentials(body.username, body.password)
+    if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiants invalides"
         )
@@ -81,9 +75,10 @@ async def change_password(
     body: ChangePasswordRequest,
     response: Response,
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
+    pb: PocketBaseClient = Depends(get_pb_client),
 ) -> UserInfo:
-    if not verify_password(body.old_password, current_user.hashed_password):
+    repo = UserRepository(pb)
+    if not repo.verify_credentials(current_user.username, body.old_password):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Ancien mot de passe incorrect",
@@ -93,8 +88,7 @@ async def change_password(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Le nouveau mot de passe doit contenir au moins 8 caractères",
         )
-    repo = UserRepository(db)
-    user = repo.update_password(current_user, hash_password(body.new_password))
+    user = repo.update_password(current_user, body.new_password)
     token = create_token(
         user.id, user.username, user.is_admin, user.must_change_password
     )

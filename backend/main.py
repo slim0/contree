@@ -1,8 +1,10 @@
 import logging
 import os
 import sys
+import time
 from contextlib import asynccontextmanager
 
+import httpx
 import jwt
 from fastapi import FastAPI, WebSocket, status
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,8 +18,8 @@ from backend.api.dev_routes import router as dev_router
 from backend.api.limiter import limiter
 from backend.api.routes import router
 from backend.api.websocket import handle_connection
-from backend.auth.service import decode_token, generate_temp_password, hash_password
-from backend.db.database import SessionLocal, init_db
+from backend.auth.service import decode_token, generate_temp_password
+from backend.pocketbase.client import PB_URL, get_pb_client
 from backend.users.repository import UserRepository
 
 # ── Logging ──────────────────────────────────────────────────────────────────
@@ -43,29 +45,39 @@ _ALLOWED_ORIGINS = [
 ]
 
 
+def _wait_for_pocketbase(timeout: float = 30.0) -> None:
+    """Attend que PocketBase réponde avant de démarrer (utile au cold-start Docker)."""
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            r = httpx.get(f"{PB_URL}/api/health", timeout=2.0)
+            if r.status_code == 200:
+                return
+        except httpx.HTTPError:
+            pass
+        time.sleep(1)
+    log.warning(
+        "PocketBase (%s) injoignable après %.0fs — démarrage quand même", PB_URL, timeout
+    )
+
+
 def _bootstrap_admin() -> None:
     """Si aucun utilisateur n'existe, crée un compte admin avec un mot de passe temporaire."""
-    db = SessionLocal()
-    try:
-        repo = UserRepository(db)
-        if repo.count() == 0:
-            temp = generate_temp_password()
-            repo.create(
-                "admin", hash_password(temp), is_admin=True, must_change_password=True
-            )
-            log.warning("━" * 60)
-            log.warning("PREMIER DÉMARRAGE — Compte administrateur créé")
-            log.warning("  Identifiant       : admin")
-            log.warning("  Mot de passe temp : %s", temp)
-            log.warning("  Changez-le dès la première connexion !")
-            log.warning("━" * 60)
-    finally:
-        db.close()
+    repo = UserRepository(get_pb_client())
+    if repo.count() == 0:
+        temp = generate_temp_password()
+        repo.create("admin", temp, is_admin=True, must_change_password=True)
+        log.warning("━" * 60)
+        log.warning("PREMIER DÉMARRAGE — Compte administrateur créé")
+        log.warning("  Identifiant       : admin")
+        log.warning("  Mot de passe temp : %s", temp)
+        log.warning("  Changez-le dès la première connexion !")
+        log.warning("━" * 60)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    init_db()
+    _wait_for_pocketbase()
     _bootstrap_admin()
     yield
 

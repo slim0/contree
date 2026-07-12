@@ -1,4 +1,21 @@
 services:
+  pocketbase:
+    build:
+      context: .
+      dockerfile: Dockerfile.pocketbase
+    ports:
+      - "8090:8090"
+    volumes:
+      - pocketbase_data:/pb/pb_data
+    environment:
+      PB_SUPERUSER_EMAIL: admin@contree.local
+      PB_SUPERUSER_PASSWORD: dev-superuser-password
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/health"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
   backend:
     build:
       context: .
@@ -9,10 +26,14 @@ services:
     volumes:
       - ./backend:/app/backend   # hot-reload Python
       - ./DEV:/app/DEV
-      - sqlite_data:/app/data
     environment:
-      DATABASE_URL: sqlite:////app/data/contree.db
+      PB_URL: http://pocketbase:8090
+      PB_SUPERUSER_EMAIL: admin@contree.local
+      PB_SUPERUSER_PASSWORD: dev-superuser-password
       DEVELOPMENT: "true"
+    depends_on:
+      pocketbase:
+        condition: service_healthy
 
   frontend:
     build:
@@ -30,4 +51,4 @@ services:
       - backend
 
 volumes:
-  sqlite_data:
+  pocketbase_data:
