@@ -290,6 +290,29 @@
       .result-made  { color: #4d9; }
       .result-chute { color: #f66; }
 
+      /* ── VOIX (barre de scores, en haut à droite) ── */
+      .header-voice { display: flex; align-items: center; gap: 4px; margin-left: auto; }
+      .header-voice-error { color: #f66; font-size: 0.75em; }
+      .header-voice-dot {
+        display: inline-flex; align-items: center; justify-content: center;
+        width: 20px; height: 20px;
+        border-radius: 50%;
+        background: #333; color: #999;
+        font-size: 0.65em; font-weight: 700;
+        transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+      }
+      .header-voice-dot.off { background: #2a2a2a; color: #666; }
+      .header-voice-dot.speaking { background: #2a2; color: #fff; box-shadow: 0 0 8px rgba(68,200,68,0.7); }
+      .header-voice-btn {
+        margin: 0; padding: 0;
+        width: 26px; height: 26px; min-height: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 50%; border: 1px solid #555;
+        background: #2a2; font-size: 0.8em; line-height: 1;
+        box-shadow: none;
+      }
+      .header-voice-btn.off { background: #333; }
+
       /* ── ROUND RESULT OVERLAY ── */
       @keyframes rr-anim {
         0%   { opacity: 0; transform: scale(0.88); }
@@ -363,42 +386,46 @@
       .slot-right  { grid-area: right; }
       .slot-bottom { grid-area: bottom; }
 
-      /* ── PLAYER SLOT ── */
+      /* ── PLAYER SLOT (pas de cadre — la main repose directement sur le tapis) ── */
       .player-slot {
-        border: 2px solid #3a3a3a;
-        border-radius: 12px;
-        padding: 12px 14px;
-        background:
-          linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 50%, rgba(0,0,0,0.2) 100%),
-          repeating-linear-gradient(45deg, #2a2a2a 0, #2a2a2a 2px, #242424 2px, #242424 4px);
+        padding: 4px 6px;
         min-width: 100px;
         width: 100%;
         text-align: center;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
-        overflow: hidden;
-        min-height: 168px;
       }
-      @keyframes slot-pulse-bid  {
-        0%, 100% { box-shadow: 0 0 10px rgba(255,170,100,0.3), 0 4px 12px rgba(0,0,0,0.4); }
-        50%       { box-shadow: 0 0 22px rgba(255,170,100,0.7), 0 4px 12px rgba(0,0,0,0.4); }
+      .player-marker {
+        font-size: 0.7em;
+        line-height: 1;
+        color: #4a7a4a;
+        margin-bottom: 2px;
+        transition: color 0.2s ease, text-shadow 0.2s ease;
       }
-      @keyframes slot-pulse-play {
-        0%, 100% { box-shadow: 0 0 10px rgba(68,200,150,0.3), 0 4px 12px rgba(0,0,0,0.4); }
-        50%       { box-shadow: 0 0 22px rgba(68,200,150,0.7), 0 4px 12px rgba(0,0,0,0.4); }
+      @keyframes marker-pulse-bid  {
+        0%, 100% { text-shadow: 0 0 4px rgba(255,170,100,0.5); }
+        50%       { text-shadow: 0 0 12px rgba(255,170,100,1); }
       }
-      .player-slot.active-bidder { border-color: #fa6; animation: slot-pulse-bid  2s ease-in-out infinite; }
-      .player-slot.active-player { border-color: #4d9; animation: slot-pulse-play 2s ease-in-out infinite; }
-      .player-slot.dealer { border-color: #887; }
-      .player-name { font-size: 1em; font-weight: bold; margin-bottom: 4px; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
-      .player-pos  { font-size: 0.82em; color: #aaa; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; align-items: center; }
-      .badge-dealer { color: #887; }
+      @keyframes marker-pulse-play {
+        0%, 100% { text-shadow: 0 0 4px rgba(68,200,150,0.5); }
+        50%       { text-shadow: 0 0 12px rgba(68,200,150,1); }
+      }
+      .player-slot.active-bidder .player-marker,
+      .player-slot.active-bidder .player-name {
+        color: #fa6; animation: marker-pulse-bid 2s ease-in-out infinite;
+      }
+      .player-slot.active-player .player-marker,
+      .player-slot.active-player .player-name {
+        color: #4d9; animation: marker-pulse-play 2s ease-in-out infinite;
+      }
+      .player-name { font-size: 1em; font-weight: bold; margin-bottom: 4px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+      .player-pos  { font-size: 0.82em; color: #cfcfcf; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; align-items: center; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+      .badge-dealer { color: #eb4; }
       .badge-action { font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 
       /* ── PLAYING CARD ── */
       .playing-card {
-        width: 46px; height: 66px;
+        width: 60px; height: 86px;
         background: linear-gradient(135deg, #fff8f8 0%, #fff 100%);
-        border-radius: 6px;
+        border-radius: 8px;
         border: 1px solid #ccc;
         box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 0 1px rgba(255,255,255,0.1) inset;
         position: relative;
@@ -407,7 +434,7 @@
         display: flex;
         flex-direction: column;
         justify-content: space-between;
-        padding: 2px 3px;
+        padding: 3px 4px;
         font-family: Georgia, 'Times New Roman', serif;
         font-weight: bold;
         flex-shrink: 0;
@@ -430,28 +457,29 @@
         box-shadow: 0 0 20px rgba(255,215,0,0.8), 0 4px 12px rgba(0,0,0,0.5);
         border-color: #ffd700;
       }
-      .playing-card.compact { width: 38px; height: 54px; padding: 2px; }
+      .playing-card.compact { width: 48px; height: 69px; padding: 2px 3px; }
       .pc-tl { align-self: flex-start; text-align: center; line-height: 1.1; }
       .pc-br { align-self: flex-end; text-align: center; line-height: 1.1; transform: rotate(180deg); }
-      .pc-rank { font-size: 13px; line-height: 1; }
-      .pc-sym  { font-size: 11px; line-height: 1; }
-      .playing-card.compact .pc-rank { font-size: 11px; }
-      .playing-card.compact .pc-sym  { font-size: 9px; }
+      .pc-rank { font-size: 16px; line-height: 1; }
+      .pc-sym  { font-size: 13px; line-height: 1; }
+      .playing-card.compact .pc-rank { font-size: 13px; }
+      .playing-card.compact .pc-sym  { font-size: 11px; }
       .pc-center {
         position: absolute; top: 50%; left: 50%;
         transform: translate(-50%, -50%);
-        font-size: 20px; line-height: 1; pointer-events: none;
+        font-size: 26px; line-height: 1; pointer-events: none;
       }
-      .playing-card.compact .pc-center { font-size: 16px; }
+      .playing-card.compact .pc-center { font-size: 20px; }
 
       /* ── HAND FAN ── */
       .hand-fan-wrap { display: flex; justify-content: center; overflow: visible; padding: 10px 0 8px; }
-      .hand-fan { position: relative; height: 84px; overflow: visible; }
+      .hand-fan { position: relative; height: 104px; overflow: visible; }
+      .hand-fan-opp { height: 84px; }
 
       /* ── CARD BACK ── */
       .card-back {
-        width: 46px; height: 66px;
-        border-radius: 6px;
+        width: 60px; height: 86px;
+        border-radius: 8px;
         border: 1px solid #4a5a7a;
         box-shadow: 0 2px 8px rgba(0,0,0,0.5);
         background: linear-gradient(135deg, #1e3d6e 0%, #0d2244 100%);
@@ -459,7 +487,7 @@
         flex-shrink: 0;
         position: relative;
       }
-      .card-back.compact { width: 38px; height: 54px; }
+      .card-back.compact { width: 48px; height: 69px; }
       .cb-pattern {
         width: 100%; height: 100%;
         background:
@@ -531,31 +559,26 @@
         color: #888;
         text-align: center;
       }
-      .bid-center-history {
-        display: flex;
-        flex-direction: column;
-        gap: 3px;
-        border-bottom: 1px solid rgba(255,255,255,0.07);
-        padding-bottom: 8px;
-      }
+      /* Pastille d'historique — réutilisée par le badge de dernière enchère de chaque joueur */
       .bid-entry-row {
-        display: flex;
+        display: inline-flex;
         align-items: center;
-        padding: 3px 8px;
+        padding: 2px 7px;
         border-radius: 6px;
-        font-size: 0.82em;
-        gap: 6px;
+        font-size: 0.78em;
+        gap: 5px;
+        white-space: nowrap;
       }
       .bid-entry-sep {
         color: #444;
         flex-shrink: 0;
       }
       .bid-entry-row.bid-pass {
-        background: rgba(0,0,0,0.2);
-        opacity: 0.55;
+        background: rgba(0,0,0,0.35);
+        opacity: 0.65;
       }
       .bid-entry-row.bid-bid {
-        background: rgba(255,255,255,0.06);
+        background: rgba(0,0,0,0.45);
       }
       .bid-entry-value {
         font-weight: 600;
@@ -563,14 +586,67 @@
         white-space: nowrap;
       }
       .bid-entry-row.bid-pass .bid-entry-value {
-        color: #555;
+        color: #999;
         font-weight: 400;
       }
+
       .bid-center-controls {
         display: flex;
-        flex-wrap: wrap;
-        gap: 5px;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .bid-double-row {
+        display: flex;
+        gap: 6px;
+      }
+      .bid-double-btn {
+        flex: 1;
+        border-color: #c87;
+        color: #f96;
+        background: linear-gradient(180deg, #5a3a20 0%, #4a2a10 100%);
+      }
+      .bid-value-row {
+        display: flex;
         align-items: center;
+        gap: 5px;
+      }
+      .bid-page-arrow {
+        flex: 0 0 auto;
+        padding: 6px 8px;
+        min-width: 30px;
+        font-weight: bold;
+      }
+      .bid-value-btn {
+        flex: 1;
+        min-width: 0;
+        background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+      }
+      .bid-value-btn.selected {
+        border-color: #4caf50;
+        color: #fff;
+        background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+      }
+      .bid-suit-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+      }
+      .bid-suit-btn {
+        font-size: 1.05em;
+        padding: 8px 4px;
+      }
+      .bid-action-row {
+        display: flex;
+        gap: 5px;
+      }
+      .bid-pass-btn, .bid-capot-btn {
+        flex: 1;
+        font-size: 0.85em;
+      }
+      .bid-capot-btn.selected {
+        border-color: #4caf50;
+        color: #fff;
+        background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
       }
       .bid-center-waiting {
         text-align: center;
@@ -582,52 +658,65 @@
 
       /* ── PAYSAGE MOBILE (≤ 600px de hauteur) ── */
       @media (orientation: landscape) and (max-height: 520px) {
-        body { font-size: 13px; }
+        body { font-size: 12px; }
 
-        .game-wrap { gap: 3px; padding: 4px 6px; }
+        .game-wrap { gap: 2px; padding: 3px 5px; }
 
         .game-header {
-          padding: 5px 10px;
-          gap: 6px 12px;
+          padding: 3px 8px;
+          gap: 4px 10px;
           border-radius: 6px;
           background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
           box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
-        .score-num { font-size: 1.1em; }
+        .score-num { font-size: 1.05em; }
+
+        .header-voice { gap: 3px; }
+        .header-voice-dot { width: 16px; height: 16px; font-size: 0.6em; }
+        .header-voice-btn { width: 20px; height: 20px; font-size: 0.7em; }
 
         .table-grid {
-          grid-template-columns: minmax(110px, 150px) 1fr minmax(110px, 150px);
-          gap: 3px;
-          padding: 12px;
+          grid-template-columns: minmax(96px, 140px) 1fr minmax(96px, 140px);
+          gap: 2px;
+          padding: 4px;
         }
 
-        .player-slot { padding: 6px 8px; min-width: 100px; min-height: 122px; }
-        .player-name { font-size: 0.9em; margin-bottom: 2px; }
-        .player-pos  { font-size: 0.75em; margin-bottom: 2px; gap: 2px; }
+        .player-slot { padding: 1px 6px; min-width: 90px; min-height: 0; }
+        .player-marker { font-size: 0.6em; margin-bottom: 0; }
+        .player-name { font-size: 0.85em; margin-bottom: 1px; }
+        .player-pos  { font-size: 0.68em; margin-bottom: 1px; gap: 2px; }
+        .bid-entry-row { padding: 1px 5px; font-size: 0.7em; }
 
-        .trick-grid { min-width: 120px; min-height: 100px; padding: 6px; gap: 4px; }
+        .trick-grid { min-width: 110px; min-height: 84px; padding: 5px; gap: 3px; }
 
-        .playing-card { width: 38px; height: 54px; padding: 2px; }
-        .pc-rank { font-size: 11px; }
-        .pc-sym  { font-size: 9px; }
-        .pc-center { font-size: 16px; }
-        .playing-card.compact { width: 30px; height: 43px; }
+        .playing-card { width: 46px; height: 66px; padding: 2px 3px; }
+        .pc-rank { font-size: 12px; }
+        .pc-sym  { font-size: 10px; }
+        .pc-center { font-size: 19px; }
+        .playing-card.compact { width: 34px; height: 49px; }
         .playing-card.compact .pc-rank { font-size: 9px; }
-        .playing-card.compact .pc-sym  { font-size: 7px; }
-        .playing-card.compact .pc-center { font-size: 12px; }
-        .hand-fan { height: 68px; }
-        .hand-fan-wrap { padding: 6px 0 5px; }
-        .card-back { width: 30px; height: 43px; }
-        .card-back.compact { width: 30px; height: 43px; }
+        .playing-card.compact .pc-sym  { font-size: 8px; }
+        .playing-card.compact .pc-center { font-size: 13px; }
+        .hand-fan { height: 78px; }
+        .hand-fan-opp { height: 58px; }
+        .hand-fan-wrap { padding: 2px 0 2px; }
+        .card-back { width: 46px; height: 66px; }
+        .card-back.compact { width: 34px; height: 49px; }
 
-        button { padding: 6px 10px; min-height: 34px; font-size: 0.85em; }
-        select, input { padding: 5px 7px; min-height: 34px; font-size: 0.85em; }
+        button { padding: 4px 8px; min-height: 26px; font-size: 0.82em; }
+        select, input { padding: 5px 7px; min-height: 26px; font-size: 0.85em; }
 
         h3 { font-size: 0.72em; margin-bottom: 4px; }
         .panel { padding: 6px 10px; margin: 3px 0; border-radius: 6px; }
-        .bid-center { padding: 6px; gap: 5px; min-width: 120px; }
-        .bid-center-history { font-size: 0.72em; gap: 2px 6px; padding-bottom: 4px; }
-        .bid-center-controls { gap: 4px; }
+        .bid-center { padding: 2px 5px; gap: 2px; min-width: 110px; }
+        .bid-center-label { display: none; }
+        .bid-center-controls { gap: 2px; }
+        .bid-double-row, .bid-value-row, .bid-action-row { gap: 2px; }
+        .bid-suit-grid { gap: 2px; }
+        .bid-suit-btn { padding: 2px 2px; font-size: 0.8em; min-height: 20px; }
+        .bid-value-btn { padding: 2px 4px; min-height: 20px; }
+        .bid-page-arrow { padding: 2px 6px; min-height: 20px; min-width: 20px; }
+        .bid-double-btn, .bid-pass-btn, .bid-capot-btn { min-height: 20px; }
       }
 
       /* ── PORTRAIT MOBILE (≤ 640px de largeur) ── */
@@ -645,16 +734,17 @@
 
         .trick-grid { min-width: 110px; min-height: 105px; padding: 6px; gap: 4px; }
 
-        .playing-card { width: 40px; height: 58px; padding: 2px; }
-        .pc-rank { font-size: 12px; }
-        .pc-sym  { font-size: 10px; }
-        .pc-center { font-size: 18px; }
-        .playing-card.compact { width: 34px; height: 48px; }
-        .playing-card.compact .pc-rank { font-size: 10px; }
-        .playing-card.compact .pc-sym  { font-size: 8px; }
-        .playing-card.compact .pc-center { font-size: 14px; }
-        .hand-fan { height: 72px; }
-        .card-back.compact { width: 34px; height: 48px; }
+        .playing-card { width: 56px; height: 81px; padding: 2px 3px; }
+        .pc-rank { font-size: 15px; }
+        .pc-sym  { font-size: 12px; }
+        .pc-center { font-size: 23px; }
+        .playing-card.compact { width: 44px; height: 63px; }
+        .playing-card.compact .pc-rank { font-size: 12px; }
+        .playing-card.compact .pc-sym  { font-size: 10px; }
+        .playing-card.compact .pc-center { font-size: 17px; }
+        .hand-fan { height: 96px; }
+        .hand-fan-opp { height: 75px; }
+        .card-back.compact { width: 44px; height: 63px; }
 
         button { padding: 9px 11px; font-size: 0.88em; min-height: 40px; }
         select, input { padding: 7px 8px; font-size: 0.88em; min-height: 40px; }

@@ -90,7 +90,7 @@ interface CardSizes { mine: number; opponent: number; fanBudget: number; oppFanB
 
 const CARD_SIZES: Record<'default' | 'landscapeMobile' | 'portraitMobile', CardSizes> = {
   default:         { mine: 60, opponent: 48, fanBudget: 340, oppFanBudget: 150 },
-  landscapeMobile: { mine: 54, opponent: 42, fanBudget: 320, oppFanBudget: 130 },
+  landscapeMobile: { mine: 46, opponent: 34, fanBudget: 300, oppFanBudget: 110 },
   portraitMobile:  { mine: 56, opponent: 44, fanBudget: 300, oppFanBudget: 130 },
 }
 
@@ -176,6 +176,10 @@ function PlayerSlot({ pos, game, r, onPlay, cardSizes }: {
   if (isBidder) slotClass += ' active-bidder'
   else if (isPlayer) slotClass += ' active-player'
 
+  const lastBid = r?.phase === 'BIDDING'
+    ? [...r.bid_history].reverse().find(e => e.position === pos)
+    : undefined
+
   return (
     <div className={slotClass}>
       <div className="player-marker">▼</div>
@@ -186,6 +190,11 @@ function PlayerSlot({ pos, game, r, onPlay, cardSizes }: {
         {isPlayer && <span className="badge-action" title="À jouer"> ▶</span>}
       </div>
       <div className="player-name">{name ?? pos}</div>
+      {lastBid && (
+        <div className={`bid-entry-row ${lastBid.action === 'pass' ? 'bid-pass' : 'bid-bid'}`}>
+          <span className="bid-entry-value">{bidActionLabel(lastBid)}</span>
+        </div>
+      )}
       {isMe ? (
         <div className="hand-fan-wrap">
           <div className="hand-fan" style={{width: fanW}}>
@@ -208,7 +217,7 @@ function PlayerSlot({ pos, game, r, onPlay, cardSizes }: {
       ) : (
         <div className="hand-fan-wrap">
           {n > 0 && (
-            <div className="hand-fan" style={{width: oppFanW}}>
+            <div className="hand-fan hand-fan-opp" style={{width: oppFanW}}>
               {Array.from({ length: n }).map((_, i) => {
                 const k = n > 1 ? i / (n - 1) : 0.5
                 const angle = n > 1 ? maxAngle * (2 * k - 1) : 0
@@ -319,7 +328,7 @@ function getLastTrick(r: RoundData | null) {
   }
 }
 
-const BID_SUIT_GRID = ['H', 'C', 'S', 'D', 'NT', 'AT']
+const BID_SUIT_GRID = ['H', 'C', 'NT', 'S', 'D', 'AT']
 const BID_SUIT_BTN_LABEL: Record<string, string> = { ...SUIT_SYM, NT: 'SA', AT: 'TA' }
 const VALUE_PAGE_SIZE = 4
 
@@ -398,6 +407,11 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
                   {BID_SUIT_BTN_LABEL[t]}
                 </button>
               ))}
+            </div>
+          )}
+
+          {(actions.can_bid_capot || actions.can_pass) && (
+            <div className="bid-action-row">
               {actions.can_bid_capot && (
                 <button className={`bid-suit-btn bid-capot-btn${capotMode ? ' selected' : ''}`}
                   onClick={() => setCapotMode(m => !m)}>Capot</button>
@@ -406,10 +420,6 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
                 <button className="bid-suit-btn bid-pass-btn" onClick={() => send({ type: 'pass' })}>Passer</button>
               )}
             </div>
-          )}
-
-          {actions.min_bid_value === null && !actions.can_bid_capot && actions.can_pass && (
-            <button className="bid-suit-btn bid-pass-btn" onClick={() => send({ type: 'pass' })}>Passer</button>
           )}
         </div>
       ) : currentBidder ? (
@@ -641,6 +651,9 @@ export default function Game({ game, error, send }: {
 
   const isMyTurnBid  = r?.phase === 'BIDDING'  && r?.current_bidder  === me
   const isMyTurnPlay = r?.phase === 'PLAYING'   && r?.current_player  === me
+  const myLastBid = r?.phase === 'BIDDING'
+    ? [...r.bid_history].reverse().find(e => e.position === me)
+    : undefined
 
   const myHand = r?.hands[me] ?? []
   const trump  = r ? getCurrentTrump(r) : null
@@ -897,6 +910,33 @@ export default function Game({ game, error, send }: {
             <span style={{color:'#888'}}>Enchères en cours…</span>
           ) : null}
         </div>
+
+        {/* ─── Chat vocal (compact, ancré à droite de la barre) ── */}
+        <div className="header-voice">
+          {voiceError && <span className="header-voice-error">{voiceError}</span>}
+          <span
+            className={`header-voice-dot${isMuted ? ' off' : ''}${localIsSpeaking ? ' speaking' : ''}`}
+            title={`${game.players[me] ?? me} (${me}) — ${isMuted ? 'micro coupé' : 'micro activé'}`}
+          >
+            {me}
+          </span>
+          {Array.from(voicePeers.entries()).map(([position, peer]) => (
+            <span
+              key={position}
+              className={`header-voice-dot${peer.connectionState !== 'connected' ? ' off' : ''}${peer.isSpeaking ? ' speaking' : ''}`}
+              title={`${game.players[position] ?? position} (${position})`}
+            >
+              {position}
+            </span>
+          ))}
+          <button
+            className={`header-voice-btn${isMuted ? ' off' : ''}`}
+            onClick={toggleMute}
+            title={isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
+          >
+            {isMuted ? '🔇' : '🎤'}
+          </button>
+        </div>
       </div>
 
 
@@ -929,6 +969,11 @@ export default function Game({ game, error, send }: {
                 {isMyTurnBid  && <span className="badge-action" style={{color:'#fa6'}}> 💬 À ENCHÉRIR</span>}
               </div>
               <div className="player-name">{game.players[me] ?? me}</div>
+              {myLastBid && (
+                <div className={`bid-entry-row ${myLastBid.action === 'pass' ? 'bid-pass' : 'bid-bid'}`}>
+                  <span className="bid-entry-value">{bidActionLabel(myLastBid)}</span>
+                </div>
+              )}
               <div className="hand-fan-wrap">
                 <div className="hand-fan" style={{width: fanW}}>
                   {sortedHand.map((c, i) => {
@@ -949,114 +994,6 @@ export default function Game({ game, error, send }: {
               </div>
             </div>
           </div>
-        </div>
-
-        {/* ─── Chat vocal pendant le jeu ── */}
-        <div style={{
-          marginTop: 12,
-          display: 'flex',
-          alignItems: 'center',
-          flexWrap: 'wrap',
-          gap: 8,
-          padding: '6px 10px',
-          backgroundColor: '#1a1a1a',
-          borderRadius: 12,
-        }}>
-          {/* Indicateur pour moi */}
-          <span
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 6,
-              padding: '3px 6px',
-              borderRadius: 10,
-              backgroundColor: localIsSpeaking ? '#2a2' : '#222',
-              transition: 'background-color 0.15s ease',
-            }}
-          >
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: '50%',
-                backgroundColor: isMuted ? '#666' : '#4a4',
-                transition: 'background-color 0.15s ease',
-              }}
-              title={isMuted ? 'Micro coupé' : 'Micro activé'}
-            />
-            <span style={{ fontSize: 10, fontWeight: 600, color: '#ffa' }}>
-              ME
-            </span>
-            {localIsSpeaking && (
-              <span
-                style={{
-                  fontSize: 9,
-                  color: '#8f8',
-                  fontWeight: 700,
-                }}
-              >
-                SPEAKING
-              </span>
-            )}
-          </span>
-
-          {/* Indicateurs pour les autres joueurs */}
-          {Array.from(voicePeers.entries()).map(([position, peer]) => (
-            <span
-              key={position}
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: 5,
-                padding: '3px 6px',
-                borderRadius: 10,
-                backgroundColor: peer.isSpeaking ? '#2a2' : '#222',
-                transition: 'background-color 0.15s ease',
-              }}
-            >
-              <span
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: '50%',
-                  backgroundColor: peer.connectionState === 'connected' ? '#4a4' : '#666',
-                }}
-              />
-              <span style={{ fontSize: 10, fontWeight: 600, color: '#ccc' }}>
-                {position}
-              </span>
-              {peer.isSpeaking && (
-                <span
-                  style={{
-                    fontSize: 9,
-                    color: '#8f8',
-                    fontWeight: 700,
-                  }}
-                >
-                  SPEAKING
-                </span>
-              )}
-            </span>
-          ))}
-
-          <button
-            onClick={toggleMute}
-            style={{
-              background: isMuted ? '#333' : '#2a2',
-              border: 'none',
-              borderRadius: 6,
-              padding: '4px 8px',
-              cursor: 'pointer',
-              fontSize: 10,
-              fontWeight: 700,
-              color: isMuted ? '#888' : '#fff',
-              marginLeft: 4,
-              transition: 'background 0.15s ease',
-            }}
-            title={isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
-          >
-            {isMuted ? 'MUTE' : 'ON'}
-          </button>
         </div>
       </div>
 
