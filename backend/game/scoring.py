@@ -88,9 +88,8 @@ def compute_round_result(r: RoundState) -> RoundResult:
     if contract_made:
         # Preneurs score the announced value
         preneurs_score = contract_value
-        # Defenders score 0, except their own belote
-        defenders_belote = 20 if r.belote_team == defending_team else 0
-        defenders_score = defenders_belote
+        # La belote ne profite jamais à la défense, qu'elle l'ait annoncée ou non
+        defenders_score = 0
 
         if bidding_team == Team.NORTH_SOUTH:
             score_ns, score_ew = preneurs_score, defenders_score
@@ -100,8 +99,8 @@ def compute_round_result(r: RoundState) -> RoundResult:
         belote_msg = ""
         if r.belote_team == bidding_team:
             belote_msg = " (belote preneurs : non comptée dans score final)"
-        if r.belote_team == defending_team:
-            belote_msg = " (belote défense +20)"
+        elif r.belote_team == defending_team:
+            belote_msg = " (belote défense : non comptée, seuls les preneurs en profitent)"
 
         msg = (
             f"Contrat RÉUSSI — {bidding_team.value} marque {preneurs_score}, "

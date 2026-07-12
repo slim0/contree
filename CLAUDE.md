@@ -112,7 +112,7 @@ JWT_SECRET_KEY=<clé-longue-aléatoire> docker compose -f docker-compose.prod.ym
 ## Règles métier critiques — NE JAMAIS VIOLER
 
 1. **Montée obligatoire à l'atout** : quand on joue atout (couleur demandée ou coupe), on doit toujours jouer plus fort que l'atout en place, sauf si impossible ("ne pisse pas").
-2. **Belote** : annoncée **automatiquement par le jeu**. Compte dans l'évaluation du contrat pour les preneurs uniquement. En contrat réussi, les défenseurs marquent leur belote (+20) si annoncée. En chute, aucune belote n'est comptabilisée. Jamais multipliée par le contre/surcontre.
+2. **Belote** : détectée **automatiquement par le jeu**, à condition que le **roi ET la dame d'atout soient dans la main d'un seul et même joueur** — si les deux cartes sont réparties entre les deux partenaires, ça ne compte pas. Ne compte **que pour l'équipe qui a pris l'annonce (les preneurs)** : jamais pour la défense, même si la défense la détient. Compte dans l'évaluation du contrat pour les preneurs uniquement (+20 sur les points faits pour juger si le contrat est réussi). En chute, aucune belote n'est comptabilisée pour personne. Jamais multipliée par le contre/surcontre. **Révélation aux joueurs** : le camp détenteur n'est connu du moteur de jeu dès le début du tour de jeu, mais n'est communiqué aux clients (et affiché en haut de l'écran) qu'au moment où le roi **ou** la dame d'atout est effectivement joué·e — jamais avant.
 3. **Dix de der** : toujours **10 pts**, y compris en cas de capot.
 4. **Total des points** : toujours **162 pts** (152 cartes + 10 dix de der).
 5. **4 passes sans enchère** : la donne est annulée, les cartes repassent au donneur suivant.

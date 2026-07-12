@@ -104,7 +104,11 @@ def current_trick_winner(trick: Trick, trump: Trump) -> Position | None:
 
 
 def detect_belote_team(hands: dict[Position, list[Card]], trump: Trump) -> Team | None:
-    """Returns the team holding K+Q of trump suit, or None."""
+    """Returns the team of the single player holding both K and Q of trump, or None.
+
+    La belote exige que le roi ET la dame d'atout soient dans la MEME main —
+    si les deux cartes sont réparties entre les deux partenaires, ça ne compte pas.
+    """
     if trump in (Trump.NO_TRUMP, Trump.ALL_TRUMP):
         return None
     trump_suit = Suit(trump.value)
@@ -112,12 +116,6 @@ def detect_belote_team(hands: dict[Position, list[Card]], trump: Trump) -> Team 
     queen = Card(trump_suit, Rank.QUEEN)
     for pos, hand in hands.items():
         if king in hand and queen in hand:
-            return TEAM_OF[pos]
-        # Check if partner has the other card
-        partner = PARTNER_OF[pos]
-        partner_hand = hands.get(partner, [])
-        if king in hand and queen in partner_hand:
-            # K and Q belong to the same team
             return TEAM_OF[pos]
     return None
 
@@ -412,10 +410,9 @@ def _start_playing(game: GameState) -> GameState:
     r = game.round
     assert r and r.contract
     trump = r.contract.bid.trump
-    # Detect belote now that trump is known
+    # Detect belote now that trump is known — gardé secret tant qu'aucune des
+    # deux cartes (roi/dame d'atout) n'a été jouée (cf. RoundState.to_dict).
     r.belote_team = detect_belote_team(r.hands, trump)
-    if r.belote_team:
-        game.messages.append(f"Belote pour l'équipe {r.belote_team.value} !")
 
     r.phase = GamePhase.PLAYING
     first = RIGHT_OF[r.dealer]

@@ -310,6 +310,9 @@ class RoundState:
     belote_queen_played: bool
 
     def to_dict(self) -> dict:
+        # La belote n'est révélée aux joueurs qu'une fois le roi ou la dame
+        # d'atout effectivement joué·e — pas dès qu'elle est détectée en interne.
+        belote_revealed = self.belote_king_played or self.belote_queen_played
         return {
             "number": self.number,
             "dealer": self.dealer.value,
@@ -328,7 +331,9 @@ class RoundState:
             else None,
             "tricks": [t.to_dict() for t in self.tricks],
             "current_trick": self.current_trick.to_dict(),
-            "belote_team": self.belote_team.value if self.belote_team else None,
+            "belote_team": self.belote_team.value
+            if (self.belote_team and belote_revealed)
+            else None,
             "belote_king_played": self.belote_king_played,
             "belote_queen_played": self.belote_queen_played,
         }
