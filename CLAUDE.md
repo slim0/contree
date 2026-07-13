@@ -3,7 +3,7 @@
 ## Vue d'ensemble
 
 Application web multijoueur de **belote contrée** (4 joueurs, 2 équipes).
-Objectif actuel : **POC jouable entre amis** — fonctionnel avant tout, pas de polish UI.
+Objectif actuel : Focus sur le fonctionnel, puis polish UI.
 
 ## Stack technique
 
@@ -141,7 +141,7 @@ Capot comme contrat = 160 pts.
 
 1. Moteur de jeu Python pur (models + rules + scoring) avec tests
 2. API WebSocket FastAPI
-3. Front React minimaliste (jouable, pas beau)
+3. Front React
 4. Amélioration UI/UX (phase post-POC)
 
 ## Conventions de code

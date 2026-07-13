@@ -360,6 +360,9 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
     v => actions.min_bid_value !== null && v >= (actions.min_bid_value ?? 80)
   ) : []
 
+  // Le bouton Capot est intégré au slider de valeurs, juste après 160.
+  const sliderItems: ('CAPOT' | number)[] = actions?.can_bid_capot ? [...validVals, 'CAPOT'] : validVals
+
   const [bidVal, setBidVal] = useState<number>(validVals[0] ?? 80)
   const [page, setPage] = useState(0)
   const [capotMode, setCapotMode] = useState(false)
@@ -371,8 +374,8 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions?.min_bid_value, r.current_bidder])
 
-  const maxPage = Math.max(0, Math.ceil(validVals.length / VALUE_PAGE_SIZE) - 1)
-  const visibleVals = validVals.slice(page * VALUE_PAGE_SIZE, page * VALUE_PAGE_SIZE + VALUE_PAGE_SIZE)
+  const maxPage = Math.max(0, Math.ceil(sliderItems.length / VALUE_PAGE_SIZE) - 1)
+  const visibleItems = sliderItems.slice(page * VALUE_PAGE_SIZE, page * VALUE_PAGE_SIZE + VALUE_PAGE_SIZE)
 
   const currentBidder = r.current_bidder ? (game.players[r.current_bidder] ?? r.current_bidder) : null
   const currentTeam   = r.current_bidder ? TEAM[r.current_bidder] : null
@@ -399,13 +402,16 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
             </div>
           )}
 
-          {actions.min_bid_value !== null && (
+          {sliderItems.length > 0 && (
             <div className="bid-value-row">
               <button className="bid-page-arrow" disabled={page === 0}
                 onClick={() => setPage(p => Math.max(0, p - 1))} aria-label="Valeurs précédentes">‹</button>
-              {visibleVals.map(v => (
-                <button key={v} className={`bid-value-btn${v === bidVal && !capotMode ? ' selected' : ''}`}
-                  onClick={() => { setBidVal(v); setCapotMode(false) }}>{v}</button>
+              {visibleItems.map(item => item === 'CAPOT' ? (
+                <button key="capot" className={`bid-value-btn${capotMode ? ' selected' : ''}`}
+                  onClick={() => setCapotMode(m => !m)}>Capot</button>
+              ) : (
+                <button key={item} className={`bid-value-btn${item === bidVal && !capotMode ? ' selected' : ''}`}
+                  onClick={() => { setBidVal(item); setCapotMode(false) }}>{item}</button>
               ))}
               <button className="bid-page-arrow" disabled={page >= maxPage}
                 onClick={() => setPage(p => Math.min(maxPage, p + 1))} aria-label="Valeurs suivantes">›</button>
@@ -423,15 +429,9 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
             </div>
           )}
 
-          {(actions.can_bid_capot || actions.can_pass) && (
+          {actions.can_pass && (
             <div className="bid-action-row">
-              {actions.can_bid_capot && (
-                <button className={`bid-suit-btn bid-capot-btn${capotMode ? ' selected' : ''}`}
-                  onClick={() => setCapotMode(m => !m)}>Capot</button>
-              )}
-              {actions.can_pass && (
-                <button className="bid-suit-btn bid-pass-btn" onClick={() => send({ type: 'pass' })}>Passer</button>
-              )}
+              <button className="bid-suit-btn bid-pass-btn" onClick={() => send({ type: 'pass' })}>Passer</button>
             </div>
           )}
         </div>
