@@ -812,19 +812,21 @@ export default function Game({ game, error, send }: {
 
               <button
                 onClick={toggleMute}
+                disabled={!!voiceError}
                 style={{
-                  background: isMuted ? '#333' : '#2a2',
+                  background: voiceError ? '#333' : isMuted ? '#333' : '#2a2',
                   border: 'none',
                   borderRadius: 8,
                   padding: '6px 12px',
-                  cursor: 'pointer',
+                  cursor: voiceError ? 'not-allowed' : 'pointer',
+                  opacity: voiceError ? 0.4 : 1,
                   fontSize: 12,
                   fontWeight: 600,
                   color: isMuted ? '#888' : '#fff',
                   marginLeft: 8,
                   transition: 'background 0.15s ease',
                 }}
-                title={isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
+                title={voiceError ? voiceError : isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
               >
                 {isMuted ? 'MICRO MUTE' : 'MICRO ON'}
               </button>
@@ -952,7 +954,8 @@ export default function Game({ game, error, send }: {
           <button
             className={`header-voice-btn${isMuted ? ' off' : ''}`}
             onClick={toggleMute}
-            title={isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
+            disabled={!!voiceError}
+            title={voiceError ? voiceError : isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
           >
             {isMuted ? '🔇' : '🎤'}
           </button>
@@ -962,7 +965,7 @@ export default function Game({ game, error, send }: {
 
       {/* ── Table losange ── */}
       <div className="table-wrap">
-        <div className="table-grid">
+        <div className={`table-grid${r?.phase === 'BIDDING' ? ' table-grid--bidding' : ''}`}>
           <div className="slot-top">
             <PlayerSlot pos={top} game={game} r={r} cardSizes={cardSizes} />
           </div>

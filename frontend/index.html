@@ -383,6 +383,9 @@
         box-shadow: inset 0 0 40px rgba(0,0,0,0.5), 0 4px 12px rgba(0,0,0,0.3);
         border: 3px solid #3a3a2a;
       }
+      .table-grid--bidding {
+        grid-template-columns: minmax(110px, 140px) 1fr minmax(110px, 140px);
+      }
       .slot-top    { grid-area: top; }
       .slot-left   { grid-area: left; }
       .slot-center { grid-area: center; align-self: stretch; width: 100%; }
@@ -706,6 +709,9 @@
           gap: 1px;
           padding: 2px;
         }
+        .table-grid--bidding {
+          grid-template-columns: minmax(90px, 100px) 1fr minmax(90px, 100px);
+        }
 
         .player-slot { padding: 0px 6px; min-width: 90px; min-height: 0; }
         .player-marker { font-size: 0.6em; margin-bottom: 0; }
@@ -754,6 +760,9 @@
           grid-template-columns: minmax(80px, 100px) 1fr minmax(80px, 100px);
           gap: 3px;
         }
+        .table-grid--bidding {
+          grid-template-columns: minmax(80px, 85px) 1fr minmax(80px, 85px);
+        }
 
         .player-slot { padding: 5px 7px; min-width: 80px; min-height: 130px; }
         .player-name { font-size: 0.9em; }
@@ -791,6 +800,9 @@
           gap: 4px;
           padding: 16px;
         }
+        .table-grid--bidding {
+          grid-template-columns: minmax(110px, 130px) 1fr minmax(110px, 130px);
+        }
         .playing-card { width: 74px; height: 106px; }
         .pc-rank { font-size: 19px; }
         .pc-sym  { font-size: 15px; }
@@ -807,6 +819,9 @@
           grid-template-columns: minmax(120px, 170px) 1fr minmax(120px, 170px);
           gap: 4px;
           padding: 18px;
+        }
+        .table-grid--bidding {
+          grid-template-columns: minmax(100px, 120px) 1fr minmax(100px, 120px);
         }
         .playing-card { width: 76px; height: 109px; }
         .pc-rank { font-size: 19px; }
