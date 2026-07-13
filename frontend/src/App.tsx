@@ -6,7 +6,6 @@ import Game from './Game'
 import LoginPage from './components/auth/LoginPage'
 import ChangePasswordPage from './components/auth/ChangePasswordPage'
 import AdminPanel from './components/admin/AdminPanel'
-import { VoiceBar } from './voice/VoiceIndicator'
 
 const STORAGE_ROOM = 'contree_room'
 
@@ -42,17 +41,6 @@ export default function App() {
   const wsRef = useRef<WebSocket | null>(null)
   const shouldReconnect = useRef(false)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Chat vocal
-  const [voicePeers, setVoicePeers] = useState<Map<string, {
-    position: string;
-    isSpeaking: boolean;
-    isConnected: boolean;
-    isMuted: boolean;
-  }>>(new Map());
-  const [localIsSpeaking, setLocalIsSpeaking] = useState(false);
-  const [isMuted, setIsMuted] = useState(false);
-  const voiceEnabledRef = useRef(false);
 
   // Vérification de session au montage
   useEffect(() => {
@@ -136,7 +124,6 @@ export default function App() {
 
     ws.onclose = () => {
       setConnected(false)
-      voiceEnabledRef.current = false; // Désactiver la voix à la déconnexion
       if (shouldReconnect.current) {
         setReconnecting(true)
         reconnectTimer.current = setTimeout(() => connect(room, score, rName), 2000)

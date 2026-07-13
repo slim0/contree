@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import sys
@@ -20,7 +21,12 @@ from backend.api.routes import router
 from backend.api.websocket import handle_connection
 from backend.auth.service import decode_token, generate_temp_password
 from backend.pocketbase.client import PB_URL, get_pb_client
+from backend.store import memory_store
 from backend.users.repository import UserRepository
+
+# Rooms sans activité depuis plus longtemps que ça sont considérées abandonnées.
+_STALE_ROOM_MAX_AGE_SECONDS = 6 * 3600
+_STALE_ROOM_SWEEP_INTERVAL_SECONDS = 30 * 60
 
 # ── Logging ──────────────────────────────────────────────────────────────────
 logging.basicConfig(
@@ -75,11 +81,21 @@ def _bootstrap_admin() -> None:
         log.warning("━" * 60)
 
 
+async def _reap_stale_rooms_periodically() -> None:
+    while True:
+        await asyncio.sleep(_STALE_ROOM_SWEEP_INTERVAL_SECONDS)
+        reaped = await memory_store.reap_stale_rooms(_STALE_ROOM_MAX_AGE_SECONDS)
+        if reaped:
+            log.info("Nettoyage : %d room(s) abandonnée(s) supprimée(s)", reaped)
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     _wait_for_pocketbase()
     _bootstrap_admin()
+    reaper_task = asyncio.create_task(_reap_stale_rooms_periodically())
     yield
+    reaper_task.cancel()
 
 
 app = FastAPI(title="Belote Contrée", lifespan=lifespan)

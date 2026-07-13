@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass, field
 from enum import StrEnum
 
@@ -162,20 +163,10 @@ ALL_TRUMP_POINTS: dict[Rank, int] = {
 SUIT_SYMBOLS = {Suit.HEARTS: "♥", Suit.DIAMONDS: "♦", Suit.CLUBS: "♣", Suit.SPADES: "♠"}
 
 
-@dataclass
+@dataclass(unsafe_hash=True)
 class Card:
     suit: Suit
     rank: Rank
-
-    def __eq__(self, other: object) -> bool:
-        return (
-            isinstance(other, Card)
-            and self.suit == other.suit
-            and self.rank == other.rank
-        )
-
-    def __hash__(self) -> int:
-        return hash((self.suit, self.rank))
 
     def __repr__(self) -> str:
         return f"{self.rank.value}{SUIT_SYMBOLS[self.suit]}"
@@ -378,6 +369,9 @@ class GameState:
     # team_choices: position_str → "NS"|"EW", set during WAITING phase
     team_choices: dict[str, str] = field(default_factory=dict)
     ready_to_start: bool = False
+    # horodatage de la dernière écriture, utilisé par memory_store.reap_stale_rooms
+    # pour nettoyer les rooms abandonnées ; jamais envoyé aux clients
+    last_activity: float = field(default_factory=time.time)
 
     def to_dict(self) -> dict:
         return {

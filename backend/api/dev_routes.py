@@ -1,9 +1,10 @@
 """Routes de développement — enregistrées uniquement si DEVELOPMENT=true dans main.py."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import RedirectResponse
 
-from backend.auth.service import create_token
+from backend.api.limiter import limiter
+from backend.auth.service import create_token, set_auth_cookie
 from backend.game import rules
 from backend.game.models import GamePhase, Position
 from backend.pocketbase.client import PocketBaseClient, get_pb_client
@@ -16,7 +17,9 @@ DEFAULT_QUICKSTART_PLAYERS = "alice,bob,charlie,diana"
 
 
 @router.get("/autologin/{username}")
+@limiter.limit("10/minute")
 async def dev_autologin(
+    request: Request,
     username: str,
     room: str | None = None,
     pb: PocketBaseClient = Depends(get_pb_client),
@@ -33,19 +36,14 @@ async def dev_autologin(
     )
     target = f"/?room={room}" if room else "/"
     response = RedirectResponse(url=target, status_code=302)
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        samesite="lax",
-        max_age=28800,
-        path="/",
-    )
+    set_auth_cookie(response, token)
     return response
 
 
 @router.post("/quickstart/{room_id}")
+@limiter.limit("10/minute")
 async def dev_quickstart(
+    request: Request,
     room_id: str,
     players: str = DEFAULT_QUICKSTART_PLAYERS,
     target_score: int = 1000,

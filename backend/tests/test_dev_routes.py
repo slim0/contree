@@ -4,15 +4,22 @@ from __future__ import annotations
 
 import pytest
 from fastapi import FastAPI
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 from starlette.testclient import TestClient
 
 from backend.api.dev_routes import router as dev_router
+from backend.api.limiter import limiter
 from backend.game.models import GamePhase, Position
 from backend.pocketbase.client import get_pb_client
 from backend.store import memory_store as store
 from backend.tests.conftest import TEST_USER
 
 _app = FastAPI()
+_app.state.limiter = limiter
+_app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # ty: ignore[invalid-argument-type]
+_app.add_middleware(SlowAPIMiddleware)
 _app.include_router(dev_router, prefix="/api")
 
 
@@ -83,3 +90,20 @@ def test_autologin_redirects_with_room_param(dev_client):
 def test_autologin_unknown_user_404(dev_client):
     resp = dev_client.get("/api/dev/autologin/nobody")
     assert resp.status_code == 404
+
+
+# ── Rate limiting ────────────────────────────────────────────────────────────
+
+
+def test_autologin_rate_limit(dev_client):
+    for _ in range(10):
+        dev_client.get(f"/api/dev/autologin/{TEST_USER}")
+    resp = dev_client.get(f"/api/dev/autologin/{TEST_USER}")
+    assert resp.status_code == 429
+
+
+def test_quickstart_rate_limit(dev_client):
+    for _ in range(10):
+        dev_client.post("/api/dev/quickstart/TEST")
+    resp = dev_client.post("/api/dev/quickstart/TEST")
+    assert resp.status_code == 429

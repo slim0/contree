@@ -1,7 +1,16 @@
 # ADR-003 : State des parties — Redis
 
 **Date** : 2026-06-12  
-**Statut** : Accepté
+**Statut** : **Superseded** par un dict Python en mémoire (`backend/store/memory_store.py`)
+
+> **Note de pivot** : cette décision n'a finalement pas été implémentée. Le POC tourne en
+> single-worker et n'a pas eu besoin de partager l'état entre process ni de le faire
+> survivre à un redémarrage — l'alternative "in-memory Python dict", listée ci-dessous
+> comme rejetée, est celle réellement en place. Voir `backend/store/memory_store.py`
+> (dict protégé par `asyncio.Lock`) et CLAUDE.md ("State en mémoire"). Aucune dépendance
+> Redis n'existe dans le code ou `pyproject.toml`. Si le besoin de partage multi-worker
+> ou de persistance au redémarrage redevient réel, réévaluer Redis à ce moment-là plutôt
+> que de le réintroduire par anticipation.
 
 ## Contexte
 

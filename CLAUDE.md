@@ -17,8 +17,9 @@ Objectif actuel : Focus sur le fonctionnel, puis polish UI.
 | Type checking | ty (via uv) |
 | Linter/formatter | ruff (via uv) |
 | Front-end | React + TypeScript (Vite) |
-| State management | Zustand |
-| CSS | Tailwind CSS |
+| State management | Zustand (auth uniquement — le reste, dont l'état de partie, est en `useState` local dans `App.tsx`/`Game.tsx`) |
+| CSS | CSS custom (`frontend/index.html`) + styles inline — pas de Tailwind installé |
+| Voix | WebRTC P2P (signaling relayé via le WebSocket de jeu) |
 | Conteneurisation | Docker + Docker Compose |
 
 ## Structure du repo
@@ -51,29 +52,40 @@ contree
 │   │   ├── dependencies.py     ← FastAPI deps : get_current_user, require_admin
 │   │   └── schemas.py          ← LoginRequest, TokenResponse, ChangePasswordRequest
 │   ├── api/
-│   │   ├── websocket.py        ← handlers WebSocket
+│   │   ├── websocket.py        ← handlers WebSocket (jeu + signaling WebRTC voix)
 │   │   ├── routes.py           ← routes HTTP (créer room, rejoindre...)
 │   │   ├── auth_routes.py      ← POST /auth/login, POST /auth/change-password
-│   │   └── admin_routes.py     ← POST/GET/DELETE /admin/users
+│   │   ├── admin_routes.py     ← POST/GET/DELETE /admin/users
+│   │   ├── dev_routes.py       ← routes de dev (autologin, quickstart), montées seulement si DEVELOPMENT=true
+│   │   └── limiter.py          ← instance slowapi partagée
 │   ├── store/
 │   │   └── memory_store.py     ← état des rooms en mémoire (dict asyncio)
 │   └── tests/
 │       ├── test_rules.py
 │       ├── test_scoring.py
+│       ├── test_belote.py
+│       ├── test_bidding_volee.py
 │       ├── test_auth.py
-│       └── test_users.py
+│       ├── test_users.py
+│       ├── test_dev_routes.py
+│       ├── test_leave_room.py
+│       ├── test_rate_limiting.py
+│       ├── test_team_selection.py
+│       └── test_websocket_reconnect.py
 └── frontend/
     ├── Dockerfile              ← image Node (targets: dev, builder, prod)
     ├── nginx.conf              ← config nginx pour le target prod
     ├── .dockerignore
     ├── vite.config.ts          ← proxy /api et /ws vers BACKEND_URL
     ├── src/
+    │   ├── App.tsx             ← lobby + client WebSocket (connect/reconnect/dispatch inline, pas de module websocket/ dédié)
+    │   ├── Game.tsx            ← table, cartes, enchères, plis, scores (fichier unique)
     │   ├── components/
     │   │   ├── auth/           ← LoginPage, ChangePasswordPage
     │   │   └── admin/          ← AdminPanel (gestion utilisateurs)
-    │   ├── store/              ← Zustand stores
-    │   │   └── authStore.ts    ← user courant (username, is_admin, must_change_password) — pas de JWT
-    │   └── websocket/          ← client WS
+    │   ├── voice/              ← VoiceManager (WebRTC P2P chat vocal)
+    │   └── store/              ← Zustand stores
+    │       └── authStore.ts    ← user courant (username, is_admin, must_change_password) — pas de JWT
     └── ...
 ```
 
@@ -156,7 +168,7 @@ Capot comme contrat = 160 pts.
 - **Mobile paysage uniquement** : le front doit être jouable sur mobile en orientation **paysage** (landscape). Portrait toléré mais pas prioritaire. Cible : ~667×375px (iPhone SE landscape).
 - **Pas de journal** : les joueurs ne voient pas l'historique des actions. La seule rétrospective autorisée est le **dernier pli** (bouton toggle dans la zone de pli).
 - **Symboles de couleur** : toujours utiliser ♥ ♦ ♣ ♠, jamais les lettres H/D/C/S dans les textes affichés.
-- **Noms d'équipe** : NS → **NOUS**, EW → **EUX** dans toute l'interface.
+- **Noms d'équipe** : NS → **TEAM RED**, EW → **TEAM BLUE** dans toute l'interface (`frontend/src/Game.tsx` — `TEAM_LABEL`).
 - **Layout** : header compact (scores + contrat sur une ligne), table losange, panel enchères. Pas d'éléments verticalement trop hauts qui empêchent le jeu en paysage.
 
 ## Contexte pour la génération de code
@@ -164,6 +176,13 @@ Capot comme contrat = 160 pts.
 - Le moteur de jeu (`backend/game/`) doit être **pur** : aucune dépendance externe, aucun I/O, testable seul
 - Les WebSockets transportent des événements typés (voir `docs/architecture.md`)
 - Ne pas utiliser Socket.io — WebSocket natif côté front
+
+## Chat vocal (WebRTC)
+
+- **Signaling relayé via le WebSocket de jeu existant** — pas de serveur de signaling dédié. Messages `webrtc-offer`/`webrtc-answer`/`webrtc-ice-candidate` (client → serveur → autres clients de la room) gérés dans `backend/api/websocket.py` (`_voice_peers`, `_broadcast_voice`, dispatch dans `handle_connection`). Accepté à toute phase de partie, y compris `WAITING` (chat avant le début de la manche).
+- **P2P audio réel** : `frontend/src/voice/VoiceManager.ts` ouvre une connexion `RTCPeerConnection` par pair (4 joueurs max), avec détection de parole via `AudioContext`/`AnalyserNode`. STUN public Google par défaut, **pas de serveur TURN** — la connexion peut échouer derrière certains NAT stricts.
+- **Pas de belote/rebelote concernée** — feature indépendante des règles de jeu.
+- **Limites connues** : pas de TURN, pas de tests automatisés sur `VoiceManager.ts` (seul le bouton mute est testé côté UI), pas de gestion de mixage audio multi-pairs.
 
 ## Système d'authentification
 
@@ -229,6 +248,8 @@ async def mon_endpoint(request: Request, ...):
 ```
 
 Le paramètre `request: Request` est **obligatoire** pour que slowapi fonctionne.
+
+Cette règle s'applique aussi à `backend/api/dev_routes.py`, bien que ces routes ne soient montées que si `DEVELOPMENT=true` — aucune exception "dev" au rate limiting.
 
 ### Rates de référence par catégorie
 

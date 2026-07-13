@@ -3,9 +3,17 @@
  * Gère les connexions P2P audio entre les joueurs via signalisation WebSocket
  */
 
+declare global {
+  interface Window {
+    webkitAudioContext?: typeof AudioContext;
+  }
+}
+
 export interface VoicePeer {
   position: string;
-  peerConnection: RTCPeerConnection;
+  // null pour l'entrée pseudo-pair "local" (détection de parole sur son
+  // propre micro), qui n'a pas de vraie connexion P2P.
+  peerConnection: RTCPeerConnection | null;
   isMuted: boolean;
   isSpeaking: boolean;
   connectionState: RTCPeerConnectionState;
@@ -65,7 +73,7 @@ export class VoiceManager {
    * Configurer la détection de parole sur le stream local
    */
   private setupVoiceDetection(): void {
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)!();
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
 
@@ -82,7 +90,7 @@ export class VoiceManager {
       if (isSpeaking !== this.peers.get('local')?.isSpeaking) {
         this.peers.set('local', {
           position: 'local',
-          peerConnection: null as any,
+          peerConnection: null,
           isMuted: false,
           isSpeaking,
           connectionState: 'connected',
@@ -248,7 +256,7 @@ export class VoiceManager {
    */
   async handleAnswer(peerPosition: string, sdp: RTCSessionDescriptionInit): Promise<void> {
     const peer = this.peers.get(peerPosition);
-    if (!peer) return;
+    if (!peer?.peerConnection) return;
 
     await peer.peerConnection.setRemoteDescription(new RTCSessionDescription(sdp));
   }
@@ -258,7 +266,7 @@ export class VoiceManager {
    */
   async handleIceCandidate(peerPosition: string, candidate: RTCIceCandidateInit): Promise<void> {
     const peer = this.peers.get(peerPosition);
-    if (!peer) return;
+    if (!peer?.peerConnection) return;
 
     try {
       await peer.peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
@@ -278,7 +286,7 @@ export class VoiceManager {
     audio.play().catch(() => {/* autoplay peut être bloqué avant interaction utilisateur */});
     this.audioElements.push(audio);
 
-    const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)!();
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
 
@@ -331,7 +339,7 @@ export class VoiceManager {
   private cleanupPeer(position: string): void {
     const peer = this.peers.get(position);
     if (peer) {
-      peer.peerConnection.close();
+      peer.peerConnection?.close();
       this.peers.delete(position);
       this.onPeerConnect?.(position, false);
     }

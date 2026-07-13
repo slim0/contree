@@ -3,25 +3,12 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from backend.api.limiter import limiter
 from backend.auth.dependencies import get_current_user
 from backend.auth.schemas import ChangePasswordRequest, LoginRequest, UserInfo
-from backend.auth.service import TOKEN_EXPIRE_HOURS, create_token
+from backend.auth.service import create_token, set_auth_cookie
 from backend.pocketbase.client import PocketBaseClient, get_pb_client
 from backend.users.models import User
 from backend.users.repository import UserRepository
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
-_COOKIE_MAX_AGE = TOKEN_EXPIRE_HOURS * 3600
-
-
-def _set_auth_cookie(response: Response, token: str) -> None:
-    response.set_cookie(
-        key="access_token",
-        value=token,
-        httponly=True,
-        samesite="lax",
-        max_age=_COOKIE_MAX_AGE,
-        path="/",
-    )
 
 
 @router.post("/login", response_model=UserInfo)
@@ -41,7 +28,7 @@ async def login(
     token = create_token(
         user.id, user.username, user.is_admin, user.must_change_password
     )
-    _set_auth_cookie(response, token)
+    set_auth_cookie(response, token)
     return UserInfo(
         username=user.username,
         is_admin=user.is_admin,
@@ -92,7 +79,7 @@ async def change_password(
     token = create_token(
         user.id, user.username, user.is_admin, user.must_change_password
     )
-    _set_auth_cookie(response, token)
+    set_auth_cookie(response, token)
     return UserInfo(
         username=user.username,
         is_admin=user.is_admin,

@@ -67,19 +67,26 @@ backend/
 │   ├── dependencies.py # Dépendances FastAPI : get_current_user, require_admin
 │   └── schemas.py      # LoginRequest, TokenResponse, ChangePasswordRequest
 ├── api/
-│   ├── websocket.py    # ConnectionManager, handlers WS par événement
+│   ├── websocket.py    # handlers WS par événement (jeu + signaling WebRTC voix)
 │   ├── routes.py       # POST /rooms, GET /rooms/{id}
 │   ├── auth_routes.py  # POST /auth/login, POST /auth/change-password
 │   ├── admin_routes.py # POST/GET/DELETE /admin/users
-│   └── schemas.py      # Pydantic models pour les payloads WS et HTTP
+│   ├── dev_routes.py   # routes de dev (autologin, quickstart) — montées seulement si DEVELOPMENT=true
+│   └── limiter.py       # instance slowapi partagée
 ├── store/
-│   └── redis.py        # Lecture/écriture du GameState dans Redis
+│   └── memory_store.py  # Lecture/écriture du GameState dans un dict Python (asyncio.Lock)
 ├── tests/
 │   ├── test_rules.py
 │   ├── test_scoring.py
-│   ├── test_websocket.py
+│   ├── test_belote.py
+│   ├── test_bidding_volee.py
 │   ├── test_auth.py
-│   └── test_users.py
+│   ├── test_users.py
+│   ├── test_dev_routes.py
+│   ├── test_leave_room.py
+│   ├── test_rate_limiting.py
+│   ├── test_team_selection.py
+│   └── test_websocket_reconnect.py
 └── main.py
 ```
 
@@ -109,8 +116,8 @@ backend/
 
 ### Communication temps réel
 - **WebSocket natif** FastAPI/Starlette — pas de Socket.io
-- Un handler WebSocket par room : `ws://host/ws/{room_id}/{player_id}`
-- `ConnectionManager` : gère les connexions actives et le broadcast par room
+- Un handler WebSocket par room : `ws://host/ws/{room_id}` — le joueur est identifié via le cookie JWT (`access_token`), pas via l'URL
+- `backend/api/websocket.py` gère les connexions actives (registre en mémoire + verrou) et le broadcast par room
 
 ### Principe d'immuabilité du moteur
 Le moteur de jeu (`game/`) ne modifie jamais l'état en place.  
@@ -129,35 +136,31 @@ Cela facilite les tests et évite les effets de bord.
 ### Framework & Outillage
 - **React 18 + TypeScript** (strict mode)
 - **Vite** — bundler, pas CRA
-- **Tailwind CSS** — utilitaires, pas de design system custom pour le POC
+- **CSS custom** (`frontend/index.html`) + styles inline — pas de Tailwind installé
 
 ### State Management
-- **Zustand** — simple, pas de boilerplate Redux
-- Un store `useGameStore` : état du jeu reçu du serveur
-- Un store `useConnectionStore` : état de la connexion WebSocket
+- **Zustand** — un seul store, `authStore` (user courant : username/is_admin/must_change_password)
+- L'état de partie (jeu, connexion WS, chat vocal) vit en `useState` local dans `App.tsx`/`Game.tsx`, pas dans un store dédié
 
 ### Client WebSocket
 - WebSocket natif (pas Socket.io)
-- Module `src/websocket/client.ts` : connexion, envoi, réception d'événements typés
-- Reconnexion automatique avec backoff exponentiel
+- Connexion/reconnexion/dispatch des messages gérés inline dans `App.tsx` (pas de module `websocket/` dédié)
+- Reconnexion automatique à intervalle fixe (2s) — pas de backoff exponentiel
+- Messages non typés côté client (`JSON.parse` + switch sur `msg.type` en chaîne)
 
 ### Structure
 
 ```
 frontend/src/
+├── App.tsx              # Lobby + client WebSocket (connect/reconnect/dispatch)
+├── Game.tsx              # Table, cartes, enchères, plis, scores (fichier unique)
+├── types.ts              # Miroir TypeScript des modèles Python
 ├── components/
-│   ├── game/           # Table, Hand, Card, Trick, Scoreboard
-│   ├── lobby/          # Room creation, join
-│   └── ui/             # Boutons, modals génériques
-├── store/
-│   ├── gameStore.ts
-│   └── connectionStore.ts
-├── websocket/
-│   ├── client.ts       # Connexion WS
-│   └── events.ts       # Types des événements (miroir du back)
-├── types/
-│   └── game.ts         # Miroir TypeScript des modèles Python
-└── App.tsx
+│   ├── auth/            # LoginPage, ChangePasswordPage
+│   └── admin/           # AdminPanel
+├── voice/                # VoiceManager (WebRTC P2P chat vocal)
+└── store/
+    └── authStore.ts      # user courant — pas de JWT
 ```
 
 ---
@@ -166,20 +169,18 @@ frontend/src/
 
 ```
 1. Joueur clique sur une carte
-   → composant Card.tsx appelle gameStore.playCard(card)
+   → Game.tsx envoie via WS : { type: "play", suit, rank }
 
-2. gameStore envoie via WS : { type: "card.play", card: { rank, suit } }
-
-3. Serveur reçoit l'événement
-   → vérifie is_legal(card, player, round_state)
-   → si illégal : envoie { type: "error", code: "ILLEGAL_CARD" } au joueur
+2. Serveur reçoit l'événement (backend/api/websocket.py)
+   → vérifie la légalité du coup (backend/game/rules.py)
+   → si illégal : envoie { type: "error", message: "..." } au joueur
    → si légal :
-     new_state, events = apply_action(state, PlayCardAction(...))
-     → sauvegarde new_state dans Redis
-     → broadcast events à tous les joueurs de la room
+     new_state = rules.apply_play(state, ...)
+     → sauvegarde new_state dans memory_store (dict Python asyncio)
+     → broadcast { type: "state", data: new_state } à tous les joueurs de la room
 
-4. Tous les clients reçoivent { type: "card.played", player, card, trick_state }
-   → gameStore met à jour le state local
+3. Tous les clients reçoivent le nouvel état complet
+   → App.tsx met à jour son state local (setGame)
    → React re-render
 ```
 
@@ -268,10 +269,11 @@ Pour HTTPS : placer Caddy ou Traefik devant Docker Compose (reverse proxy + TLS 
    → nouveau cookie émis (JWT mis à jour)
 
 5. Connexion WebSocket
-   ws://host/ws/{room_id}/{player_id}
+   ws://host/ws/{room_id}
    → le navigateur envoie le cookie automatiquement lors du handshake HTTP
    → serveur lit le cookie dans les headers de l'upgrade request
-   → rejet 403 si cookie absent/invalide/must_change_password=True
+   → fermeture de la connexion (code WS_1008_POLICY_VIOLATION) si cookie absent/invalide/
+     must_change_password=True/is_admin=True (les comptes admin ne jouent pas)
 
 6. Logout
    POST /auth/logout

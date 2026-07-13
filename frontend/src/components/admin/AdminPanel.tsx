@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 
 interface UserRecord {
-  id: number
+  id: string
   username: string
   is_admin: boolean
   must_change_password: boolean

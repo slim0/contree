@@ -303,8 +303,6 @@ def start_new_round(game: GameState) -> GameState:
     first_bidder = RIGHT_OF[dealer]
 
     # belote is detected after contract is set (trump unknown during bidding)
-    from .models import RoundState
-
     game.round = RoundState(
         number=round_num,
         dealer=dealer,
@@ -455,14 +453,7 @@ def apply_play(game: GameState, card: Card) -> tuple[GameState, str]:
                 game.messages.append(f"Belote ! ({player.value} joue R{ts.value})")
             elif card == Card(ts, Rank.QUEEN):
                 r.belote_queen_played = True
-                if r.belote_king_played:
-                    game.messages.append(
-                        f"Rebelote ! ({player.value} joue D{ts.value})"
-                    )
-                else:
-                    game.messages.append(
-                        f"Rebelote ! ({player.value} joue D{ts.value})"
-                    )
+                game.messages.append(f"Rebelote ! ({player.value} joue D{ts.value})")
 
     # Add to current trick
     r.current_trick.cards.append(TrickCard(player, card))

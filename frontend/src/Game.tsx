@@ -82,6 +82,13 @@ function getCurrentTrump(r: RoundData): string | null {
   return lastBid?.bid?.trump ?? null
 }
 
+function fanLayout(n: number, cardW: number, fanBudget: number) {
+  const spacing = n > 1 ? Math.min(cardW, Math.floor(fanBudget / (n - 1))) : 0
+  const maxAngle = Math.min(24, n * 2.8)
+  const fanW = n > 0 ? spacing * (n - 1) + cardW : cardW
+  return { spacing, maxAngle, fanW }
+}
+
 // ─── Responsive card sizing ───────────────────────────────────────────────────
 // Mirrors the breakpoints of the `.playing-card` media queries in index.html so the
 // JS fan-spacing math always matches the actually-rendered card size.
@@ -157,32 +164,18 @@ function PlayingCard({ card, playable, onClick, style, compact, winner }: {
   )
 }
 
-function PlayerSlot({ pos, game, r, onPlay, cardSizes }: {
-  pos: string; game: GameData; r: RoundData | null
-  onPlay?: (card: CardData) => void; cardSizes: CardSizes
+function PlayerSlot({ pos, game, r, cardSizes }: {
+  pos: string; game: GameData; r: RoundData | null; cardSizes: CardSizes
 }) {
   const name = game.players[pos]
-  const isMe = pos === game.my_position
   const team = TEAM[pos]
   const teamClass = team === 'NS' ? 'player-team-ns' : 'player-team-ew'
   const isDealer = r?.dealer === pos
   const isBidder = r?.phase === 'BIDDING' && r?.current_bidder === pos
   const isPlayer = r?.phase === 'PLAYING' && r?.current_player === pos
-  const hand = r?.hands[pos] ?? []
-  const trump = r ? getCurrentTrump(r) : null
-  const sortedHand = r ? sortHand(hand, trump ?? 'NT') : hand
+  const n = (r?.hands[pos] ?? []).length
 
-  const legalSet = new Set((r?.legal_plays ?? []).map(c => `${c.rank}${c.suit}`))
-
-  const n = isMe ? sortedHand.length : hand.length
-  const cardW = cardSizes.mine
-  const spacing = n > 1 ? Math.min(cardW, Math.floor(cardSizes.fanBudget / (n - 1))) : 0
-  const maxAngle = Math.min(24, n * 2.8)
-  const fanW = n > 0 ? spacing * (n - 1) + cardW : cardW
-
-  const oppCardW = cardSizes.opponent
-  const oppSpacing = n > 1 ? Math.min(oppCardW, Math.floor(cardSizes.oppFanBudget / (n - 1))) : 0
-  const oppFanW = n > 0 ? oppSpacing * (n - 1) + oppCardW : oppCardW
+  const { spacing: oppSpacing, maxAngle, fanW: oppFanW } = fanLayout(n, cardSizes.opponent, cardSizes.oppFanBudget)
 
   let slotClass = 'player-slot'
   if (isBidder) slotClass += ' active-bidder'
@@ -207,43 +200,22 @@ function PlayerSlot({ pos, game, r, onPlay, cardSizes }: {
           <span className="bid-entry-value">{bidActionLabel(lastBid)}</span>
         </div>
       )}
-      {isMe ? (
-        <div className="hand-fan-wrap">
-          <div className="hand-fan" style={{width: fanW}}>
-            {sortedHand.map((c, i) => {
-              const key = `${c.rank}${c.suit}`
-              const playable = isPlayer && legalSet.has(key)
+      <div className="hand-fan-wrap">
+        {n > 0 && (
+          <div className="hand-fan hand-fan-opp" style={{width: oppFanW}}>
+            {Array.from({ length: n }).map((_, i) => {
               const k = n > 1 ? i / (n - 1) : 0.5
               const angle = n > 1 ? maxAngle * (2 * k - 1) : 0
               return (
-                <div key={i} style={{position:'absolute', left: i * spacing, bottom: 0,
+                <div key={i} style={{position:'absolute', left: i * oppSpacing, bottom: 0,
                   transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
-                  <PlayingCard card={c} playable={playable}
-                    onClick={playable ? () => onPlay?.(c) : undefined} />
+                  <CardBack compact />
                 </div>
               )
             })}
-            {sortedHand.length === 0 && r?.phase === 'PLAYING' && <span style={{color:'#666', position:'absolute', bottom: 4}}>—</span>}
           </div>
-        </div>
-      ) : (
-        <div className="hand-fan-wrap">
-          {n > 0 && (
-            <div className="hand-fan hand-fan-opp" style={{width: oppFanW}}>
-              {Array.from({ length: n }).map((_, i) => {
-                const k = n > 1 ? i / (n - 1) : 0.5
-                const angle = n > 1 ? maxAngle * (2 * k - 1) : 0
-                return (
-                  <div key={i} style={{position:'absolute', left: i * oppSpacing, bottom: 0,
-                    transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
-                    <CardBack compact />
-                  </div>
-                )
-              })}
-            </div>
-          )}
-        </div>
-      )}
+        )}
+      </div>
     </div>
   )
 }
@@ -682,10 +654,7 @@ export default function Game({ game, error, send }: {
 
   const cardSizes = useCardSizes()
   const fanN = sortedHand.length
-  const fanCardW = cardSizes.mine
-  const fanSpacing = fanN > 1 ? Math.min(fanCardW, Math.floor(cardSizes.fanBudget / (fanN - 1))) : 0
-  const fanMaxAngle = Math.min(24, fanN * 2.8)
-  const fanW = fanN > 0 ? fanSpacing * (fanN - 1) + fanCardW : fanCardW
+  const { spacing: fanSpacing, maxAngle: fanMaxAngle, fanW } = fanLayout(fanN, cardSizes.mine, cardSizes.fanBudget)
 
   const contract = r?.contract
   const ns = game.scores['NS'] ?? 0

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import time
 
 from backend.game.models import GamePhase, GameState, Position, Team
 
@@ -16,6 +17,7 @@ async def get_game(room_id: str) -> GameState | None:
 
 
 async def set_game(game: GameState) -> None:
+    game.last_activity = time.time()
     async with _lock:
         _rooms[game.room_id] = game
 
@@ -64,6 +66,26 @@ async def join_room(
 async def delete_room(room_id: str) -> None:
     async with _lock:
         _rooms.pop(room_id, None)
+
+
+async def reap_stale_rooms(max_age_seconds: float) -> int:
+    """Supprime les rooms sans activité depuis plus de `max_age_seconds`.
+
+    # ponytail: TTL global simple, ne regarde pas si des connexions WS sont
+    # actives — filet de sécurité contre les rooms jamais rejointes ou
+    # oubliées, pas un nettoyage par activité de connexion. Passer à un
+    # nettoyage lié aux connexions si le TTL s'avère trop grossier.
+    """
+    now = time.time()
+    async with _lock:
+        stale = [
+            room_id
+            for room_id, game in _rooms.items()
+            if now - game.last_activity > max_age_seconds
+        ]
+        for room_id in stale:
+            del _rooms[room_id]
+        return len(stale)
 
 
 async def list_rooms() -> list[dict]:
