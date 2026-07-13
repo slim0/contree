@@ -348,8 +348,8 @@ const VALUE_PAGE_SIZE = 4
 function bidActionLabel(e: { action: string; bid?: { is_capot: boolean; value: number; trump: string } | null }) {
   if (e.action === 'bid' && e.bid)
     return e.bid.is_capot ? `Capot ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}` : `${e.bid.value} ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}`
-  if (e.action === 'contre')    return 'Contre !'
-  if (e.action === 'surcontre') return 'Surcontre !'
+  if (e.action === 'contre')    return 'Coinche !'
+  if (e.action === 'surcontre') return 'Surcoinche !'
   return 'Passe'
 }
 
@@ -391,10 +391,10 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
           {(actions.can_contre || actions.can_surcontre) && (
             <div className="bid-double-row">
               {actions.can_contre && (
-                <button className="bid-double-btn" onClick={() => send({ type: 'contre' })}>Contre !</button>
+                <button className="bid-double-btn" onClick={() => send({ type: 'contre' })}>Coinche !</button>
               )}
               {actions.can_surcontre && (
-                <button className="bid-double-btn" onClick={() => send({ type: 'surcontre' })}>Surcontre !</button>
+                <button className="bid-double-btn" onClick={() => send({ type: 'surcontre' })}>Surcoinche !</button>
               )}
             </div>
           )}
@@ -437,8 +437,15 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
         </div>
       ) : currentBidder ? (
         <div className="bid-center-waiting">
-          <span className={currentTeam === 'NS' ? 'player-team-ns' : 'player-team-ew'}>{currentBidder}</span>
-          {' '}réfléchit…
+          <div className="bid-waiting-text">
+            <span className={currentTeam === 'NS' ? 'player-team-ns' : 'player-team-ew'}>{currentBidder}</span>
+            {' '}réfléchit…
+          </div>
+          {r.can_contre_volee && (
+            <button className="bid-double-btn bid-volee-btn" onClick={() => send({ type: 'contre' })}>
+              Coinche !
+            </button>
+          )}
         </div>
       ) : null}
     </div>

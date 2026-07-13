@@ -663,7 +663,22 @@
         color: #888;
         font-size: 0.82em;
         padding: 4px 0 2px;
+      }
+      .bid-waiting-text {
         font-style: italic;
+      }
+      .bid-volee-btn {
+        display: block;
+        width: 100%;
+        margin-top: 6px;
+        font-style: normal;
+        font-size: 0.85em;
+        border-color: #f96;
+        animation: bid-volee-pulse 1.2s ease-in-out infinite;
+      }
+      @keyframes bid-volee-pulse {
+        0%, 100% { box-shadow: 0 0 0 0 rgba(255, 100, 60, 0.55); }
+        50% { box-shadow: 0 0 0 5px rgba(255, 100, 60, 0); }
       }
 
       /* ── PAYSAGE MOBILE (≤ 600px de hauteur) ── */

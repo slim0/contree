@@ -377,12 +377,13 @@ def apply_bid(
     return game, "ok"
 
 
-def apply_contre(game: GameState) -> tuple[GameState, str]:
+def apply_contre(game: GameState, player: Position) -> tuple[GameState, str]:
+    """Le coinche peut être joué "à la volée" par un adversaire, même hors
+    tour — `player` est donc l'auteur réel de l'action, pas forcément
+    `r.current_bidder`. Le tour reprend ensuite après lui."""
     game = copy.deepcopy(game)
     r = game.round
     assert r and r.contract and r.phase == GamePhase.BIDDING
-    player = r.current_bidder
-    assert player is not None
 
     r.contract.double = Double.CONTRE
     r.pass_count = 0

@@ -118,11 +118,16 @@ def _state_for_player(game: GameState, player: Position) -> dict:
         round_obj = game.round
         if round_obj:
             r["running_points"] = scoring.running_points(round_obj)
-            if (
-                round_obj.phase == GamePhase.BIDDING
-                and round_obj.current_bidder == player
-            ):
-                r["legal_bid_actions"] = rules.get_legal_bid_actions(round_obj, player)
+            if round_obj.phase == GamePhase.BIDDING:
+                bid_actions = rules.get_legal_bid_actions(round_obj, player)
+                if round_obj.current_bidder == player:
+                    r["legal_bid_actions"] = bid_actions
+                else:
+                    # Coinche "à la volée" : un adversaire peut coincher hors
+                    # tour, à tout moment tant que l'enchère n'est pas déjà
+                    # coinchée — signalé séparément de legal_bid_actions qui
+                    # ne concerne que le joueur dont c'est le tour.
+                    r["can_contre_volee"] = bid_actions["can_contre"]
             elif (
                 round_obj.phase == GamePhase.PLAYING
                 and round_obj.current_player == player
@@ -467,6 +472,16 @@ async def _dispatch(
 
     # ── Enchères ──────────────────────────────────────────────────────────────
     if r.phase == GamePhase.BIDDING:
+        # Le coinche peut être annoncé "à la volée" par un adversaire à tout
+        # moment, même hors tour — il échappe donc à la vérification de tour.
+        if action == "contre":
+            bid_info = rules.get_legal_bid_actions(r, player)
+            if not bid_info["can_contre"]:
+                return game, "Contre non autorisé"
+            log.info("Salon '%s' — %s  CONTRE !  (à la volée)", room_id, tag)
+            game, _ = rules.apply_contre(game, player)
+            return game, None
+
         if r.current_bidder != player:
             log.debug("Salon '%s' — %s tente d'enchérir hors tour", room_id, tag)
             return game, "Ce n'est pas votre tour d'enchérir"
@@ -505,13 +520,6 @@ async def _dispatch(
             # Log if bidding ended
             if game.round and game.round.phase == GamePhase.PLAYING:
                 _log_contract(game, room_id)
-
-        elif action == "contre":
-            bid_info = rules.get_legal_bid_actions(r, player)
-            if not bid_info["can_contre"]:
-                return game, "Contre non autorisé"
-            log.info("Salon '%s' — %s  CONTRE !", room_id, tag)
-            game, _ = rules.apply_contre(game)
 
         elif action == "surcontre":
             bid_info = rules.get_legal_bid_actions(r, player)

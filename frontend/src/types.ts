@@ -36,6 +36,7 @@ export interface RoundData {
   running_points: Record<string, number>
   legal_plays?: CardData[]
   legal_bid_actions?: LegalBidActions
+  can_contre_volee?: boolean
 }
 
 export interface LegalBidActions {
