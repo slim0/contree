@@ -6,12 +6,18 @@ from backend.game.models import (
     NEXT_DEALER,
     NEXT_PLAYER,
     RIGHT_OF,
+    Card,
     GamePhase,
     GameState,
     Position,
+    Rank,
+    Suit,
     Team,
+    Trick,
+    TrickCard,
+    Trump,
 )
-from backend.game.rules import apply_pass, start_new_round
+from backend.game.rules import apply_pass, start_new_round, trick_winner
 
 CLOCKWISE_ORDER = [Position.NORTH, Position.EAST, Position.SOUTH, Position.WEST]
 
@@ -70,6 +76,44 @@ def test_bidding_order_passes_clockwise_around_the_table():
         Position.WEST,
         Position.NORTH,
     ]
+
+
+def _trick(*plays: tuple[Position, Card]) -> Trick:
+    return Trick(cards=[TrickCard(pos, card) for pos, card in plays])
+
+
+def test_all_trump_off_suit_discard_never_wins():
+    """Bug repro: en tout atout, une défausse hors couleur ne doit jamais gagner,
+    même avec un rang atout plus fort que la carte de couleur demandée."""
+    trick = _trick(
+        (Position.NORTH, Card(Suit.HEARTS, Rank.KING)),
+        (Position.EAST, Card(Suit.DIAMONDS, Rank.JACK)),
+    )
+    assert trick_winner(trick, Trump.ALL_TRUMP) == Position.NORTH
+
+
+def test_all_trump_higher_card_of_led_suit_wins():
+    trick = _trick(
+        (Position.NORTH, Card(Suit.HEARTS, Rank.KING)),
+        (Position.EAST, Card(Suit.HEARTS, Rank.JACK)),
+    )
+    assert trick_winner(trick, Trump.ALL_TRUMP) == Position.EAST
+
+
+def test_normal_trump_always_beats_led_suit():
+    trick = _trick(
+        (Position.NORTH, Card(Suit.HEARTS, Rank.ACE)),
+        (Position.EAST, Card(Suit.SPADES, Rank.SEVEN)),
+    )
+    assert trick_winner(trick, Trump.SPADES) == Position.EAST
+
+
+def test_no_trump_off_suit_card_never_wins():
+    trick = _trick(
+        (Position.NORTH, Card(Suit.HEARTS, Rank.SEVEN)),
+        (Position.EAST, Card(Suit.SPADES, Rank.ACE)),
+    )
+    assert trick_winner(trick, Trump.NO_TRUMP) == Position.NORTH
 
 
 def test_dealer_rotates_clockwise_after_a_void_deal():

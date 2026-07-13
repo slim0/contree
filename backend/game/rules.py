@@ -71,8 +71,7 @@ def deal_cards(dealer: Position) -> dict[Position, list[Card]]:
 def card_strength(card: Card, trump: Trump, led_suit: Suit) -> int:
     """Higher = stronger. -1 = cannot win."""
     if trump == Trump.ALL_TRUMP:
-        base = TRUMP_STRENGTH[card.rank] * 10
-        return base + 1 if card.suit == led_suit else base
+        return TRUMP_STRENGTH[card.rank] if card.suit == led_suit else -1
 
     if trump == Trump.NO_TRUMP:
         return NORMAL_STRENGTH[card.rank] if card.suit == led_suit else -1
