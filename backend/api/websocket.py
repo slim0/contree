@@ -102,6 +102,22 @@ async def broadcast(
             await ws.send_text(json.dumps({"type": "state", "data": payload}))
 
 
+# Le dernier pli d'une manche reste affiché aux joueurs pendant cette durée
+# (phase SCORING) avant que la donne suivante ne soit distribuée.
+SCORING_DISPLAY_SECONDS = 3.0
+
+
+async def _advance_after_scoring(room_id: str) -> None:
+    """Distribue la donne suivante après la pause d'affichage du dernier pli."""
+    await asyncio.sleep(SCORING_DISPLAY_SECONDS)
+    game = await store.get_game(room_id)
+    if not game or not game.round or game.round.phase != GamePhase.SCORING:
+        return
+    game = rules.start_new_round(game)
+    await store.set_game(game)
+    await broadcast(room_id, game)
+
+
 def _state_for_player(game: GameState, player: Position) -> dict:
     """Serialize game state, hiding other players' cards."""
     d = game.to_dict()
@@ -405,6 +421,9 @@ async def handle_connection(
             game, error = await _dispatch(game, position, msg, room_id)
             await store.set_game(game)
             await broadcast(room_id, game)
+
+            if game.round and game.round.phase == GamePhase.SCORING:
+                asyncio.create_task(_advance_after_scoring(room_id))
 
             if error:
                 log.warning(

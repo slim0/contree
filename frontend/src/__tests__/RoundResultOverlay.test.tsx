@@ -30,34 +30,38 @@ describe('RoundResultOverlay', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('affiche l\'overlay quand un résultat arrive', () => {
+  it('laisse le dernier pli visible 3s avant d\'afficher le résultat', async () => {
     const result = makeResult({ contract_made: true, score_ns: 80, score_ew: 0 })
     render(
       <RoundResultOverlay lastResult={result} scores={{ NS: 80, EW: 0 }} targetScore={500} />
     )
+    expect(screen.queryByText('CONTRAT RÉUSSI !')).not.toBeInTheDocument()
+
+    await act(async () => { vi.advanceTimersByTime(3000) })
     expect(screen.getByText('CONTRAT RÉUSSI !')).toBeInTheDocument()
     expect(screen.getByText('+80')).toBeInTheDocument()
     expect(screen.getByText('80 / 500')).toBeInTheDocument()
   })
 
-  it('affiche CHUTE ! quand le contrat est raté', () => {
+  it('affiche CHUTE ! quand le contrat est raté', async () => {
     const result = makeResult({ contract_made: false, score_ns: 0, score_ew: 80 })
     render(
       <RoundResultOverlay lastResult={result} scores={{ NS: 0, EW: 80 }} targetScore={500} />
     )
+    await act(async () => { vi.advanceTimersByTime(3000) })
     expect(screen.getByText('CHUTE !')).toBeInTheDocument()
     expect(screen.getByText('+80')).toBeInTheDocument()
   })
 
-  it('disparaît automatiquement après 4 secondes', async () => {
+  it('disparaît automatiquement 4 secondes après son apparition', async () => {
     const result = makeResult()
     render(
       <RoundResultOverlay lastResult={result} scores={{ NS: 80, EW: 0 }} targetScore={500} />
     )
+    await act(async () => { vi.advanceTimersByTime(3000) })
     expect(screen.getByText('CONTRAT RÉUSSI !')).toBeInTheDocument()
 
     await act(async () => { vi.advanceTimersByTime(4000) })
-
     expect(screen.queryByText('CONTRAT RÉUSSI !')).not.toBeInTheDocument()
   })
 
@@ -66,6 +70,7 @@ describe('RoundResultOverlay', () => {
     const { rerender } = render(
       <RoundResultOverlay lastResult={result1} scores={{ NS: 80, EW: 0 }} targetScore={500} />
     )
+    await act(async () => { vi.advanceTimersByTime(3000) })
     expect(screen.getByText('CONTRAT RÉUSSI !')).toBeInTheDocument()
 
     await act(async () => { vi.advanceTimersByTime(4000) })
@@ -75,22 +80,25 @@ describe('RoundResultOverlay', () => {
     rerender(
       <RoundResultOverlay lastResult={result2} scores={{ NS: 80, EW: 80 }} targetScore={500} />
     )
+    await act(async () => { vi.advanceTimersByTime(3000) })
     expect(screen.getByText('CHUTE !')).toBeInTheDocument()
   })
 
-  it('affiche le numéro de manche', () => {
+  it('affiche le numéro de manche', async () => {
     const result = makeResult({ round_number: 3 })
     render(
       <RoundResultOverlay lastResult={result} scores={{ NS: 0, EW: 0 }} targetScore={500} />
     )
+    await act(async () => { vi.advanceTimersByTime(3000) })
     expect(screen.getByText('Manche 3')).toBeInTheDocument()
   })
 
-  it('affiche la belote quand présente', () => {
+  it('affiche la belote quand présente', async () => {
     const result = makeResult({ belote_team: 'NS' })
     render(
       <RoundResultOverlay lastResult={result} scores={{ NS: 0, EW: 0 }} targetScore={500} />
     )
+    await act(async () => { vi.advanceTimersByTime(3000) })
     expect(screen.getByText(/Belote TEAM RED/)).toBeInTheDocument()
   })
 })

@@ -50,15 +50,23 @@ describe('BidCenter — enchères par boutons', () => {
     expect(container.querySelectorAll('select').length).toBe(0)
   })
 
+  it('aucune valeur n’est présélectionnée au départ (évite une annonce accidentelle)', () => {
+    const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
+    render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
+
+    expect(screen.getByText('80')).not.toHaveClass('selected')
+    expect(screen.getByText('♥')).toBeDisabled()
+  })
+
   it('un clic sur une pastille de valeur change la valeur sélectionnée', async () => {
     const user = userEvent.setup()
     const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
     render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
 
-    expect(screen.getByText('80')).toHaveClass('selected')
     await user.click(screen.getByText('90'))
     expect(screen.getByText('90')).toHaveClass('selected')
     expect(screen.getByText('80')).not.toHaveClass('selected')
+    expect(screen.getByText('♥')).not.toBeDisabled()
   })
 
   it('un clic sur une couleur envoie directement l’enchère avec la valeur sélectionnée', async () => {

@@ -1,5 +1,5 @@
-import { render, act } from '@testing-library/react'
-import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
+import { render } from '@testing-library/react'
+import { vi, describe, it, expect } from 'vitest'
 import Game from '../Game'
 import type { GameData, RoundData } from '../types'
 
@@ -50,49 +50,48 @@ const makeGame = (round: RoundData): GameData => ({
   ready_to_start: false,
 })
 
-describe('Affichage du pli terminé pendant 4 secondes', () => {
-  beforeEach(() => vi.useFakeTimers())
-  afterEach(() => vi.useRealTimers())
-
-  it('garde les cartes du pli terminé affichées même si la carte suivante est jouée avant 4s', () => {
-    const round1 = makeRound()
-    const { container, rerender } = render(
-      <Game game={makeGame(round1)} error={null} send={vi.fn()} />
+describe('Affichage du pli terminé', () => {
+  it('reste affiché tant que personne n’a joué dans le pli suivant', () => {
+    const round = makeRound()
+    const { container } = render(
+      <Game game={makeGame(round)} error={null} send={vi.fn()} />
     )
 
-    // Le pli terminé (N a gagné avec l'as de ♥) est affiché immédiatement.
+    // Le pli terminé (N a gagné avec l'as de ♥) est affiché.
     expect(container.querySelector('.trick-pos-bottom')?.textContent).toContain('A')
     // E est à gauche du point de vue de N.
     expect(container.querySelector('.trick-pos-left')?.textContent).toContain('K')
-
-    // Le joueur suivant (E) joue déjà une carte du pli suivant, moins de 4s après.
-    act(() => vi.advanceTimersByTime(1000))
-    const round2 = makeRound({
-      current_trick: { cards: [{ position: 'E', card: { suit: 'D', rank: '9' } }], winner: null },
-    })
-    rerender(<Game game={makeGame(round2)} error={null} send={vi.fn()} />)
-
-    // Le pli précédent doit rester affiché : la nouvelle carte de E (9♦) ne doit pas encore apparaître.
-    expect(container.querySelector('.trick-pos-bottom')?.textContent).toContain('A')
-    expect(container.querySelector('.trick-pos-left')?.textContent).toContain('K')
-    expect(container.querySelector('.trick-pos-left')?.textContent).not.toContain('9')
   })
 
-  it("bascule sur le pli en cours une fois les 4 secondes écoulées", () => {
+  it('bascule immédiatement sur le pli suivant dès que le joueur qui doit jouer y joue une carte', () => {
     const round1 = makeRound()
     const { container, rerender } = render(
       <Game game={makeGame(round1)} error={null} send={vi.fn()} />
     )
+    expect(container.querySelector('.trick-pos-left')?.textContent).toContain('K')
 
+    // E (à gauche) joue sa carte du pli suivant : on doit basculer tout de suite,
+    // sans attendre un quelconque délai.
     const round2 = makeRound({
       current_trick: { cards: [{ position: 'E', card: { suit: 'D', rank: '9' } }], winner: null },
     })
     rerender(<Game game={makeGame(round2)} error={null} send={vi.fn()} />)
 
-    act(() => vi.advanceTimersByTime(4100))
-    rerender(<Game game={makeGame(round2)} error={null} send={vi.fn()} />)
-
-    // Passé le délai de 4s, la carte du nouveau pli en cours (9♦ pour E) doit être visible.
     expect(container.querySelector('.trick-pos-left')?.textContent).toContain('9')
+    expect(container.querySelector('.trick-pos-left')?.textContent).not.toContain('K')
+  })
+
+  it('affiche le dernier pli pendant la phase SCORING (avant la donne suivante)', () => {
+    const round = makeRound({
+      phase: 'SCORING',
+      current_player: null,
+      current_trick: { cards: [], winner: null },
+    })
+    const { container } = render(
+      <Game game={makeGame(round)} error={null} send={vi.fn()} />
+    )
+
+    expect(container.querySelector('.trick-pos-bottom')?.textContent).toContain('A')
+    expect(container.querySelector('.trick-pos-left')?.textContent).toContain('K')
   })
 })

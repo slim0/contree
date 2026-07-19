@@ -222,23 +222,9 @@ function PlayerSlot({ pos, game, r, cardSizes }: {
 
 function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: ReturnType<typeof getLastTrick>; me: string }) {
   const [showLast, setShowLast] = useState(false)
-  const [holdLastTrick, setHoldLastTrick] = useState(false)
-  const prevTricksCount = useRef(0)
   const phase = r?.phase
   const trick = r?.current_trick
   const tricksCount = r?.tricks?.length ?? 0
-
-  // Un pli qui vient d'être remporté reste affiché 4s, même si la carte
-  // suivante est jouée entre-temps.
-  useEffect(() => {
-    if (tricksCount > prevTricksCount.current) {
-      setHoldLastTrick(true)
-      const timer = setTimeout(() => setHoldLastTrick(false), 4000)
-      prevTricksCount.current = tricksCount
-      return () => clearTimeout(timer)
-    }
-    prevTricksCount.current = tricksCount
-  }, [tricksCount])
 
   const cardAt = (pos: string): CardData | null => {
     const tc = trick?.cards.find(c => c.position === pos)
@@ -246,9 +232,9 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
   }
 
   const viewing = showLast && !!lastTrick
-  // Quand le pli vient d'être remporté et que le nouveau n'a pas encore commencé
-  // (ou pendant les 4s suivant sa fin), afficher automatiquement le dernier pli.
-  const autoShowLast = !viewing && (holdLastTrick || trick?.cards.length === 0) && !!lastTrick
+  // Le pli qui vient d'être remporté reste affiché tant que personne n'a joué
+  // dans le nouveau pli — dès qu'une carte y apparaît, on bascule dessus.
+  const autoShowLast = !viewing && trick?.cards.length === 0 && !!lastTrick
 
   const isWinner = (pos: string) => {
     if (viewing || autoShowLast) return lastTrick!.winner === pos
@@ -276,7 +262,9 @@ function TrickArea({ r, lastTrick, me }: { r: RoundData | null; lastTrick?: Retu
         <div style={{textAlign:'center', color:'#555', fontSize:'0.7em'}}>
           {viewing
             ? <span style={{color:'#888'}}>Pli {tricksCount}/8</span>
-            : phase === 'PLAYING' ? `Pli ${tricksCount + 1}/8` : phase === 'BIDDING' ? 'Enchères' : ''}
+            : phase === 'PLAYING' ? `Pli ${tricksCount + 1}/8`
+            : phase === 'SCORING' ? `Pli ${tricksCount}/8`
+            : phase === 'BIDDING' ? 'Enchères' : ''}
         </div>
         {phase === 'PLAYING' && lastTrick && (
           <button
@@ -344,12 +332,14 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
     ...(actions?.can_bid_generale ? ['GENERALE' as const] : []),
   ]
 
-  const [bidVal, setBidVal] = useState<number>(validVals[0] ?? 80)
+  // Pas de valeur présélectionnée : le joueur doit choisir explicitement pour
+  // éviter une annonce accidentelle.
+  const [bidVal, setBidVal] = useState<number | null>(null)
   const [page, setPage] = useState(0)
   const [mode, setMode] = useState<'value' | 'capot' | 'generale'>('value')
 
   useEffect(() => {
-    setBidVal(validVals[0] ?? 80)
+    setBidVal(null)
     setPage(0)
     setMode('value')
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -364,7 +354,7 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
   const chooseSuit = (trump: string) => {
     if (mode === 'capot') send({ type: 'bid', value: 0, trump, is_capot: true })
     else if (mode === 'generale') send({ type: 'bid', value: 0, trump, is_capot: false, is_generale: true })
-    else send({ type: 'bid', value: bidVal, trump, is_capot: false })
+    else if (bidVal !== null) send({ type: 'bid', value: bidVal, trump, is_capot: false })
   }
 
   return (
@@ -407,7 +397,7 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
             <div className="bid-suit-grid">
               {BID_SUIT_GRID.map(t => (
                 <button key={t} className={`bid-suit-btn${BID_SUIT_COLOR_CLASS[t] ?? ''}`} onClick={() => chooseSuit(t)}
-                  disabled={actions.min_bid_value === null && mode === 'value'}>
+                  disabled={mode === 'value' && (actions.min_bid_value === null || bidVal === null)}>
                   {BID_SUIT_BTN_LABEL[t]}
                 </button>
               ))}
@@ -452,11 +442,23 @@ export function RoundResultOverlay({ lastResult, scores, targetScore }: {
     if (!lastResult) return
     if (lastResult.round_number === seenRound.current) return
     seenRound.current = lastResult.round_number
-    setSnap({ result: lastResult, scores: { ...scores } })
-    setVisible(true)
-    const timer = setTimeout(() => setVisible(false), 4000)
-    return () => clearTimeout(timer)
+    const result = lastResult
+    const resultScores = { ...scores }
+    // Laisser le dernier pli visible (phase SCORING) avant d'afficher le score —
+    // même délai que le backend (websocket.SCORING_DISPLAY_SECONDS) avant de
+    // distribuer la donne suivante.
+    const showTimer = setTimeout(() => {
+      setSnap({ result, scores: resultScores })
+      setVisible(true)
+    }, 3000)
+    return () => clearTimeout(showTimer)
   }, [lastResult, scores])
+
+  useEffect(() => {
+    if (!visible) return
+    const hideTimer = setTimeout(() => setVisible(false), 4000)
+    return () => clearTimeout(hideTimer)
+  }, [visible])
 
   if (!visible || !snap) return null
 

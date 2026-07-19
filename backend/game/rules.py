@@ -518,6 +518,9 @@ def _end_round(game: GameState) -> GameState:
         game.phase = GamePhase.FINISHED
         game.messages.append(f"Partie terminée ! Vainqueur : {winner.value}")
     else:
-        game = start_new_round(game)
+        # Le dernier pli reste affiché (phase SCORING) — la donne suivante
+        # n'est distribuée qu'après un délai géré par l'API (cf. websocket.py).
+        game.round.phase = GamePhase.SCORING
+        game.round.current_player = None
 
     return game
