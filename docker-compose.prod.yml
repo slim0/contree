@@ -3,6 +3,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.pocketbase
+    ports:
+      - "8090:8090"
     volumes:
       - pocketbase_data:/pb/pb_data
     environment:
