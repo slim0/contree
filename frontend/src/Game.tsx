@@ -317,9 +317,14 @@ const BID_SUIT_BTN_LABEL: Record<string, string> = { ...SUIT_SYM, NT: 'SA', AT: 
 const BID_SUIT_COLOR_CLASS: Record<string, string> = { H: ' suit-red', D: ' suit-red', C: ' suit-black', S: ' suit-black' }
 const VALUE_PAGE_SIZE = 4
 
-function bidActionLabel(e: { action: string; bid?: { is_capot: boolean; value: number; trump: string } | null }) {
+function bidValueLabel(bid: { is_capot: boolean; is_generale?: boolean; value: number }) {
+  if (bid.is_generale) return 'Générale'
+  return bid.is_capot ? 'Capot' : String(bid.value)
+}
+
+function bidActionLabel(e: { action: string; bid?: { is_capot: boolean; is_generale?: boolean; value: number; trump: string } | null }) {
   if (e.action === 'bid' && e.bid)
-    return e.bid.is_capot ? `Capot ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}` : `${e.bid.value} ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}`
+    return `${bidValueLabel(e.bid)} ${TRUMP_LABELS[e.bid.trump] ?? e.bid.trump}`
   if (e.action === 'contre')    return 'Coinche !'
   if (e.action === 'surcontre') return 'Surcoinche !'
   return 'Passe'
@@ -332,17 +337,21 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
     v => actions.min_bid_value !== null && v >= (actions.min_bid_value ?? 80)
   ) : []
 
-  // Le bouton Capot est intégré au slider de valeurs, juste après 160.
-  const sliderItems: ('CAPOT' | number)[] = actions?.can_bid_capot ? [...validVals, 'CAPOT'] : validVals
+  // Capot et Générale sont intégrés au slider de valeurs, juste après 160.
+  const sliderItems: ('CAPOT' | 'GENERALE' | number)[] = [
+    ...validVals,
+    ...(actions?.can_bid_capot ? ['CAPOT' as const] : []),
+    ...(actions?.can_bid_generale ? ['GENERALE' as const] : []),
+  ]
 
   const [bidVal, setBidVal] = useState<number>(validVals[0] ?? 80)
   const [page, setPage] = useState(0)
-  const [capotMode, setCapotMode] = useState(false)
+  const [mode, setMode] = useState<'value' | 'capot' | 'generale'>('value')
 
   useEffect(() => {
     setBidVal(validVals[0] ?? 80)
     setPage(0)
-    setCapotMode(false)
+    setMode('value')
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions?.min_bid_value, r.current_bidder])
 
@@ -353,7 +362,8 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
   const currentTeam   = r.current_bidder ? TEAM[r.current_bidder] : null
 
   const chooseSuit = (trump: string) => {
-    if (capotMode) send({ type: 'bid', value: 0, trump, is_capot: true })
+    if (mode === 'capot') send({ type: 'bid', value: 0, trump, is_capot: true })
+    else if (mode === 'generale') send({ type: 'bid', value: 0, trump, is_capot: false, is_generale: true })
     else send({ type: 'bid', value: bidVal, trump, is_capot: false })
   }
 
@@ -379,22 +389,25 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
               <button className="bid-page-arrow" disabled={page === 0}
                 onClick={() => setPage(p => Math.max(0, p - 1))} aria-label="Valeurs précédentes">‹</button>
               {visibleItems.map(item => item === 'CAPOT' ? (
-                <button key="capot" className={`bid-value-btn${capotMode ? ' selected' : ''}`}
-                  onClick={() => setCapotMode(m => !m)}>Capot</button>
+                <button key="capot" className={`bid-value-btn${mode === 'capot' ? ' selected' : ''}`}
+                  onClick={() => setMode(m => m === 'capot' ? 'value' : 'capot')}>Capot</button>
+              ) : item === 'GENERALE' ? (
+                <button key="generale" className={`bid-value-btn${mode === 'generale' ? ' selected' : ''}`}
+                  onClick={() => setMode(m => m === 'generale' ? 'value' : 'generale')}>Générale</button>
               ) : (
-                <button key={item} className={`bid-value-btn${item === bidVal && !capotMode ? ' selected' : ''}`}
-                  onClick={() => { setBidVal(item); setCapotMode(false) }}>{item}</button>
+                <button key={item} className={`bid-value-btn${item === bidVal && mode === 'value' ? ' selected' : ''}`}
+                  onClick={() => { setBidVal(item); setMode('value') }}>{item}</button>
               ))}
               <button className="bid-page-arrow" disabled={page >= maxPage}
                 onClick={() => setPage(p => Math.min(maxPage, p + 1))} aria-label="Valeurs suivantes">›</button>
             </div>
           )}
 
-          {(actions.min_bid_value !== null || actions.can_bid_capot) && (
+          {(actions.min_bid_value !== null || actions.can_bid_capot || actions.can_bid_generale) && (
             <div className="bid-suit-grid">
               {BID_SUIT_GRID.map(t => (
                 <button key={t} className={`bid-suit-btn${BID_SUIT_COLOR_CLASS[t] ?? ''}`} onClick={() => chooseSuit(t)}
-                  disabled={actions.min_bid_value === null && !capotMode}>
+                  disabled={actions.min_bid_value === null && mode === 'value'}>
                   {BID_SUIT_BTN_LABEL[t]}
                 </button>
               ))}
@@ -462,7 +475,7 @@ export function RoundResultOverlay({ lastResult, scores, targetScore }: {
           <span className={bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
             {TEAM_LABEL[bidding_team] ?? bidding_team}
           </span>
-          {' · '}{bid.is_capot ? 'Capot' : bid.value}{' '}{TRUMP_LABELS[bid.trump] ?? bid.trump}
+          {' · '}{bidValueLabel(bid)}{' '}{TRUMP_LABELS[bid.trump] ?? bid.trump}
           {dbl !== 'NONE' && <strong style={{ color: '#f96' }}> {dbl}</strong>}
           {lr.belote_team && (
             <span style={{ color: '#ff4' }}> · Belote {TEAM_LABEL[lr.belote_team] ?? lr.belote_team}</span>
@@ -509,6 +522,19 @@ export default function Game({ game, error, send }: {
   // Créer un WebSocket interne pour la signalisation WebRTC (même connexion)
   // On réutilise le WebSocket existant via les événements custom
   useEffect(() => {
+    // Ré-exécuté à chaque changement de game.players (ex: joueur rejoignant le
+    // salon d'attente après nous) — createPeerConnection est un no-op si le
+    // peer existe déjà.
+    const connectToPeers = () => {
+      Object.keys(game.players).forEach(p => {
+        if (p !== me && me < p) {
+          voiceManagerRef.current?.createPeerConnection(p).catch(err => {
+            console.error('[Voice] P2P failed:', p, err)
+          })
+        }
+      })
+    }
+
     // Initialiser le VoiceManager
     if (!voiceInitializedRef.current && game.players[me]) {
       // Créer un manager de voix
@@ -559,18 +585,7 @@ export default function Game({ game, error, send }: {
           await voiceManagerRef.current.init()
           setIsMuted(false)
           voiceInitializedRef.current = true
-
-          // Seul le joueur dont la position est inférieure initie l'offre WebRTC.
-          // L'autre attend et répond via handleOffer.
-          // Cela évite le glare (les deux envoient une offre simultanément,
-          // chacun ignore l'offre de l'autre car il a déjà un peer pour cette position).
-          Object.keys(game.players).forEach(p => {
-            if (p !== me && me < p) {
-              voiceManagerRef.current?.createPeerConnection(p).catch(err => {
-                console.error('[Voice] P2P failed:', p, err)
-              })
-            }
-          })
+          connectToPeers()
         } catch (err) {
           console.error('[Voice] Init failed:', err)
           setVoiceError(err instanceof Error ? err.message : 'Erreur voix')
@@ -578,6 +593,8 @@ export default function Game({ game, error, send }: {
       }
 
       initVoice()
+    } else if (voiceInitializedRef.current) {
+      connectToPeers()
     }
 
     // Gérer les événements custom pour la signalisation
@@ -892,7 +909,7 @@ export default function Game({ game, error, send }: {
               <span className={contract.bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
                 {TEAM_LABEL[contract.bidding_team] ?? contract.bidding_team}
               </span>
-              {' '}{contract.bid.is_capot ? 'Capot' : contract.bid.value}
+              {' '}{bidValueLabel(contract.bid)}
               {' '}{TRUMP_LABELS[contract.bid.trump] ?? contract.bid.trump}
               {contract.double !== 'NONE' && <strong style={{color:'#f96'}}> {contract.double}</strong>}
               {r?.belote_team && <span style={{color:'#ff4'}}> · Belote {TEAM_LABEL[r.belote_team] ?? r.belote_team}</span>}
