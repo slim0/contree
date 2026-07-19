@@ -23,7 +23,7 @@ const makeRound = (overrides: Partial<RoundData> = {}): RoundData => ({
   current_bidder: null,
   pass_count: 0,
   bid_history: [],
-  contract: { bid: { position: 'N', value: 80, is_capot: false, trump: 'H' }, double: 'NONE', bidding_team: 'NS' },
+  contract: { bid: { position: 'N', value: 80, is_capot: false, is_generale: false, trump: 'H' }, double: 'NONE', bidding_team: 'NS' },
   current_player: 'E',
   tricks: [finishedTrick],
   current_trick: { cards: [], winner: null },

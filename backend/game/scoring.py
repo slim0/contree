@@ -81,8 +81,11 @@ def compute_round_result(r: RoundState) -> RoundResult:
         card_points_ns if bidding_team == Team.NORTH_SOUTH else card_points_ew
     )
 
+    # Check générale : le preneur (seul, pas son équipe) doit remporter les 8 plis
+    if r.contract.bid.is_generale:
+        contract_made = all(t.winner == r.contract.bid.position for t in r.tricks)
     # Check capot
-    if r.contract.bid.is_capot:
+    elif r.contract.bid.is_capot:
         tricks_by_bidders = sum(
             1
             for t in r.tricks

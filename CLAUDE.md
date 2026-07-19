@@ -131,6 +131,7 @@ JWT_SECRET_KEY=<clé-longue-aléatoire> docker compose -f docker-compose.prod.ym
 6. **Surcontre** : termine immédiatement le tour d'enchères.
 7. **Variante Sans Atout** : As vaut 19 pts (au lieu de 11). Pas de belote/rebelote possible. Carrés bonus applicables.
 8. **Variante Tout Atout** : montée obligatoire s'applique *toujours* (toutes couleurs sont atout). Pas de belote possible.
+9. **Générale** : contrat spécial (surclasse le Capot, annonçable même après un Capot annoncé) où **un seul joueur** — pas juste son équipe — doit remporter les 8 plis. Vaut **500 pts**. Chute → défenseurs marquent 500 × multiplicateur contre/surcontre.
 
 ## Méthode de comptage
 
@@ -147,7 +148,8 @@ Chute :
 ```
 
 Multiplicateur contre/surcontre s'applique sur la valeur annoncée en cas de chute.
-Capot comme contrat = 160 pts.
+Capot comme contrat = 250 pts (l'équipe des preneurs doit remporter les 8 plis).
+Générale comme contrat = 500 pts (un seul joueur, pas juste son équipe, doit remporter les 8 plis).
 
 ## Ordre de priorité de développement
 

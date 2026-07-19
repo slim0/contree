@@ -500,22 +500,25 @@ async def _dispatch(
                 value = int(msg["value"])
                 trump = Trump(msg["trump"])
                 is_capot = msg.get("is_capot", False)
+                is_generale = msg.get("is_generale", False)
             except (KeyError, ValueError):
                 return game, "Format d'enchère invalide"
 
             bid_info = rules.get_legal_bid_actions(r, player)
+            if is_generale and not bid_info["can_bid_generale"]:
+                return game, "Générale non autorisée"
             if is_capot and not bid_info["can_bid_capot"]:
                 return game, "Capot non autorisé"
-            if not is_capot:
+            if not is_capot and not is_generale:
                 min_val = bid_info.get("min_bid_value")
                 if min_val is None or value < min_val or value > 160 or value % 10 != 0:
                     return game, f"Valeur d'enchère invalide (min {min_val})"
 
-            val_str = "Capot" if is_capot else str(value)
+            val_str = "Générale" if is_generale else ("Capot" if is_capot else str(value))
             log.info(
                 "Salon '%s' — %s  ANNONCE  %s à %s", room_id, tag, val_str, trump.value
             )
-            game, _ = rules.apply_bid(game, value, is_capot, trump)
+            game, _ = rules.apply_bid(game, value, is_capot, trump, is_generale)
 
             # Log if bidding ended
             if game.round and game.round.phase == GamePhase.PLAYING:
@@ -606,7 +609,7 @@ def _log_contract(game: GameState, room_id: str) -> None:
     if not r or not r.contract:
         return
     c = r.contract
-    val = "Capot" if c.bid.is_capot else str(c.bid.value)
+    val = "Générale" if c.bid.is_generale else ("Capot" if c.bid.is_capot else str(c.bid.value))
     double_str = f" [{c.double.value}]" if c.double.value != "NONE" else ""
     bidder_name = game.players.get(c.bid.position, "?")
     log.info(

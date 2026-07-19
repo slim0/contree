@@ -6,7 +6,7 @@ import type { RoundResult } from '../types'
 const makeResult = (overrides: Partial<RoundResult> = {}): RoundResult => ({
   round_number: 1,
   contract: {
-    bid: { position: 'N', value: 80, is_capot: false, trump: 'H' },
+    bid: { position: 'N', value: 80, is_capot: false, is_generale: false, trump: 'H' },
     double: 'NONE',
     bidding_team: 'NS',
   },

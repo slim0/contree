@@ -251,11 +251,13 @@ def get_legal_bid_actions(round_state: RoundState, player: Position) -> dict:
         "can_surcontre": False,
         "min_bid_value": None,
         "can_bid_capot": False,
+        "can_bid_generale": False,
     }
 
     if contract is None:
         result["min_bid_value"] = 80
         result["can_bid_capot"] = True
+        result["can_bid_generale"] = True
         return result
 
     double = contract.double
@@ -271,13 +273,16 @@ def get_legal_bid_actions(round_state: RoundState, player: Position) -> dict:
         # Opposing team can contre
         if player_team != bidding_team:
             result["can_contre"] = True
-        # Anyone can raise (if value > current)
+        # Anyone can raise (if value > current) — la Générale surclasse tout,
+        # y compris un Capot déjà annoncé.
         current_val = contract.bid.value
-        if not contract.bid.is_capot and contract.bid.position != player:
-            next_val = current_val + 10
-            if next_val <= 160:
-                result["min_bid_value"] = next_val
-            result["can_bid_capot"] = True
+        if not contract.bid.is_generale and contract.bid.position != player:
+            if not contract.bid.is_capot:
+                next_val = current_val + 10
+                if next_val <= 160:
+                    result["min_bid_value"] = next_val
+                result["can_bid_capot"] = True
+            result["can_bid_generale"] = True
         return result
 
     if double == Double.CONTRE:
@@ -355,7 +360,11 @@ def apply_pass(game: GameState) -> tuple[GameState, str]:
 
 
 def apply_bid(
-    game: GameState, value: int, is_capot: bool, trump: Trump
+    game: GameState,
+    value: int,
+    is_capot: bool,
+    trump: Trump,
+    is_generale: bool = False,
 ) -> tuple[GameState, str]:
     game = copy.deepcopy(game)
     r = game.round
@@ -363,13 +372,13 @@ def apply_bid(
     player = r.current_bidder
     assert player is not None
 
-    bid = Bid(player, value, is_capot, trump)
+    bid = Bid(player, value, is_capot, trump, is_generale)
     r.contract = Contract(bid, Double.NONE, TEAM_OF[player])
     r.pass_count = 0
     r.bid_history.append(BidHistoryEntry(player, "bid", bid))
     r.current_bidder = NEXT_PLAYER[player]
 
-    val_str = "Capot" if is_capot else str(value)
+    val_str = "Générale" if is_generale else ("Capot" if is_capot else str(value))
     game.messages.append(f"{player.value} annonce {val_str} à {trump.value}")
     return game, "ok"
 
@@ -418,7 +427,7 @@ def _start_playing(game: GameState) -> GameState:
     r.current_trick = Trick()
 
     c = r.contract
-    val_str = "Capot" if c.bid.is_capot else str(c.bid.value)
+    val_str = "Générale" if c.bid.is_generale else ("Capot" if c.bid.is_capot else str(c.bid.value))
     double_str = f" ({c.double.value})" if c.double != Double.NONE else ""
     game.messages.append(
         f"Contrat : {c.bidding_team.value} joue {val_str} à {c.bid.trump.value}{double_str}"

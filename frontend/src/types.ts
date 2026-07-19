@@ -1,7 +1,7 @@
 export interface CardData { suit: string; rank: string }
 
 export interface BidData {
-  position: string; value: number; is_capot: boolean; trump: string
+  position: string; value: number; is_capot: boolean; trump: string; is_generale: boolean
 }
 
 export interface ContractData {
@@ -45,6 +45,7 @@ export interface LegalBidActions {
   can_surcontre: boolean
   min_bid_value: number | null
   can_bid_capot: boolean
+  can_bid_generale: boolean
 }
 
 export interface RoundResult {

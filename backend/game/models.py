@@ -182,11 +182,14 @@ class Card:
 @dataclass
 class Bid:
     position: Position
-    value: int  # 80-160 or 0 for capot
+    value: int  # 80-160, or 0 for capot/générale
     is_capot: bool
     trump: Trump
+    is_generale: bool = False  # un seul joueur remporte les 8 plis — 500 pts
 
     def display_value(self) -> str:
+        if self.is_generale:
+            return "Générale"
         return "Capot" if self.is_capot else str(self.value)
 
     def to_dict(self) -> dict:
@@ -195,12 +198,17 @@ class Bid:
             "value": self.value,
             "is_capot": self.is_capot,
             "trump": self.trump.value,
+            "is_generale": self.is_generale,
         }
 
     @classmethod
     def from_dict(cls, d: dict) -> Bid:
         return cls(
-            Position(d["position"]), d["value"], d["is_capot"], Trump(d["trump"])
+            Position(d["position"]),
+            d["value"],
+            d["is_capot"],
+            Trump(d["trump"]),
+            d.get("is_generale", False),
         )
 
 
@@ -212,7 +220,9 @@ class Contract:
 
     def contract_value(self) -> int:
         """Point value of this contract (for scoring)."""
-        return 160 if self.bid.is_capot else self.bid.value
+        if self.bid.is_generale:
+            return 500
+        return 250 if self.bid.is_capot else self.bid.value
 
     def to_dict(self) -> dict:
         return {

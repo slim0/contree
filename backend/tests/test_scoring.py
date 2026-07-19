@@ -118,3 +118,48 @@ def test_running_points_ignores_dix_de_der():
         result.preneurs_eval == 28 + 10
     )  # 38, dix de der inclus dans le résultat final
     assert running_points(r) == {"NS": 28, "EW": 0}  # mais pas dans le suivi temps réel
+
+
+# ---------------------------------------------------------------------------
+# Capot
+# ---------------------------------------------------------------------------
+
+
+def _make_capot_round(*, tricks_go_to: Team) -> RoundState:
+    bid = Bid(Position.NORTH, 0, is_capot=True, trump=Trump.HEARTS)
+    contract = Contract(bid, Double.NONE, Team.NORTH_SOUTH)
+    winner = Position.NORTH if tricks_go_to == Team.NORTH_SOUTH else Position.EAST
+    tricks = [Trick(winner=winner) for _ in range(8)]
+    return RoundState(
+        number=1,
+        dealer=Position.WEST,
+        hands={},
+        phase=GamePhase.SCORING,
+        current_bidder=None,
+        pass_count=0,
+        bid_history=[],
+        contract=contract,
+        current_player=None,
+        tricks=tricks,
+        current_trick=Trick(),
+        belote_team=None,
+        belote_king_played=False,
+        belote_queen_played=False,
+    )
+
+
+def test_capot_made_scores_250_points():
+    r = _make_capot_round(tricks_go_to=Team.NORTH_SOUTH)
+    result = compute_round_result(r)
+    assert result.contract_made is True
+    assert result.score_ns == 250
+    assert result.score_ew == 0
+
+
+def test_capot_failed_scores_250_points_times_multiplier_for_defense():
+    r = _make_capot_round(tricks_go_to=Team.EAST_WEST)
+    assert r.contract is not None
+    r.contract.double = Double.CONTRE
+    result = compute_round_result(r)
+    assert result.contract_made is False
+    assert result.score_ew == 500
