@@ -175,6 +175,60 @@ async def _close_all_connections(room_id: str) -> None:
             await ws.close()
 
 
+# Délai laissé aux 4 joueurs pour se reconnecter après un GO avant que le
+# salon ne soit considéré bloqué (ex : un joueur perd son réseau juste avant
+# ou pendant la fermeture des connexions pour réassignation).
+START_RECONNECT_TIMEOUT_SECONDS = 20.0
+
+
+async def _check_start_reconnect_timeout(room_id: str) -> None:
+    """Si un salon reste bloqué en attente de reconnexions après un GO,
+    retire les joueurs qui ne sont pas revenus et rouvre le salon."""
+    game = await store.get_game(room_id)
+    if not game or not game.ready_to_start or game.phase != GamePhase.WAITING:
+        return  # démarré normalement, ou salon disparu entre-temps
+
+    async with _conn_lock:
+        connected = set(_connections.get(room_id, {}).keys())
+    missing = [pos for pos in game.players if pos.value not in connected]
+    if not missing:
+        return
+
+    for pos in missing:
+        name = game.players.pop(pos, None)
+        if name:
+            game.messages.append(
+                f"{name} ({pos.value}) n'a pas pu se reconnecter — retour au salon"
+            )
+    game.ready_to_start = False
+    _closing_for_start.discard(room_id)
+    await store.set_game(game)
+    log.warning(
+        "Salon '%s' — timeout de reconnexion après GO, retrait de : %s",
+        room_id,
+        missing,
+    )
+    await broadcast(room_id, game)
+
+    async with _conn_lock:
+        sockets = list(_connections.get(room_id, {}).values())
+    for ws, _ in sockets:
+        with contextlib.suppress(Exception):
+            await ws.send_text(
+                json.dumps(
+                    {
+                        "type": "error",
+                        "message": "Un joueur n'a pas pu se reconnecter, veuillez recommencer le choix des équipes.",
+                    }
+                )
+            )
+
+
+async def _watch_start_reconnect(room_id: str) -> None:
+    await asyncio.sleep(START_RECONNECT_TIMEOUT_SECONDS)
+    await _check_start_reconnect_timeout(room_id)
+
+
 async def _dispatch_waiting(
     game: GameState, player: Position, msg: dict, room_id: str
 ) -> tuple[GameState, str | None, bool, bool]:
@@ -201,6 +255,16 @@ async def _dispatch_waiting(
             return (
                 game,
                 "Il faut exactement 2 joueurs NOUS et 2 joueurs EUX",
+                False,
+                False,
+            )
+
+        async with _conn_lock:
+            connected = set(_connections.get(room_id, {}).keys())
+        if any(p.value not in connected for p in game.players):
+            return (
+                game,
+                "Un joueur est déconnecté, impossible de démarrer",
                 False,
                 False,
             )
@@ -372,6 +436,7 @@ async def handle_connection(
                 await store.set_game(game)
                 if close_all:
                     await _close_all_connections(room_id)
+                    asyncio.create_task(_watch_start_reconnect(room_id))
                     break
                 if leave_self:
                     await _unregister(room_id, position, conn_id)

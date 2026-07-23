@@ -93,7 +93,7 @@ export default function App() {
       const msg = JSON.parse(e.data)
       if (msg.type === 'state') {
         setGame(msg.data)
-        if (msg.data.phase !== 'WAITING') {
+        if (msg.data.phase !== 'WAITING' || msg.data.ready_to_start === false) {
           setStartingGame(false)
         }
       } else if (msg.type === 'restarting') {

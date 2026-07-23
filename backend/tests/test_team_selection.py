@@ -2,13 +2,25 @@
 
 from __future__ import annotations
 
+from typing import cast
+
 import pytest
+from fastapi import WebSocket
 
 from backend.api import websocket as ws_module
 from backend.game.models import GamePhase, GameState, Position, Team
 from backend.store import memory_store as store
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
+
+_FAKE_WS = cast(WebSocket, object())
+
+
+def _mark_all_connected(room_id: str, game: GameState) -> None:
+    """Simulate every seated player having an active websocket connection."""
+    ws_module._connections[room_id] = {
+        pos.value: (_FAKE_WS, i) for i, pos in enumerate(game.players)
+    }
 
 
 def _waiting_game(room_id: str = "r", n_players: int = 4) -> GameState:
@@ -102,6 +114,7 @@ async def test_start_game_requires_all_players_to_have_chosen():
 async def test_start_game_valid_sets_ready_to_start_and_reassigns():
     game = _waiting_game()
     game.team_choices = {"N": "EW", "E": "NS", "S": "NS", "W": "EW"}
+    _mark_all_connected("r", game)
 
     game2, error, close_all, leave_self = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
@@ -122,6 +135,7 @@ async def test_start_game_valid_sets_ready_to_start_and_reassigns():
 async def test_start_game_already_balanced_default_positions():
     game = _waiting_game()
     game.team_choices = {"N": "NS", "E": "EW", "S": "NS", "W": "EW"}
+    _mark_all_connected("r", game)
 
     game2, error, close_all, leave_self = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "start_game"}, "r"
@@ -136,12 +150,95 @@ async def test_start_game_already_balanced_default_positions():
     assert ew_names == {"Player2", "Player4"}
 
 
+async def test_start_game_rejected_if_a_player_is_disconnected():
+    """Un joueur "fantôme" (déconnecté mais toujours dans game.players) doit
+    bloquer le GO — reproduit le bug prod où une déconnexion en salon
+    bloquait indéfiniment le salon après démarrage (voir _check_start_reconnect_timeout)."""
+    game = _waiting_game()
+    game.team_choices = {"N": "NS", "E": "EW", "S": "NS", "W": "EW"}
+    # Seuls 3 des 4 joueurs ont une connexion active ("W" a disparu)
+    ws_module._connections["r"] = {
+        pos.value: (_FAKE_WS, i)
+        for i, pos in enumerate(game.players)
+        if pos != Position.WEST
+    }
+
+    game2, error, close_all, leave_self = await ws_module._dispatch_waiting(
+        game, Position.NORTH, {"type": "start_game"}, "r"
+    )
+
+    assert error is not None
+    assert "déconnecté" in error
+    assert close_all is False
+    assert leave_self is False
+    assert game2.ready_to_start is False
+
+
 async def test_unknown_action_returns_error():
     game = _waiting_game()
     _, error, _, _ = await ws_module._dispatch_waiting(
         game, Position.NORTH, {"type": "play", "suit": "H", "rank": "A"}, "r"
     )
     assert error is not None
+
+
+# ── Timeout de reconnexion après GO ────────────────────────────────────────────
+# Reproduit le bug prod : un joueur qui ne se reconnecte jamais après un GO
+# (perte réseau pile au moment de la fermeture des connexions) bloquait le
+# salon indéfiniment en `ready_to_start=True`, sans aucun moyen de s'en sortir.
+
+
+async def test_check_start_reconnect_timeout_removes_missing_player():
+    room_id = "r"
+    game = _waiting_game(room_id)
+    game.ready_to_start = True
+    store._rooms[room_id] = game
+    # Seuls 3 des 4 joueurs se sont reconnectés ("W" a disparu pour de bon)
+    ws_module._connections[room_id] = {
+        pos.value: (_FAKE_WS, i)
+        for i, pos in enumerate(game.players)
+        if pos != Position.WEST
+    }
+    ws_module._closing_for_start.add(room_id)
+
+    await ws_module._check_start_reconnect_timeout(room_id)
+
+    updated = await store.get_game(room_id)
+    assert updated is not None
+    assert updated.ready_to_start is False
+    assert Position.WEST not in updated.players
+    assert len(updated.players) == 3
+    assert room_id not in ws_module._closing_for_start
+
+
+async def test_check_start_reconnect_timeout_noop_when_all_reconnected():
+    room_id = "r"
+    game = _waiting_game(room_id)
+    game.ready_to_start = True
+    store._rooms[room_id] = game
+    _mark_all_connected(room_id, game)
+
+    await ws_module._check_start_reconnect_timeout(room_id)
+
+    updated = await store.get_game(room_id)
+    assert updated is not None
+    assert updated.ready_to_start is True
+    assert len(updated.players) == 4
+
+
+async def test_check_start_reconnect_timeout_noop_when_game_already_started():
+    room_id = "r"
+    game = _waiting_game(room_id)
+    game.ready_to_start = False
+    game.phase = GamePhase.BIDDING
+    store._rooms[room_id] = game
+    ws_module._connections[room_id] = {}
+
+    await ws_module._check_start_reconnect_timeout(room_id)
+
+    updated = await store.get_game(room_id)
+    assert updated is not None
+    assert len(updated.players) == 4  # rien retiré : la manche a déjà démarré
 
 
 # ── Integration tests ─────────────────────────────────────────────────────────
