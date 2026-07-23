@@ -6,14 +6,24 @@ interface UserRecord {
   is_admin: boolean
   must_change_password: boolean
   created_at: string
+  games_played: number
+  games_won: number
+  games_lost: number
+  win_rate: number | null
+  capots_won: number
+  generales_won: number
+  contracts_taken: number
+  contracts_made: number
+  contract_success_rate: number | null
 }
 
 interface Props {
   onClose: () => void
   backLabel?: string
+  onShowStats?: () => void
 }
 
-export default function AdminPanel({ onClose, backLabel = '← Retour au jeu' }: Props) {
+export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', onShowStats }: Props) {
   const [users, setUsers] = useState<UserRecord[]>([])
   const [newUsername, setNewUsername] = useState('')
   const [tempPassword, setTempPassword] = useState<string | null>(null)
@@ -89,7 +99,14 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu' }:
     <div className="lp-root" style={{ zIndex: 100 }}>
       <div className="lp-card" style={{ maxWidth: 520 }}>
         <button className="lp-back" onClick={onClose}>{backLabel}</button>
-        <h1 className="lp-title" style={{ textAlign: 'left' }}>Gestion des joueurs</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h1 className="lp-title" style={{ textAlign: 'left', marginBottom: 0 }}>Gestion des joueurs</h1>
+          {onShowStats && (
+            <button className="lp-back-inline" style={{ marginBottom: 0 }} onClick={onShowStats}>
+              Mes statistiques
+            </button>
+          )}
+        </div>
 
         {/* Créer un joueur */}
         <div style={{ marginBottom: 24 }}>
@@ -133,33 +150,42 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu' }:
           <label className="lp-label">Joueurs ({users.length})</label>
           <ul className="lp-room-list" style={{ marginTop: 8 }}>
             {users.map(u => (
-              <li key={u.id} className="lp-room-item" style={{ cursor: 'default' }}>
-                <span className="lp-room-item-name">
-                  {u.username}
-                  {u.is_admin && (
-                    <span style={{ marginLeft: 6, fontSize: 11, color: '#91918c', fontWeight: 400 }}>
-                      admin
-                    </span>
+              <li key={u.id} className="lp-room-item" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                  <span className="lp-room-item-name">
+                    {u.username}
+                    {u.is_admin && (
+                      <span style={{ marginLeft: 6, fontSize: 11, color: '#91918c', fontWeight: 400 }}>
+                        admin
+                      </span>
+                    )}
+                    {u.must_change_password && (
+                      <span style={{ marginLeft: 6, fontSize: 11, color: '#e60023', fontWeight: 400 }}>
+                        mdp temp
+                      </span>
+                    )}
+                  </span>
+                  {!u.is_admin && (
+                    <button
+                      style={{
+                        background: 'none', border: '1.5px solid #e0e0e0',
+                        borderRadius: 8, padding: '4px 10px',
+                        fontSize: 12, color: '#9e0a0a', cursor: 'pointer',
+                        margin: 0,
+                      }}
+                      onClick={() => handleDelete(u.username)}
+                    >
+                      Supprimer
+                    </button>
                   )}
-                  {u.must_change_password && (
-                    <span style={{ marginLeft: 6, fontSize: 11, color: '#e60023', fontWeight: 400 }}>
-                      mdp temp
-                    </span>
+                </div>
+                <div className="lp-stats-line">
+                  P: {u.games_played} · V: {u.games_won} · D: {u.games_lost} ·{' '}
+                  {u.win_rate !== null ? `${Math.round(u.win_rate * 100)}%` : '—'}
+                  {(u.capots_won > 0 || u.generales_won > 0) && (
+                    <> · Capots: {u.capots_won} · Générales: {u.generales_won}</>
                   )}
-                </span>
-                {!u.is_admin && (
-                  <button
-                    style={{
-                      background: 'none', border: '1.5px solid #e0e0e0',
-                      borderRadius: 8, padding: '4px 10px',
-                      fontSize: 12, color: '#9e0a0a', cursor: 'pointer',
-                      margin: 0,
-                    }}
-                    onClick={() => handleDelete(u.username)}
-                  >
-                    Supprimer
-                  </button>
-                )}
+                </div>
               </li>
             ))}
           </ul>

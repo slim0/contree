@@ -152,6 +152,21 @@ class PocketBaseClient:
             raise PocketBaseError(r.status_code, r.text)
         return r.json()
 
+    def increment_stats(self, user_id: str, increments: dict[str, int]) -> dict:
+        """Incrémente atomiquement des compteurs via le modifieur PocketBase "champ+"
+        (ex. {"games_played+": 1}) — pas de read-modify-write réseau, PocketBase
+        applique l'incrément côté serveur au moment de l'écriture.
+        """
+        payload = {f"{field}+": amount for field, amount in increments.items()}
+        r = self._authed_request(
+            "PATCH",
+            f"/api/collections/{_USERS_COLLECTION}/records/{user_id}",
+            json=payload,
+        )
+        if r.is_error:
+            raise PocketBaseError(r.status_code, r.text)
+        return r.json()
+
     def verify_credentials(self, username: str, password: str) -> dict | None:
         """Authentifie via PocketBase (identity/password) — délègue le hachage/vérification."""
         r = self._client.post(

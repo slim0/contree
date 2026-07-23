@@ -9,6 +9,7 @@ import logging
 
 from fastapi import WebSocket, WebSocketDisconnect
 
+from backend.api import stats
 from backend.game import rules, scoring
 from backend.game.models import (
     Card,
@@ -671,3 +672,5 @@ def _log_round_result(game: GameState, room_id: str) -> None:
         log.info(
             "Salon '%s' — 🏆 PARTIE TERMINÉE — Vainqueur : %s", room_id, game.winner
         )
+
+    stats.record_round_and_game_stats(game)

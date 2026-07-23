@@ -18,6 +18,7 @@ from backend.api.auth_routes import router as auth_router
 from backend.api.dev_routes import router as dev_router
 from backend.api.limiter import limiter
 from backend.api.routes import router
+from backend.api.users_routes import router as users_router
 from backend.api.websocket import handle_connection
 from backend.auth.service import decode_token, generate_temp_password
 from backend.pocketbase.client import PB_URL, get_pb_client
@@ -114,6 +115,7 @@ app.add_middleware(
 app.include_router(router, prefix="/api")
 app.include_router(auth_router, prefix="/api")
 app.include_router(admin_router, prefix="/api")
+app.include_router(users_router, prefix="/api")
 if os.getenv("DEVELOPMENT", "false").lower() == "true":
     app.include_router(dev_router, prefix="/api")
 

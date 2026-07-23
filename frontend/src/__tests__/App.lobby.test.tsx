@@ -129,6 +129,24 @@ describe('App — rejoindre un salon', () => {
 
   // Scripts DEV/init*.sh --quick : le salon est déjà créé côté backend (dev quickstart),
   // le front doit s'y connecter directement sans passer par le lobby.
+  it('affiche le panel "Mes statistiques" au clic sur le bouton du lobby', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ username: 'alice', is_admin: false, must_change_password: false }),
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: [] }) })
+
+    render(<App />)
+
+    const statsButton = await screen.findByText('Mes statistiques')
+    fireEvent.click(statsButton)
+
+    await waitFor(() => {
+      expect(screen.getByRole('heading', { name: 'Mes statistiques' })).toBeInTheDocument()
+    })
+  })
+
   it('se connecte automatiquement au salon donné par ?room=CODE dans l\'URL', async () => {
     window.history.pushState({}, '', '/?room=test')
     mockFetch.mockResolvedValueOnce({

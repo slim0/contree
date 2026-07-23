@@ -62,15 +62,65 @@ def test_delete_user(pb_client):
     assert repo.get_by_username("testuser") is None
 
 
+# ── Statistiques ────────────────────────────────────────────────────────────────
+
+
+def test_new_user_stats_default_to_zero(pb_client):
+    repo = UserRepository(pb_client)
+    user = repo.create("brandnew", "pass12345")
+    assert user.games_played == 0
+    assert user.games_won == 0
+    assert user.games_lost == 0
+    assert user.capots_won == 0
+    assert user.generales_won == 0
+    assert user.contracts_taken == 0
+    assert user.contracts_made == 0
+    assert user.win_rate is None
+    assert user.contract_success_rate is None
+
+
+def test_increment_stats_accumulates(pb_client):
+    repo = UserRepository(pb_client)
+    user = repo.get_by_username("testuser")
+    assert user is not None
+    repo.increment_stats(user.id, {"games_played": 1, "games_won": 1})
+    repo.increment_stats(user.id, {"games_played": 1})
+    updated = repo.get_by_username("testuser")
+    assert updated is not None
+    assert updated.games_played == 2
+    assert updated.games_won == 1
+
+
+def test_win_rate_and_contract_success_rate_computed(pb_client):
+    repo = UserRepository(pb_client)
+    user = repo.get_by_username("testuser")
+    assert user is not None
+    updated = repo.increment_stats(
+        user.id,
+        {
+            "games_played": 3,
+            "games_won": 2,
+            "contracts_taken": 4,
+            "contracts_made": 3,
+        },
+    )
+    assert updated.win_rate == 2 / 3
+    assert updated.contract_success_rate == 3 / 4
+
+
 # ── Routes admin ──────────────────────────────────────────────────────────────
 
 
 def test_list_users_as_admin(admin_client):
     r = admin_client.get("/api/admin/users")
     assert r.status_code == 200
-    usernames = [u["username"] for u in r.json()]
+    body = r.json()
+    usernames = [u["username"] for u in body]
     assert "admin" in usernames
     assert "testuser" in usernames
+    testuser = next(u for u in body if u["username"] == "testuser")
+    assert testuser["games_played"] == 0
+    assert testuser["win_rate"] is None
 
 
 def test_list_users_forbidden_for_regular_user(auth_client):
@@ -115,3 +165,34 @@ def test_delete_unknown_user_returns_404(admin_client):
 def test_delete_user_forbidden_for_regular_user(auth_client):
     r = auth_client.delete("/api/admin/users/admin")
     assert r.status_code == 403
+
+
+# ── Route /api/users/me/stats ───────────────────────────────────────────────────
+
+
+def test_my_stats_returns_own_stats(auth_client):
+    r = auth_client.get("/api/users/me/stats")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["username"] == "testuser"
+    assert body["games_played"] == 0
+    assert body["win_rate"] is None
+
+
+def test_my_stats_reflects_increments(pb_client, auth_client):
+    repo = UserRepository(pb_client)
+    user = repo.get_by_username("testuser")
+    assert user is not None
+    repo.increment_stats(user.id, {"games_played": 1, "games_won": 1})
+
+    r = auth_client.get("/api/users/me/stats")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["games_played"] == 1
+    assert body["games_won"] == 1
+    assert body["win_rate"] == 1.0
+
+
+def test_my_stats_unauthenticated(client):
+    r = client.get("/api/users/me/stats")
+    assert r.status_code == 401

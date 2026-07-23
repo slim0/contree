@@ -5,10 +5,25 @@ import AdminPanel from '../components/admin/AdminPanel'
 const mockFetch = vi.fn()
 global.fetch = mockFetch
 
+const baseStats = {
+  games_played: 0,
+  games_won: 0,
+  games_lost: 0,
+  win_rate: null,
+  capots_won: 0,
+  generales_won: 0,
+  contracts_taken: 0,
+  contracts_made: 0,
+  contract_success_rate: null,
+}
+
 const mockUsers = [
-  { id: 1, username: 'admin', is_admin: true, must_change_password: false, created_at: '2024-01-01T00:00:00Z' },
-  { id: 2, username: 'alice', is_admin: false, must_change_password: false, created_at: '2024-01-02T00:00:00Z' },
-  { id: 3, username: 'bob', is_admin: false, must_change_password: true, created_at: '2024-01-03T00:00:00Z' },
+  { id: 1, username: 'admin', is_admin: true, must_change_password: false, created_at: '2024-01-01T00:00:00Z', ...baseStats },
+  {
+    id: 2, username: 'alice', is_admin: false, must_change_password: false, created_at: '2024-01-02T00:00:00Z',
+    ...baseStats, games_played: 10, games_won: 6, games_lost: 4, win_rate: 0.6,
+  },
+  { id: 3, username: 'bob', is_admin: false, must_change_password: true, created_at: '2024-01-03T00:00:00Z', ...baseStats },
 ]
 
 describe('AdminPanel', () => {
@@ -47,6 +62,14 @@ describe('AdminPanel', () => {
     expect(deleteButtons).toHaveLength(2)
   })
 
+  it('affiche les statistiques par joueur', async () => {
+    render(<AdminPanel onClose={onClose} />)
+    await waitFor(() => screen.getByText('alice'))
+    expect(screen.getByText(/P: 10 · V: 6 · D: 4 · 60%/)).toBeInTheDocument()
+    // admin et bob n'ont jamais joué : taux de victoire affiché comme "—", pas "NaN%" ni "0%"
+    expect(screen.getAllByText(/P: 0 · V: 0 · D: 0 · —/)).toHaveLength(2)
+  })
+
   it('appelle onClose au clic sur Retour', async () => {
     render(<AdminPanel onClose={onClose} />)
     fireEvent.click(screen.getByText(/Retour au jeu/i))
@@ -81,6 +104,18 @@ describe('AdminPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('MotDePasseTemp')).toBeInTheDocument()
     }, { timeout: 3000 })
+  })
+
+  it('affiche un lien "Mes statistiques" quand onShowStats est fourni', async () => {
+    const onShowStats = vi.fn()
+    render(<AdminPanel onClose={onClose} onShowStats={onShowStats} />)
+    fireEvent.click(screen.getByText('Mes statistiques'))
+    expect(onShowStats).toHaveBeenCalled()
+  })
+
+  it('n\'affiche pas de lien "Mes statistiques" sans onShowStats', async () => {
+    render(<AdminPanel onClose={onClose} />)
+    expect(screen.queryByText('Mes statistiques')).not.toBeInTheDocument()
   })
 
   it('affiche une erreur si le nom d\'utilisateur est déjà pris', async () => {

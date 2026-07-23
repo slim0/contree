@@ -36,6 +36,19 @@ class UserRepository:
         record = self._pb.set_password(user.id, new_password)
         return User.from_record(record)
 
+    def increment_stats(self, user_id: str, increments: dict[str, int]) -> User:
+        """increments = {"games_played": 1, "games_won": 1, ...}. Effet de bord non
+        critique : les appelants doivent avaler les exceptions (voir backend/api/stats.py)
+        plutôt que de laisser un échec de stats interrompre une partie en cours.
+
+        Limite acceptée : rien n'empêche aujourd'hui un même joueur de rejoindre deux
+        parties actives simultanément (memory_store.join_room ne vérifie l'unicité que
+        par room_id) — dans ce cas non-nominal, deux incréments concurrents sur le même
+        utilisateur pourraient se chevaucher.
+        """
+        record = self._pb.increment_stats(user_id, increments)
+        return User.from_record(record)
+
     def verify_credentials(self, username: str, password: str) -> User | None:
         """Vérifie les identifiants via PocketBase (qui gère le hachage)."""
         record = self._pb.verify_credentials(username, password)

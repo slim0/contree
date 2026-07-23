@@ -6,6 +6,7 @@ import Game from './Game'
 import LoginPage from './components/auth/LoginPage'
 import ChangePasswordPage from './components/auth/ChangePasswordPage'
 import AdminPanel from './components/admin/AdminPanel'
+import PlayerStatsPanel from './components/stats/PlayerStatsPanel'
 
 const STORAGE_ROOM = 'contree_room'
 
@@ -24,6 +25,7 @@ function genRoomCode(): string {
 export default function App() {
   const { user, loading, setUser, setLoading } = useAuthStore()
   const [showAdmin, setShowAdmin] = useState(false)
+  const [showStats, setShowStats] = useState(false)
   const [roomId, setRoomId] = useState(() => sessionStorage.getItem(STORAGE_ROOM) ?? '')
   const [step, setStep] = useState<'lobby'>('lobby')
   const [joinMode, setJoinMode] = useState(false)
@@ -214,12 +216,27 @@ export default function App() {
     )
   }
 
+  if (showStats) {
+    return <PlayerStatsPanel onClose={() => setShowStats(false)} />
+  }
+
   if (user.is_admin) {
-    return <AdminPanel onClose={handleLogout} backLabel="Déconnexion" />
+    return (
+      <AdminPanel
+        onClose={handleLogout}
+        backLabel="Déconnexion"
+        onShowStats={() => setShowStats(true)}
+      />
+    )
   }
 
   if (showAdmin) {
-    return <AdminPanel onClose={() => setShowAdmin(false)} />
+    return (
+      <AdminPanel
+        onClose={() => setShowAdmin(false)}
+        onShowStats={() => setShowStats(true)}
+      />
+    )
   }
 
   // ── Reconnexion en cours ───────────────────────────────────────────────────
@@ -250,6 +267,9 @@ export default function App() {
                   Admin
                 </button>
               )}
+              <button className="lp-btn-copy" style={{ width: 'auto', marginTop: 0 }} onClick={() => setShowStats(true)}>
+                Mes statistiques
+              </button>
               <button className="lp-btn-copy" style={{ width: 'auto', marginTop: 0 }} onClick={handleLogout}>
                 Déconnexion
               </button>

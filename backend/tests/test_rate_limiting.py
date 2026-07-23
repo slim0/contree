@@ -33,6 +33,13 @@ def test_me_rate_limit(auth_client):
     assert r.status_code == 429
 
 
+def test_my_stats_rate_limit(auth_client):
+    for _ in range(60):
+        auth_client.get("/api/users/me/stats")
+    r = auth_client.get("/api/users/me/stats")
+    assert r.status_code == 429
+
+
 def test_admin_list_users_rate_limit(admin_client):
     for _ in range(30):
         admin_client.get("/api/admin/users")
