@@ -163,3 +163,24 @@ def test_capot_failed_scores_250_points_times_multiplier_for_defense():
     result = compute_round_result(r)
     assert result.contract_made is False
     assert result.score_ew == 500
+
+
+def test_capot_made_contre_scores_500_for_preneurs():
+    r = _make_capot_round(tricks_go_to=Team.NORTH_SOUTH)
+    assert r.contract is not None
+    r.contract.double = Double.CONTRE
+    result = compute_round_result(r)
+    assert result.contract_made is True
+    assert result.score_ns == 500
+    assert result.score_ew == 0
+
+
+def test_capot_made_surcontre_scores_1000_for_preneurs():
+    # Cas exact du bug rapporté : capot surcoinché puis réussi = 250 × 4.
+    r = _make_capot_round(tricks_go_to=Team.NORTH_SOUTH)
+    assert r.contract is not None
+    r.contract.double = Double.SURCONTRE
+    result = compute_round_result(r)
+    assert result.contract_made is True
+    assert result.score_ns == 1000
+    assert result.score_ew == 0

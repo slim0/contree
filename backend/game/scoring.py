@@ -108,8 +108,8 @@ def compute_round_result(r: RoundState) -> RoundResult:
     ]
 
     if contract_made:
-        # Preneurs score the announced value
-        preneurs_score = contract_value
+        # Preneurs score the announced value × multiplier (contre/surcontre)
+        preneurs_score = contract_value * multiplier
         # La belote ne profite jamais à la défense, qu'elle l'ait annoncée ou non
         defenders_score = 0
 
@@ -126,8 +126,10 @@ def compute_round_result(r: RoundState) -> RoundResult:
                 " (belote défense : non comptée, seuls les preneurs en profitent)"
             )
 
+        mult_msg = f" ×{multiplier}" if multiplier > 1 else ""
         msg = (
-            f"Contrat RÉUSSI — {bidding_team.value} marque {preneurs_score}, "
+            f"Contrat RÉUSSI — {bidding_team.value} marque {contract_value}{mult_msg} "
+            f"= {preneurs_score}, "
             f"{defending_team.value} marque {defenders_score}{belote_msg}"
         )
     else:
