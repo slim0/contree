@@ -54,6 +54,18 @@ async def test_leave_removes_player_from_game():
     assert Position.EAST in result_game.players
 
 
+async def test_leave_reassigns_creator_to_remaining_player():
+    game = _make_waiting_room("r", {Position.NORTH: "Alice", Position.EAST: "Bob"})
+    game.creator = "Alice"
+
+    result_game, _, _, _ = await ws_module._dispatch_waiting(
+        game, Position.NORTH, {"type": "leave"}, "r"
+    )
+
+    # Le créateur est parti → transfert à un joueur restant, sinon salon indémarrable
+    assert result_game.creator == "Bob"
+
+
 async def test_leave_adds_message_to_game():
     game = _make_waiting_room("r", {Position.NORTH: "Alice"})
 

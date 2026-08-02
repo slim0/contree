@@ -376,6 +376,8 @@ class GameState:
     last_result: RoundResult | None
     messages: list[str]
     room_name: str = ""
+    # username du joueur ayant créé le salon (premier connecté) — seul autorisé à lancer la partie
+    creator: str = ""
     # team_choices: position_str → "NS"|"EW", set during WAITING phase
     team_choices: dict[str, str] = field(default_factory=dict)
     ready_to_start: bool = False
@@ -387,6 +389,7 @@ class GameState:
         return {
             "room_id": self.room_id,
             "room_name": self.room_name,
+            "creator": self.creator,
             "players": {p.value: n for p, n in self.players.items()},
             "scores": {t.value: s for t, s in self.scores.items()},
             "target_score": self.target_score,

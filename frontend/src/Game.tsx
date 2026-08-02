@@ -687,7 +687,8 @@ export default function Game({ game, error, send }: {
 
     const nsCount = slots.filter(p => game.team_choices[p] === 'NS').length
     const ewCount = slots.filter(p => game.team_choices[p] === 'EW').length
-    const canGo = joined === 4 && nsCount === 2 && ewCount === 2
+    const isCreator = game.players[game.my_position] === game.creator
+    const canGo = joined === 4 && nsCount === 2 && ewCount === 2 && isCreator
 
     return (
       <div className="lp-root">
@@ -845,14 +846,20 @@ export default function Game({ game, error, send }: {
             })}
           </div>
 
-          <button
-            className="lp-btn-primary"
-            disabled={!canGo}
-            style={{ marginTop: 20 }}
-            onClick={() => canGo && send({ type: 'start_game' })}
-          >
-            GO !
-          </button>
+          {isCreator ? (
+            <button
+              className="lp-btn-primary"
+              disabled={!canGo}
+              style={{ marginTop: 20 }}
+              onClick={() => canGo && send({ type: 'start_game' })}
+            >
+              GO !
+            </button>
+          ) : (
+            <div style={{ marginTop: 20, color: '#aaa', fontSize: 14 }}>
+              En attente du créateur du salon…
+            </div>
+          )}
 
           <button
             className="lp-btn-secondary"

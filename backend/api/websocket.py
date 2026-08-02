@@ -245,6 +245,9 @@ async def _dispatch_waiting(
         return game, None, False, False
 
     elif action == "start_game":
+        if game.creator and game.players.get(player) != game.creator:
+            return game, "Seul le créateur du salon peut lancer la partie", False, False
+
         if len(game.players) != 4:
             return game, "Il faut 4 joueurs pour démarrer", False, False
 
@@ -298,6 +301,9 @@ async def _dispatch_waiting(
     elif action == "leave":
         name = game.players.pop(player, None)
         game.team_choices.pop(player.value, None)
+        if name == game.creator:
+            # le créateur part : transférer à un joueur restant, sinon salon indémarrable
+            game.creator = next(iter(game.players.values()), "")
         if name:
             game.messages.append(f"{name} ({player.value}) a quitté le salon")
         log.info("Salon '%s' — %s quitte le salon", room_id, tag)
@@ -331,6 +337,7 @@ async def handle_connection(
             return
         log.info("Salon '%s' créé (score cible : %d)", room_id, target_score)
         game = await store.create_room(room_id, target_score, room_name)
+        game.creator = player_name  # le premier connecté est le créateur du salon
 
     if game.phase == GamePhase.FINISHED:
         log.warning("Salon '%s' terminé — %s refusé", room_id, player_name)

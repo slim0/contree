@@ -10,6 +10,7 @@ from fastapi import WebSocket
 from backend.api import websocket as ws_module
 from backend.game.models import GamePhase, GameState, Position, Team
 from backend.store import memory_store as store
+from backend.tests.conftest import TEST_USER
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,7 @@ def _waiting_game(room_id: str = "r", n_players: int = 4) -> GameState:
         winner=None,
         last_result=None,
         messages=[],
+        creator="Player1",  # North par défaut — seul autorisé à lancer la partie
     )
 
 
@@ -130,6 +132,36 @@ async def test_start_game_valid_sets_ready_to_start_and_reassigns():
     ew_names = {game2.players[Position.EAST], game2.players[Position.WEST]}
     assert ns_names == {"Player2", "Player3"}
     assert ew_names == {"Player1", "Player4"}
+
+
+async def test_start_game_rejected_if_not_creator():
+    game = _waiting_game()
+    game.team_choices = {"N": "NS", "E": "EW", "S": "NS", "W": "EW"}
+    _mark_all_connected("r", game)
+
+    # Player2 (EAST) tente de lancer alors que le créateur est Player1 (NORTH)
+    game2, error, close_all, _ = await ws_module._dispatch_waiting(
+        game, Position.EAST, {"type": "start_game"}, "r"
+    )
+
+    assert error is not None
+    assert "créateur" in error
+    assert close_all is False
+    assert game2.ready_to_start is False
+
+
+async def test_start_game_allowed_for_creator():
+    game = _waiting_game()
+    game.team_choices = {"N": "NS", "E": "EW", "S": "NS", "W": "EW"}
+    _mark_all_connected("r", game)
+
+    game2, error, close_all, _ = await ws_module._dispatch_waiting(
+        game, Position.NORTH, {"type": "start_game"}, "r"
+    )
+
+    assert error is None
+    assert close_all is True
+    assert game2.ready_to_start is True
 
 
 async def test_start_game_already_balanced_default_positions():
@@ -274,6 +306,7 @@ def test_start_game_rejected_without_balance(auth_client):
     room_id = "room-sg"
     store._rooms[room_id] = _waiting_game(room_id, n_players=0)
     store._rooms[room_id].players = {}
+    store._rooms[room_id].creator = TEST_USER  # le connecteur est le créateur
 
     with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
         ws.receive_json()  # état initial

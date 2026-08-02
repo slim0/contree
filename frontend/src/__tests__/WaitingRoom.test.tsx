@@ -6,6 +6,7 @@ import type { GameData } from '../types'
 const makeWaitingGame = (overrides: Partial<GameData> = {}): GameData => ({
   room_id: 'TEST',
   room_name: 'Salon Test',
+  creator: 'Alice',
   players: {},
   scores: { NS: 0, EW: 0 },
   target_score: 1000,
@@ -141,6 +142,27 @@ describe('WaitingRoom', () => {
     render(<Game game={game} error={null} send={send} />)
     fireEvent.click(screen.getByText('GO !'))
     expect(send).toHaveBeenCalledWith({ type: 'start_game' })
+  })
+
+  it('le bouton GO n\'apparaît pas pour un non-créateur', () => {
+    const game = makeWaitingGame({
+      players: { N: 'Alice', E: 'Bob', S: 'Carol', W: 'Dave' },
+      team_choices: { N: 'NS', E: 'EW', S: 'NS', W: 'EW' },
+      my_position: 'E', // Bob n'est pas le créateur (Alice l'est)
+    })
+    render(<Game game={game} error={null} send={vi.fn()} />)
+    expect(screen.queryByText('GO !')).toBeNull()
+    expect(screen.getByText(/En attente du créateur/)).toBeInTheDocument()
+  })
+
+  it('le bouton GO apparaît pour le créateur', () => {
+    const game = makeWaitingGame({
+      players: { N: 'Alice', E: 'Bob', S: 'Carol', W: 'Dave' },
+      team_choices: { N: 'NS', E: 'EW', S: 'NS', W: 'EW' },
+      my_position: 'N', // Alice est le créateur
+    })
+    render(<Game game={game} error={null} send={vi.fn()} />)
+    expect(screen.getByText('GO !')).not.toBeDisabled()
   })
 
   it('affiche les tirets pour les emplacements vides', () => {
