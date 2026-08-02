@@ -154,6 +154,25 @@ describe('BidCenter — enchères par boutons', () => {
     expect(screen.queryByText('Coinche !')).toBeNull()
   })
 
+  it("affiche l'enchère à battre reconstituée depuis le bid_history", () => {
+    const round = makeRound(
+      { can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 100, can_bid_capot: false, can_bid_generale: false },
+      { bid_history: [{ position: 'W', action: 'bid', bid: { position: 'W', value: 90, is_capot: false, is_generale: false, trump: 'H' } }] }
+    )
+    const { container } = render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
+    const toBeat = container.querySelector('.bid-to-beat')
+    expect(toBeat).not.toBeNull()
+    expect(toBeat?.textContent).toContain('À battre')
+    expect(toBeat?.textContent).toContain('90')
+    expect(toBeat?.textContent).toContain('Cœur')
+  })
+
+  it("n'affiche pas d'enchère à battre tant qu'aucune enchère n'a été posée", () => {
+    const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
+    const { container } = render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
+    expect(container.querySelector('.bid-to-beat')).toBeNull()
+  })
+
   it("affiche la dernière enchère de chaque joueur en badge, pas dans une liste centrale", () => {
     const round = makeRound(
       { can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 90, can_bid_capot: false, can_bid_generale: false },

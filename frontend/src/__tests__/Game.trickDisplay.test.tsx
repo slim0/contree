@@ -95,3 +95,40 @@ describe('Affichage du pli terminé', () => {
     expect(container.querySelector('.trick-pos-left')?.textContent).toContain('K')
   })
 })
+
+describe('Cartes jouables / injouables dans ma main', () => {
+  it('estompe les injouables et met en évidence les jouables quand c’est à moi', () => {
+    const round = makeRound({
+      current_player: 'N', // moi
+      hands: { N: [{ suit: 'H', rank: 'A' }, { suit: 'S', rank: '7' }], E: [], S: [], W: [] },
+      legal_plays: [{ suit: 'H', rank: 'A' }], // seul l'As ♥ est jouable
+      tricks: [],
+      current_trick: { cards: [{ position: 'W', card: { suit: 'H', rank: '8' } }], winner: null },
+    })
+    const { container } = render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
+
+    const cards = [...container.querySelectorAll('.slot-bottom .playing-card')]
+    const playable = cards.filter(c => c.classList.contains('playable'))
+    const dimmed = cards.filter(c => c.classList.contains('dimmed'))
+
+    expect(playable).toHaveLength(1)
+    expect(dimmed).toHaveLength(1)
+    expect(playable[0].textContent).toContain('A')
+    expect(dimmed[0].textContent).toContain('7')
+  })
+
+  it('n’estompe aucune carte quand ce n’est pas mon tour', () => {
+    const round = makeRound({
+      current_player: 'E', // adversaire
+      hands: { N: [{ suit: 'H', rank: 'A' }, { suit: 'S', rank: '7' }], E: [], S: [], W: [] },
+      legal_plays: [],
+      tricks: [],
+      current_trick: { cards: [], winner: null },
+    })
+    const { container } = render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
+
+    const cards = [...container.querySelectorAll('.slot-bottom .playing-card')]
+    expect(cards.some(c => c.classList.contains('dimmed'))).toBe(false)
+    expect(cards.some(c => c.classList.contains('playable'))).toBe(false)
+  })
+})

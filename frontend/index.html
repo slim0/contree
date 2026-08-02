@@ -241,6 +241,23 @@
       .wr-toggle.readonly { cursor: default; }
       .wr-toggle:not(.readonly):hover { opacity: 0.8; }
 
+      /* Chat vocal de la salle d'attente */
+      .wr-voice { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 8px 12px; background: #1a1a1a; border-radius: 16px; }
+      .wr-voice-error { color: #f66; font-size: 12px; }
+      .wr-voice-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 8px; border-radius: 12px; background: #222; transition: background-color 0.15s ease; }
+      .wr-voice-chip.speaking { background: #2a2; }
+      .wr-voice-dot { width: 14px; height: 14px; border-radius: 50%; background: #4a4; transition: background-color 0.15s ease; }
+      .wr-voice-dot.off { background: #666; }
+      .wr-voice-name { font-size: 11px; font-weight: 600; color: #ccc; }
+      .wr-voice-name.me { color: #ffa; }
+      .wr-voice-badge { font-size: 10px; padding: 2px 5px; border-radius: 6px; background: #444; color: #fff; font-weight: 700; transition: all 0.15s ease; }
+      .wr-voice-badge.speaking { background: #383; }
+      .wr-voice-btn { border: none; border-radius: 8px; padding: 6px 12px; margin: 0 0 0 8px; min-height: 0; box-shadow: none; font-size: 12px; font-weight: 600; color: #fff; background: #2a2; transition: background 0.15s ease; }
+      .wr-voice-btn:hover:not(:disabled) { background: #2a2; }
+      .wr-voice-btn.off:hover:not(:disabled) { background: #333; }
+      .wr-voice-btn.off { background: #333; color: #888; }
+      .wr-voice-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
       button { margin: 2px; padding: 8px 14px; cursor: pointer; background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%); color: #eee; border: 1px solid #555; border-radius: 6px; font-family: inherit; font-size: 0.9em; min-height: 38px; touch-action: manipulation; box-shadow: 0 2px 4px rgba(0,0,0,0.3); }
       button:hover { background: linear-gradient(180deg, #5a5a5a 0%, #4a4a4a 100%); }
       button.action { border-color: #c87; color: #f96; background: linear-gradient(180deg, #5a3a20 0%, #4a2a10 100%); }
@@ -376,11 +393,6 @@
       .rr-total  { font-size: 0.75em; color: #888; }
       .rr-score-sep { font-size: 1.2em; color: #555; }
 
-      /* ── SCORE PROGRESS BARS (slim) ── */
-      .score-bars { display: flex; flex-direction: column; gap: 3px; margin: 0; }
-      .score-bar-item { height: 4px; background: #2a2a2a; border-radius: 2px; overflow: hidden; }
-      .score-bar-fill { height: 100%; border-radius: 2px; transition: width 0.4s; }
-
       /* ── TABLE LOSANGE ── */
       .table-wrap {
         flex: 1;
@@ -490,6 +502,7 @@
         box-shadow: 0 0 20px rgba(255,215,0,0.8), 0 4px 12px rgba(0,0,0,0.5);
         border-color: #ffd700;
       }
+      .playing-card.dimmed { opacity: 0.4; filter: grayscale(0.6); transition: opacity 0.15s, filter 0.15s; }
       .playing-card.compact { width: 62px; height: 90px; padding: 3px 4px; }
       .pc-tl { align-self: flex-start; text-align: center; line-height: 1.1; }
       .pc-br { align-self: flex-end; text-align: center; line-height: 1.1; transform: rotate(180deg); }
@@ -592,6 +605,7 @@
         color: #888;
         text-align: center;
       }
+      .bid-to-beat { font-size: 0.72em; text-align: center; color: #ddd; }
       /* Pastille d'historique — réutilisée par le badge de dernière enchère de chaque joueur */
       .bid-entry-row {
         display: inline-flex;
@@ -601,10 +615,6 @@
         font-size: 0.78em;
         gap: 5px;
         white-space: nowrap;
-      }
-      .bid-entry-sep {
-        color: #444;
-        flex-shrink: 0;
       }
       .bid-entry-row.bid-pass {
         background: rgba(0,0,0,0.35);
@@ -679,14 +689,9 @@
         display: flex;
         gap: 5px;
       }
-      .bid-pass-btn, .bid-capot-btn {
+      .bid-pass-btn {
         flex: 1;
         font-size: 0.85em;
-      }
-      .bid-capot-btn.selected {
-        border-color: #4caf50;
-        color: #fff;
-        background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
       }
       .bid-center-waiting {
         text-align: center;
@@ -770,13 +775,14 @@
         .panel { padding: 6px 10px; margin: 3px 0; border-radius: 6px; }
         .bid-center { padding: 1px 4px; gap: 1px; min-width: 110px; }
         .bid-center-label { display: none; }
+        .bid-to-beat { display: none; }
         .bid-center-controls { gap: 1px; }
         .bid-double-row, .bid-value-row, .bid-action-row { gap: 1px; }
         .bid-suit-grid { gap: 1px; }
         .bid-suit-btn { padding: 1px 2px; font-size: 0.76em; min-height: 13px; }
         .bid-value-btn { padding: 1px 4px; min-height: 13px; }
         .bid-page-arrow { padding: 1px 6px; min-height: 13px; min-width: 18px; }
-        .bid-double-btn, .bid-pass-btn, .bid-capot-btn { min-height: 13px; }
+        .bid-double-btn, .bid-pass-btn { min-height: 13px; }
       }
 
       /* ── PORTRAIT MOBILE (≤ 640px de largeur) ── */

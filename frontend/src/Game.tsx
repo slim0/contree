@@ -145,14 +145,14 @@ function CardBack({ compact }: { compact?: boolean }) {
   )
 }
 
-function PlayingCard({ card, playable, onClick, style, compact, winner }: {
-  card: CardData; playable?: boolean; onClick?: () => void
+function PlayingCard({ card, playable, dimmed, onClick, style, compact, winner }: {
+  card: CardData; playable?: boolean; dimmed?: boolean; onClick?: () => void
   style?: React.CSSProperties; compact?: boolean; winner?: boolean
 }) {
   const sym = SUIT_SYM[card.suit] ?? card.suit
   const isRed = card.suit === 'H' || card.suit === 'D'
   const cls = ['playing-card', isRed ? 'red' : 'black',
-    playable ? 'playable' : '', compact ? 'compact' : '', winner ? 'winner' : '']
+    playable ? 'playable' : '', dimmed ? 'dimmed' : '', compact ? 'compact' : '', winner ? 'winner' : '']
     .filter(Boolean).join(' ')
   return (
     <div className={cls} onClick={onClick} style={style}
@@ -351,6 +351,9 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
   const currentBidder = r.current_bidder ? (game.players[r.current_bidder] ?? r.current_bidder) : null
   const currentTeam   = r.current_bidder ? TEAM[r.current_bidder] : null
 
+  // Enchère en tête à dépasser (même pattern que getCurrentTrump).
+  const lead = [...r.bid_history].reverse().find(e => e.action === 'bid')
+
   const chooseSuit = (trump: string) => {
     if (mode === 'capot') send({ type: 'bid', value: 0, trump, is_capot: true })
     else if (mode === 'generale') send({ type: 'bid', value: 0, trump, is_capot: false, is_generale: true })
@@ -360,6 +363,15 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
   return (
     <div className="bid-center">
       <div className="bid-center-label">Enchères</div>
+      {lead?.bid && (
+        <div className="bid-to-beat">
+          À battre ·{' '}
+          <span className={TEAM[lead.position] === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
+            {TEAM_LABEL[TEAM[lead.position]] ?? TEAM[lead.position]}
+          </span>{' '}
+          {bidValueLabel(lead.bid)} {TRUMP_LABELS[lead.bid.trump] ?? lead.bid.trump}
+        </div>
+      )}
 
       {actions ? (
         <div className="bid-center-controls">
@@ -705,116 +717,30 @@ export default function Game({ game, error, send }: {
 
           {/* ─── Chat vocal ── */}
           <div style={{ marginBottom: 16 }}>
-            <div
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                flexWrap: 'wrap',
-                gap: 8,
-                padding: '8px 12px',
-                backgroundColor: '#1a1a1a',
-                borderRadius: 16,
-              }}
-            >
-              {voiceError && <span style={{ color: '#f66', fontSize: 12 }}>{voiceError}</span>}
+            <div className="wr-voice">
+              {voiceError && <span className="wr-voice-error">{voiceError}</span>}
 
               {/* Indicateur pour moi */}
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '4px 8px',
-                  borderRadius: 12,
-                  backgroundColor: localIsSpeaking ? '#2a2' : '#222',
-                  transition: 'background-color 0.15s ease',
-                }}
-              >
-                <span
-                  style={{
-                    width: 14,
-                    height: 14,
-                    borderRadius: '50%',
-                    backgroundColor: isMuted ? '#666' : '#4a4',
-                    transition: 'background-color 0.15s ease',
-                  }}
-                  title={isMuted ? 'Micro coupé' : 'Micro activé'}
-                />
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#ffa' }}>
-                  {game.players[me] ?? me}
-                </span>
-                <span
-                  style={{
-                    fontSize: 10,
-                    padding: '2px 5px',
-                    borderRadius: 6,
-                    backgroundColor: localIsSpeaking ? '#383' : '#444',
-                    color: '#fff',
-                    fontWeight: 700,
-                    transition: 'all 0.15s ease',
-                  }}
-                >
-                  {me}
-                </span>
+              <span className={`wr-voice-chip${localIsSpeaking ? ' speaking' : ''}`}>
+                <span className={`wr-voice-dot${isMuted ? ' off' : ''}`}
+                  title={isMuted ? 'Micro coupé' : 'Micro activé'} />
+                <span className="wr-voice-name me">{game.players[me] ?? me}</span>
+                <span className={`wr-voice-badge${localIsSpeaking ? ' speaking' : ''}`}>{me}</span>
               </span>
 
               {/* Indicateurs pour les autres joueurs */}
               {Array.from(voicePeers.entries()).map(([position, peer]) => (
-                <span
-                  key={position}
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
-                    padding: '4px 8px',
-                    borderRadius: 12,
-                    backgroundColor: peer.isSpeaking ? '#2a2' : '#222',
-                    transition: 'background-color 0.15s ease',
-                  }}
-                >
-                  <span
-                    style={{
-                      width: 14,
-                      height: 14,
-                      borderRadius: '50%',
-                      backgroundColor: peer.connectionState === 'connected' ? '#4a4' : '#666',
-                    }}
-                  />
-                  <span style={{ fontSize: 11, fontWeight: 600, color: '#ccc' }}>
-                    {game.players[position] ?? position}
-                  </span>
-                  <span
-                    style={{
-                      fontSize: 10,
-                      padding: '2px 5px',
-                      borderRadius: 6,
-                      backgroundColor: peer.isSpeaking ? '#383' : '#444',
-                      color: '#fff',
-                      fontWeight: 700,
-                      transition: 'all 0.15s ease',
-                    }}
-                  >
-                    {position}
-                  </span>
+                <span key={position} className={`wr-voice-chip${peer.isSpeaking ? ' speaking' : ''}`}>
+                  <span className={`wr-voice-dot${peer.connectionState === 'connected' ? '' : ' off'}`} />
+                  <span className="wr-voice-name">{game.players[position] ?? position}</span>
+                  <span className={`wr-voice-badge${peer.isSpeaking ? ' speaking' : ''}`}>{position}</span>
                 </span>
               ))}
 
               <button
+                className={`wr-voice-btn${isMuted || voiceError ? ' off' : ''}`}
                 onClick={toggleMute}
                 disabled={!!voiceError}
-                style={{
-                  background: voiceError ? '#333' : isMuted ? '#333' : '#2a2',
-                  border: 'none',
-                  borderRadius: 8,
-                  padding: '6px 12px',
-                  cursor: voiceError ? 'not-allowed' : 'pointer',
-                  opacity: voiceError ? 0.4 : 1,
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: isMuted ? '#888' : '#fff',
-                  marginLeft: 8,
-                  transition: 'background 0.15s ease',
-                }}
                 title={voiceError ? voiceError : isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
               >
                 {isMuted ? 'MICRO MUTE' : 'MICRO ON'}
@@ -997,12 +923,13 @@ export default function Game({ game, error, send }: {
                   {sortedHand.map((c, i) => {
                     const key = `${c.rank}${c.suit}`
                     const playable = isMyTurnPlay && legalSet.has(key)
+                    const dimmed = isMyTurnPlay && !legalSet.has(key)
                     const k = fanN > 1 ? i / (fanN - 1) : 0.5
                     const angle = fanN > 1 ? fanMaxAngle * (2 * k - 1) : 0
                     return (
                       <div key={i} style={{position:'absolute', left: i * fanSpacing, bottom: 0,
                         transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
-                        <PlayingCard card={c} playable={playable}
+                        <PlayingCard card={c} playable={playable} dimmed={dimmed}
                           onClick={playable ? () => send({ type: 'play', suit: c.suit, rank: c.rank }) : undefined} />
                       </div>
                     )
