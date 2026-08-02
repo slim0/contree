@@ -428,34 +428,9 @@ async def handle_connection(
             if game is None:
                 break
 
-            # Phase d'attente : choix d'équipe, démarrage, départ
-            if game.phase == GamePhase.WAITING:
-                game, error, close_all, leave_self = await _dispatch_waiting(
-                    game, position, msg, room_id
-                )
-                await store.set_game(game)
-                if close_all:
-                    await _close_all_connections(room_id)
-                    asyncio.create_task(_watch_start_reconnect(room_id))
-                    break
-                if leave_self:
-                    await _unregister(room_id, position, conn_id)
-                    if len(game.players) == 0:
-                        await store.delete_room(room_id)
-                    else:
-                        await broadcast(room_id, game)
-                    await ws.send_text(json.dumps({"type": "left"}))
-                    await ws.close()
-                    break
-                await broadcast(room_id, game)
-                if error:
-                    log.warning(
-                        "Salon '%s' — Erreur pour %s : %s", room_id, player_name, error
-                    )
-                    await ws.send_text(json.dumps({"type": "error", "message": error}))
-                continue
-
             # ─── WebRTC signalisation ─────────────────────────────────────────────────
+            # Traité avant le dispatch par phase : accepté à toute phase (y
+            # compris WAITING), pour permettre le chat vocal dans le salon.
             msg_type = msg.get("type")
             if msg_type in ("webrtc-offer", "webrtc-answer", "webrtc-ice-candidate"):
                 peer_position = msg.get("peer_position")
@@ -482,6 +457,33 @@ async def handle_connection(
                     target_ws, _ = target
                     with contextlib.suppress(Exception):
                         await target_ws.send_text(json.dumps(event))
+                continue
+
+            # Phase d'attente : choix d'équipe, démarrage, départ
+            if game.phase == GamePhase.WAITING:
+                game, error, close_all, leave_self = await _dispatch_waiting(
+                    game, position, msg, room_id
+                )
+                await store.set_game(game)
+                if close_all:
+                    await _close_all_connections(room_id)
+                    asyncio.create_task(_watch_start_reconnect(room_id))
+                    break
+                if leave_self:
+                    await _unregister(room_id, position, conn_id)
+                    if len(game.players) == 0:
+                        await store.delete_room(room_id)
+                    else:
+                        await broadcast(room_id, game)
+                    await ws.send_text(json.dumps({"type": "left"}))
+                    await ws.close()
+                    break
+                await broadcast(room_id, game)
+                if error:
+                    log.warning(
+                        "Salon '%s' — Erreur pour %s : %s", room_id, player_name, error
+                    )
+                    await ws.send_text(json.dumps({"type": "error", "message": error}))
                 continue
 
             game, error = await _dispatch(game, position, msg, room_id)
