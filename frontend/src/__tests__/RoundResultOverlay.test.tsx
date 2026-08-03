@@ -84,6 +84,22 @@ describe('RoundResultOverlay', () => {
     expect(screen.getByText('CHUTE !')).toBeInTheDocument()
   })
 
+  it('affiche toujours le résultat même si un state update arrive pendant les 3s', async () => {
+    // Régression : game.scores est un nouvel objet à chaque message WS. Un update
+    // (bot, voix…) pendant la fenêtre de 3s ne doit pas annuler l'affichage.
+    const result = makeResult({ round_number: 1, score_ns: 80, score_ew: 0 })
+    const { rerender } = render(
+      <RoundResultOverlay lastResult={result} scores={{ NS: 80, EW: 0 }} targetScore={500} />
+    )
+    await act(async () => { vi.advanceTimersByTime(1500) })
+    // Re-render avec un nouvel objet scores (même manche) — simule un broadcast backend.
+    rerender(
+      <RoundResultOverlay lastResult={result} scores={{ NS: 80, EW: 0 }} targetScore={500} />
+    )
+    await act(async () => { vi.advanceTimersByTime(1500) })
+    expect(screen.getByText('CONTRAT RÉUSSI !')).toBeInTheDocument()
+  })
+
   it('affiche le numéro de manche', async () => {
     const result = makeResult({ round_number: 3 })
     render(

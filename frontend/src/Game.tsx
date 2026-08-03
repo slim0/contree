@@ -449,22 +449,27 @@ export function RoundResultOverlay({ lastResult, scores, targetScore }: {
   const [visible, setVisible] = useState(false)
   const [snap, setSnap] = useState<{ result: RoundResult; scores: Record<string, number> } | null>(null)
   const seenRound = useRef<number | null>(null)
+  // scores est un nouvel objet à chaque message WS : on le lit via ref au moment
+  // du tir du timer plutôt que de le mettre en dépendance (sinon un update pendant
+  // la fenêtre de 3s ré-exécute l'effet, annule le timer et le résultat n'est jamais affiché).
+  const scoresRef = useRef(scores)
+  scoresRef.current = scores
 
   useEffect(() => {
-    if (!lastResult) return
-    if (lastResult.round_number === seenRound.current) return
-    seenRound.current = lastResult.round_number
-    const result = lastResult
-    const resultScores = { ...scores }
+    const rn = lastResult?.round_number
+    if (rn == null || rn === seenRound.current) return
+    seenRound.current = rn
+    const result = lastResult!
     // Laisser le dernier pli visible (phase SCORING) avant d'afficher le score —
     // même délai que le backend (websocket.SCORING_DISPLAY_SECONDS) avant de
     // distribuer la donne suivante.
     const showTimer = setTimeout(() => {
-      setSnap({ result, scores: resultScores })
+      setSnap({ result, scores: { ...scoresRef.current } })
       setVisible(true)
     }, 3000)
     return () => clearTimeout(showTimer)
-  }, [lastResult, scores])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastResult?.round_number])
 
   useEffect(() => {
     if (!visible) return
