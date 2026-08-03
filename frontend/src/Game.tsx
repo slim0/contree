@@ -145,14 +145,14 @@ function CardBack({ compact }: { compact?: boolean }) {
   )
 }
 
-function PlayingCard({ card, playable, dimmed, onClick, style, compact, winner }: {
-  card: CardData; playable?: boolean; dimmed?: boolean; onClick?: () => void
+function PlayingCard({ card, playable, onClick, style, compact, winner }: {
+  card: CardData; playable?: boolean; onClick?: () => void
   style?: React.CSSProperties; compact?: boolean; winner?: boolean
 }) {
   const sym = SUIT_SYM[card.suit] ?? card.suit
   const isRed = card.suit === 'H' || card.suit === 'D'
   const cls = ['playing-card', isRed ? 'red' : 'black',
-    playable ? 'playable' : '', dimmed ? 'dimmed' : '', compact ? 'compact' : '', winner ? 'winner' : '']
+    playable ? 'playable' : '', compact ? 'compact' : '', winner ? 'winner' : '']
     .filter(Boolean).join(' ')
   return (
     <div className={cls} onClick={onClick} style={style}
@@ -957,13 +957,12 @@ export default function Game({ game, error, send }: {
                   {sortedHand.map((c, i) => {
                     const key = `${c.rank}${c.suit}`
                     const playable = isMyTurnPlay && legalSet.has(key)
-                    const dimmed = isMyTurnPlay && !legalSet.has(key)
                     const k = fanN > 1 ? i / (fanN - 1) : 0.5
                     const angle = fanN > 1 ? fanMaxAngle * (2 * k - 1) : 0
                     return (
                       <div key={i} style={{position:'absolute', left: i * fanSpacing, bottom: 0,
                         transform:`rotate(${angle}deg)`, transformOrigin:'center bottom', zIndex: i}}>
-                        <PlayingCard card={c} playable={playable} dimmed={dimmed}
+                        <PlayingCard card={c} playable={playable}
                           onClick={playable ? () => send({ type: 'play', suit: c.suit, rank: c.rank }) : undefined} />
                       </div>
                     )

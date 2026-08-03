@@ -97,7 +97,7 @@ describe('Affichage du pli terminé', () => {
 })
 
 describe('Cartes jouables / injouables dans ma main', () => {
-  it('estompe les injouables et met en évidence les jouables quand c’est à moi', () => {
+  it('met en évidence les jouables sans estomper les autres quand c’est à moi', () => {
     const round = makeRound({
       current_player: 'N', // moi
       hands: { N: [{ suit: 'H', rank: 'A' }, { suit: 'S', rank: '7' }], E: [], S: [], W: [] },
@@ -109,15 +109,13 @@ describe('Cartes jouables / injouables dans ma main', () => {
 
     const cards = [...container.querySelectorAll('.slot-bottom .playing-card')]
     const playable = cards.filter(c => c.classList.contains('playable'))
-    const dimmed = cards.filter(c => c.classList.contains('dimmed'))
 
     expect(playable).toHaveLength(1)
-    expect(dimmed).toHaveLength(1)
     expect(playable[0].textContent).toContain('A')
-    expect(dimmed[0].textContent).toContain('7')
+    expect(cards.some(c => c.classList.contains('dimmed'))).toBe(false)
   })
 
-  it('n’estompe aucune carte quand ce n’est pas mon tour', () => {
+  it('ne surligne aucune carte quand ce n’est pas mon tour', () => {
     const round = makeRound({
       current_player: 'E', // adversaire
       hands: { N: [{ suit: 'H', rank: 'A' }, { suit: 'S', rank: '7' }], E: [], S: [], W: [] },
