@@ -44,6 +44,16 @@ export default function App() {
   const shouldReconnect = useRef(false)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
+  // Orientation : paysage seulement pendant la partie, portrait ailleurs (login, lobby, salon).
+  // lock() ne marche qu'en PWA installée (fullscreen) ; ailleurs il rejette → ignoré.
+  useEffect(() => {
+    const landscape = !!game && game.phase !== 'WAITING'
+    const orientation = screen.orientation as ScreenOrientation & {
+      lock?: (o: string) => Promise<void>
+    }
+    orientation.lock?.(landscape ? 'landscape' : 'portrait').catch(() => {})
+  }, [game?.phase, game])
+
   // Vérification de session au montage
   useEffect(() => {
     fetch('/api/auth/me', { credentials: 'include' })
