@@ -188,8 +188,9 @@ Générale comme contrat = 500 pts (un seul joueur, pas juste son équipe, doit 
 
 ## Bots (joueurs IA)
 
-Permet de jouer à moins de 4 humains (ex. 2 humains vs 2 bots). Livré : **EasyBot**
-(itération 1). Objectif : progression **Easy → Medium → Hard → self-play**.
+Permet de jouer à moins de 4 humains (ex. 2 humains vs 2 bots). Livré : **EasyBot** et
+**MediumBot** (ce dernier est le **bot par défaut en jeu**). Objectif : progression
+**Easy → Medium → Hard → self-play**.
 
 ### Architecture actuelle
 - `backend/game/bots.py` (module **pur**, aucun I/O) : protocole `Bot`
@@ -206,28 +207,30 @@ Permet de jouer à moins de 4 humains (ex. 2 humains vs 2 bots). Livré : **Easy
 - Front : boutons « + 🤖 » par siège vide dans le salon (`Game.tsx`), badge/retrait bot,
   champ `bots: string[]` dans `types.ts`.
 
-### EasyBot — faible exprès (limites à lever)
-Ouvre **uniquement à 80**, ne relance jamais, **ne coinche/surcoinche jamais**, entame
-passivement la carte la moins chère. Suffisant pour être jouable, pas pour être bon.
+### Niveaux existants
+- **EasyBot** — faible exprès : ouvre uniquement à 80, ne relance/coinche jamais, entame
+  la carte la moins chère sans mémoire. Conservé pour tests/comparaison.
+- **MediumBot** (défaut en jeu) — **fonction d'évaluation** `_estimate_points(hand, trump)` :
+  enchère proportionnée (relance, meilleur des 6 atouts, tempérament équilibré),
+  **contre/surcontre** sur son tour, jeu avec **mémoire** des cartes tombées
+  (`_seen_cards`/`_is_master`) : tire atout comme déclarant, encaisse ses maîtres, nourrit
+  le partenaire quand il est dernier à jouer, préserve ses maîtres en défaussant. Constantes
+  de calibrage exposées en tête de classe (`BID_MARGIN`, `CONTRE_HAND`, …).
+  Limites (`ponytail:`) : `_is_master` ignore la coupe adverse ; pas de coinche « à la
+  volée » hors tour ; pas d'annonce Capot/Générale.
 
 ### Étapes suivantes (dans l'ordre)
-1. **MediumBot** — remplacer les heuristiques d'EasyBot par une **fonction d'évaluation
-   de main/carte** : enchère proportionnée à la force (relance au-delà de 80, choix du
-   meilleur atout, Sans Atout / Tout Atout si pertinent), décision de **contre/surcontre**,
-   entame et jeu tenant compte des cartes déjà tombées (mémoire du pli) et du partenaire.
-   Nouvelle classe `MediumBot` + entrée `make_bot("medium")`. Tests : légalité systématique
-   + non-régression sur des mains types (main forte → prend, main faible → passe).
-2. **HardBot** — recherche par **simulations Monte Carlo** (déterminisation des mains
+1. **HardBot** — recherche par **simulations Monte Carlo** (déterminisation des mains
    cachées + rollouts) pour choisir enchère et carte. Attention au **budget temps** :
    borner le nombre de simulations pour rester sous `BOT_MOVE_DELAY`. `make_bot("hard")`.
-3. **Choix du niveau par siège** — permettre au salon de choisir Easy/Medium/Hard par bot
+2. **Choix du niveau par siège** — permettre au salon de choisir Easy/Medium/Hard par bot
    (`add_bot` transporte déjà `team` ; ajouter `level`, stocker le niveau par position/nom,
    et instancier via `make_bot`). Front : sélecteur de niveau sur le bouton d'ajout.
-4. **Robustesse de la pompe** — remplacer le guard `_bot_running` + le pattern
+3. **Robustesse de la pompe** — remplacer le guard `_bot_running` + le pattern
    read-modify-write par un **verrou d'action par room** si des courses humain/bot
    apparaissent (cf. commentaire `ponytail:` dans `_run_bots`). Ajouter un test d'intégration
    d'une partie mixte complète (2 humains simulés + 2 bots) jusqu'au score final.
-5. **Self-play (optionnel, long terme)** — entraîner un modèle par auto-jeu ; l'exposer
+4. **Self-play (optionnel, long terme)** — entraîner un modèle par auto-jeu ; l'exposer
    derrière le **même** protocole `Bot` (`make_bot("neural")`), inférence chargée
    paresseusement pour ne pas alourdir le démarrage du backend.
 

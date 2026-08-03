@@ -34,7 +34,7 @@ _conn_serial: int = 0
 _closing_for_start: set[str] = set()
 
 # ─── Bots (joueurs IA) ─────────────────────────────────────────────────────────
-_bot = bots.make_bot("easy")  # EasyBot est sans état → instance partagée
+_bot = bots.make_bot("medium")  # bot sans état → instance partagée
 # Délai entre deux coups de bot, pour que les humains suivent l'action.
 BOT_MOVE_DELAY = 0.9
 # Rooms dont la pompe de bots tourne déjà (évite deux boucles concurrentes).
@@ -174,6 +174,12 @@ async def _run_bots(room_id: str) -> None:
                         decision.trump,
                         decision.is_generale,
                     )
+                elif decision.kind == "contre":
+                    log.info("Salon '%s' — bot %s CONTRE !", room_id, pos.value)
+                    game, _ = rules.apply_contre(game, pos)
+                elif decision.kind == "surcontre":
+                    log.info("Salon '%s' — bot %s SURCONTRE !", room_id, pos.value)
+                    game, _ = rules.apply_surcontre(game)
                 else:
                     log.info("Salon '%s' — bot %s PASSE", room_id, pos.value)
                     game, _ = rules.apply_pass(game)
