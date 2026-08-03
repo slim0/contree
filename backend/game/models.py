@@ -381,6 +381,10 @@ class GameState:
     # team_choices: position_str → "NS"|"EW", set during WAITING phase
     team_choices: dict[str, str] = field(default_factory=dict)
     ready_to_start: bool = False
+    # noms des joueurs contrôlés par l'IA (bots). Repérés par nom et non par
+    # position car le démarrage réassigne les positions (NS→N,S / EW→E,W) mais
+    # conserve les noms.
+    bots: set[str] = field(default_factory=set)
     # horodatage de la dernière écriture, utilisé par memory_store.reap_stale_rooms
     # pour nettoyer les rooms abandonnées ; jamais envoyé aux clients
     last_activity: float = field(default_factory=time.time)
@@ -400,4 +404,5 @@ class GameState:
             "messages": self.messages[-30:],
             "team_choices": self.team_choices,
             "ready_to_start": self.ready_to_start,
+            "bots": sorted(self.bots),
         }

@@ -186,6 +186,58 @@ Générale comme contrat = 500 pts (un seul joueur, pas juste son équipe, doit 
 - **Pas de belote/rebelote concernée** — feature indépendante des règles de jeu.
 - **Limites connues** : pas de TURN, pas de tests automatisés sur `VoiceManager.ts` (seul le bouton mute est testé côté UI), pas de gestion de mixage audio multi-pairs.
 
+## Bots (joueurs IA)
+
+Permet de jouer à moins de 4 humains (ex. 2 humains vs 2 bots). Livré : **EasyBot**
+(itération 1). Objectif : progression **Easy → Medium → Hard → self-play**.
+
+### Architecture actuelle
+- `backend/game/bots.py` (module **pur**, aucun I/O) : protocole `Bot`
+  (`choose_bid`, `choose_card`), `BidDecision`, `EasyBot`, et registry `make_bot(level)`.
+  **C'est le seul point d'extension** : ajouter un niveau = nouvelle classe + entrée
+  registry, sans toucher l'intégration socket.
+- `GameState.bots: set[str]` (`backend/game/models.py`) : bots repérés **par nom** (pas
+  par position, car le démarrage réassigne les positions NS→N,S / EW→E,W).
+- `backend/api/websocket.py` : actions salon `add_bot`/`remove_bot` (créateur only),
+  garde-fous « tous connectés » rendus conscients des bots (démarrage, gate de reprise
+  après GO, watchdog de reconnexion), et **pompe `_run_bots`** qui joue les coups des bots
+  (les bots n'ont pas de socket) après chaque action humaine, au début de manche et après
+  le score. Guard `_bot_running` contre les double-boucles.
+- Front : boutons « + 🤖 » par siège vide dans le salon (`Game.tsx`), badge/retrait bot,
+  champ `bots: string[]` dans `types.ts`.
+
+### EasyBot — faible exprès (limites à lever)
+Ouvre **uniquement à 80**, ne relance jamais, **ne coinche/surcoinche jamais**, entame
+passivement la carte la moins chère. Suffisant pour être jouable, pas pour être bon.
+
+### Étapes suivantes (dans l'ordre)
+1. **MediumBot** — remplacer les heuristiques d'EasyBot par une **fonction d'évaluation
+   de main/carte** : enchère proportionnée à la force (relance au-delà de 80, choix du
+   meilleur atout, Sans Atout / Tout Atout si pertinent), décision de **contre/surcontre**,
+   entame et jeu tenant compte des cartes déjà tombées (mémoire du pli) et du partenaire.
+   Nouvelle classe `MediumBot` + entrée `make_bot("medium")`. Tests : légalité systématique
+   + non-régression sur des mains types (main forte → prend, main faible → passe).
+2. **HardBot** — recherche par **simulations Monte Carlo** (déterminisation des mains
+   cachées + rollouts) pour choisir enchère et carte. Attention au **budget temps** :
+   borner le nombre de simulations pour rester sous `BOT_MOVE_DELAY`. `make_bot("hard")`.
+3. **Choix du niveau par siège** — permettre au salon de choisir Easy/Medium/Hard par bot
+   (`add_bot` transporte déjà `team` ; ajouter `level`, stocker le niveau par position/nom,
+   et instancier via `make_bot`). Front : sélecteur de niveau sur le bouton d'ajout.
+4. **Robustesse de la pompe** — remplacer le guard `_bot_running` + le pattern
+   read-modify-write par un **verrou d'action par room** si des courses humain/bot
+   apparaissent (cf. commentaire `ponytail:` dans `_run_bots`). Ajouter un test d'intégration
+   d'une partie mixte complète (2 humains simulés + 2 bots) jusqu'au score final.
+5. **Self-play (optionnel, long terme)** — entraîner un modèle par auto-jeu ; l'exposer
+   derrière le **même** protocole `Bot` (`make_bot("neural")`), inférence chargée
+   paresseusement pour ne pas alourdir le démarrage du backend.
+
+### Invariants à préserver pour toute évolution bot
+- Un bot ne joue **que** des coups renvoyés par `rules.get_legal_plays` /
+  respectant `rules.get_legal_bid_actions` — **jamais** de coup illégal (fallback sûr).
+- Le moteur de jeu (`backend/game/rules.py`, `scoring.py`) reste **pur** : la logique bot
+  vit dans `bots.py`, l'orchestration dans `websocket.py`. Ne pas mettre d'IA dans `rules`.
+- Chaque niveau ajouté a ses tests (légalité + comportement), dans le même commit.
+
 ## Système d'authentification
 
 ### Principes fondamentaux

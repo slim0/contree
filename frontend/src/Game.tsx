@@ -753,17 +753,51 @@ export default function Game({ game, error, send }: {
               const name = game.players[pos]
               const team = game.team_choices[pos]
               const isMe = pos === me
+              const isBot = name != null && (game.bots ?? []).includes(name)
               return (
                 <div key={pos} className={`wr-player-row${isMe ? ' me' : ''}`}>
                   <span className="wr-player-name">
-                    {name ?? <span style={{ color: '#bbb' }}>—</span>}
+                    {name != null
+                      ? name
+                      : <span style={{ color: '#bbb' }}>—</span>}
                   </span>
-                  {name ? (
-                    <button
-                      aria-label={team === 'NS' ? 'TEAM RED' : team === 'EW' ? 'TEAM BLUE' : 'Choisir équipe'}
-                      className={`wr-toggle${team === 'NS' ? ' red' : team === 'EW' ? ' blue' : ''}${!isMe ? ' readonly' : ''}`}
-                      onClick={() => isMe && send({ type: 'choose_team', team: team === 'NS' ? 'EW' : 'NS' })}
-                    />
+                  {name != null ? (
+                    <span style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                      {isBot && isCreator && (
+                        <button
+                          aria-label="Retirer le bot"
+                          className="wr-toggle readonly"
+                          style={{ width: 'auto', padding: '0 8px', fontSize: 12 }}
+                          onClick={() => send({ type: 'remove_bot', position: pos })}
+                        >
+                          ✕
+                        </button>
+                      )}
+                      <button
+                        aria-label={team === 'NS' ? 'TEAM RED' : team === 'EW' ? 'TEAM BLUE' : 'Choisir équipe'}
+                        className={`wr-toggle${team === 'NS' ? ' red' : team === 'EW' ? ' blue' : ''}${!isMe || isBot ? ' readonly' : ''}`}
+                        onClick={() => isMe && !isBot && send({ type: 'choose_team', team: team === 'NS' ? 'EW' : 'NS' })}
+                      />
+                    </span>
+                  ) : isCreator ? (
+                    <span style={{ display: 'flex', gap: 6 }}>
+                      <button
+                        aria-label="Ajouter un bot TEAM RED"
+                        className="wr-toggle red"
+                        style={{ width: 'auto', padding: '0 8px', fontSize: 12 }}
+                        onClick={() => send({ type: 'add_bot', team: 'NS' })}
+                      >
+                        + 🤖
+                      </button>
+                      <button
+                        aria-label="Ajouter un bot TEAM BLUE"
+                        className="wr-toggle blue"
+                        style={{ width: 'auto', padding: '0 8px', fontSize: 12 }}
+                        onClick={() => send({ type: 'add_bot', team: 'EW' })}
+                      >
+                        + 🤖
+                      </button>
+                    </span>
                   ) : (
                     <span style={{ fontSize: 13, color: '#aaa' }}>en attente</span>
                   )}

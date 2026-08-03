@@ -18,6 +18,7 @@ const makeWaitingGame = (overrides: Partial<GameData> = {}): GameData => ({
   my_position: 'N',
   team_choices: {},
   ready_to_start: false,
+  bots: [],
   ...overrides,
 })
 
@@ -165,10 +166,40 @@ describe('WaitingRoom', () => {
     expect(screen.getByText('GO !')).not.toBeDisabled()
   })
 
-  it('affiche les tirets pour les emplacements vides', () => {
-    const game = makeWaitingGame({ players: { N: 'Alice' } })
+  it('affiche "en attente" pour les emplacements vides (non-créateur)', () => {
+    // creator ≠ my_position → pas de boutons d'ajout de bot, juste "en attente"
+    const game = makeWaitingGame({ players: { N: 'Alice' }, creator: 'Zoe' })
     render(<Game game={game} error={null} send={vi.fn()} />)
     expect(screen.getAllByText('en attente').length).toBe(3)
+  })
+
+  it('le créateur voit les boutons "+ bot" sur les sièges vides', () => {
+    const game = makeWaitingGame({ players: { N: 'Alice' }, my_position: 'N' })
+    render(<Game game={game} error={null} send={vi.fn()} />)
+    // 3 sièges vides × 2 boutons (RED/BLUE)
+    expect(screen.getAllByLabelText(/Ajouter un bot/).length).toBe(6)
+  })
+
+  it('cliquer "+ bot RED" envoie add_bot team NS', () => {
+    const send = vi.fn()
+    const game = makeWaitingGame({ players: { N: 'Alice' }, my_position: 'N' })
+    render(<Game game={game} error={null} send={send} />)
+    fireEvent.click(screen.getAllByLabelText('Ajouter un bot TEAM RED')[0])
+    expect(send).toHaveBeenCalledWith({ type: 'add_bot', team: 'NS' })
+  })
+
+  it('un siège bot affiche le badge 🤖 et un bouton de retrait pour le créateur', () => {
+    const send = vi.fn()
+    const game = makeWaitingGame({
+      players: { N: 'Alice', E: '🤖 Bot 1' },
+      my_position: 'N',
+      team_choices: { N: 'NS', E: 'EW' },
+      bots: ['🤖 Bot 1'],
+    })
+    render(<Game game={game} error={null} send={send} />)
+    expect(screen.getByText('🤖 Bot 1')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('Retirer le bot'))
+    expect(send).toHaveBeenCalledWith({ type: 'remove_bot', position: 'E' })
   })
 
   it('affiche un bouton pour quitter le salon', () => {

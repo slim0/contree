@@ -10,7 +10,7 @@ import logging
 from fastapi import WebSocket, WebSocketDisconnect
 
 from backend.api import stats
-from backend.game import rules, scoring
+from backend.game import bots, rules, scoring
 from backend.game.models import (
     Card,
     GamePhase,
@@ -32,6 +32,18 @@ _conn_serial: int = 0
 
 # Rooms currently closing all connections for team reassignment; do not delete them.
 _closing_for_start: set[str] = set()
+
+# ─── Bots (joueurs IA) ─────────────────────────────────────────────────────────
+_bot = bots.make_bot("easy")  # EasyBot est sans état → instance partagée
+# Délai entre deux coups de bot, pour que les humains suivent l'action.
+BOT_MOVE_DELAY = 0.9
+# Rooms dont la pompe de bots tourne déjà (évite deux boucles concurrentes).
+_bot_running: set[str] = set()
+
+
+def _is_bot(game: GameState, pos: Position) -> bool:
+    return game.players.get(pos) in game.bots
+
 
 # ─── WebRTC signalisation ──────────────────────────────────────────────────────
 # room_id -> {position_str -> set of peer positions this player is connected to}
@@ -117,6 +129,92 @@ async def _advance_after_scoring(room_id: str) -> None:
     game = rules.start_new_round(game)
     await store.set_game(game)
     await broadcast(room_id, game)
+    asyncio.create_task(_run_bots(room_id))
+
+
+async def _run_bots(room_id: str) -> None:
+    """Joue les coups des sièges bots tant que c'est à un bot d'agir.
+
+    Appelée après chaque action humaine, au début de manche et après le score.
+    La lecture/écriture du store entre `get_game` et `set_game` ne comporte aucun
+    `await` → pas d'entrelacement avec le chemin humain sur cette section.
+    """
+    if room_id in _bot_running:
+        return
+    _bot_running.add(room_id)
+    try:
+        while True:
+            await asyncio.sleep(BOT_MOVE_DELAY)  # cadence visible, avant de lire l'état
+            game = await store.get_game(room_id)
+            if not game or not game.round:
+                return
+            r = game.round
+
+            if r.phase == GamePhase.BIDDING:
+                pos = r.current_bidder
+                if pos is None or not _is_bot(game, pos):
+                    return
+                decision = _bot.choose_bid(r, pos)
+                if (
+                    decision.kind == "bid"
+                    and decision.value is not None
+                    and decision.trump is not None
+                ):
+                    log.info(
+                        "Salon '%s' — bot %s ANNONCE %d à %s",
+                        room_id,
+                        pos.value,
+                        decision.value,
+                        decision.trump.value,
+                    )
+                    game, _ = rules.apply_bid(
+                        game,
+                        decision.value,
+                        decision.is_capot,
+                        decision.trump,
+                        decision.is_generale,
+                    )
+                else:
+                    log.info("Salon '%s' — bot %s PASSE", room_id, pos.value)
+                    game, _ = rules.apply_pass(game)
+                if game.round and game.round.phase == GamePhase.PLAYING:
+                    _log_contract(game, room_id)
+
+            elif r.phase == GamePhase.PLAYING:
+                pos = r.current_player
+                if pos is None or not _is_bot(game, pos):
+                    return
+                card = _bot.choose_card(r, pos)
+                log.info("Salon '%s' — bot %s JOUE %s", room_id, pos.value, card)
+                game, err = rules.apply_play(game, card)
+                if err not in ("ok", "round_end"):
+                    log.error(
+                        "Salon '%s' — bot %s coup illégal (%s) : %s",
+                        room_id,
+                        pos.value,
+                        card,
+                        err,
+                    )
+                    return
+                if (
+                    err == "round_end"
+                    or game.phase == GamePhase.FINISHED
+                    or (game.round and game.round.number != r.number)
+                ):
+                    _log_round_result(game, room_id)
+            else:
+                return  # SCORING/FINISHED : la reprise se fait via _advance_after_scoring
+
+            await store.set_game(game)
+            await broadcast(room_id, game)
+
+            if game.round and game.round.phase == GamePhase.SCORING:
+                asyncio.create_task(_advance_after_scoring(room_id))
+                return
+            if game.phase == GamePhase.FINISHED:
+                return
+    finally:
+        _bot_running.discard(room_id)
 
 
 def _state_for_player(game: GameState, player: Position) -> dict:
@@ -190,7 +288,12 @@ async def _check_start_reconnect_timeout(room_id: str) -> None:
 
     async with _conn_lock:
         connected = set(_connections.get(room_id, {}).keys())
-    missing = [pos for pos in game.players if pos.value not in connected]
+    # Les bots n'ont jamais de socket — ne pas les compter comme manquants.
+    missing = [
+        pos
+        for pos in game.players
+        if not _is_bot(game, pos) and pos.value not in connected
+    ]
     if not missing:
         return
 
@@ -264,7 +367,7 @@ async def _dispatch_waiting(
 
         async with _conn_lock:
             connected = set(_connections.get(room_id, {}).keys())
-        if any(p.value not in connected for p in game.players):
+        if any(p.value not in connected for p in game.players if not _is_bot(game, p)):
             return (
                 game,
                 "Un joueur est déconnecté, impossible de démarrer",
@@ -297,6 +400,55 @@ async def _dispatch_waiting(
             True,
             False,
         )  # close_all = True → fermer toutes les connexions
+
+    elif action == "add_bot":
+        if game.creator and game.players.get(player) != game.creator:
+            return game, "Seul le créateur peut ajouter un bot", False, False
+        team = msg.get("team")
+        if team not in ("NS", "EW"):
+            return game, "Équipe invalide (NS ou EW attendu)", False, False
+        free = next(
+            (
+                p
+                for p in (
+                    Position.NORTH,
+                    Position.EAST,
+                    Position.SOUTH,
+                    Position.WEST,
+                )
+                if p not in game.players
+            ),
+            None,
+        )
+        if free is None:
+            return game, "Le salon est complet", False, False
+        n = 1
+        while f"🤖 Bot {n}" in game.players.values():
+            n += 1
+        name = f"🤖 Bot {n}"
+        game.players[free] = name
+        game.bots.add(name)
+        game.team_choices[free.value] = team
+        log.info(
+            "Salon '%s' — bot '%s' ajouté en %s (%s)", room_id, name, free.value, team
+        )
+        return game, None, False, False
+
+    elif action == "remove_bot":
+        if game.creator and game.players.get(player) != game.creator:
+            return game, "Seul le créateur peut retirer un bot", False, False
+        pos_str = msg.get("position")
+        target = next(
+            (p for p in game.players if p.value == pos_str and _is_bot(game, p)),
+            None,
+        )
+        if target is None:
+            return game, "Aucun bot à cette position", False, False
+        name = game.players.pop(target)
+        game.bots.discard(name)
+        game.team_choices.pop(target.value, None)
+        log.info("Salon '%s' — bot '%s' retiré", room_id, name)
+        return game, None, False, False
 
     elif action == "leave":
         name = game.players.pop(player, None)
@@ -409,8 +561,13 @@ async def handle_connection(
     ):
         async with _conn_lock:
             n_connected = len(_connections.get(room_id, {}))
-        if n_connected == 4:
-            log.info("Salon '%s' — 4 reconnexions après GO, démarrage", room_id)
+        n_humans = sum(1 for p in game.players if not _is_bot(game, p))
+        if n_connected == n_humans:
+            log.info(
+                "Salon '%s' — %d humain(s) reconnecté(s) après GO, démarrage",
+                room_id,
+                n_humans,
+            )
             log.debug("  Joueurs : %s", {p.value: n for p, n in game.players.items()})
             game = rules.start_new_round(game)
             game.phase = GamePhase.BIDDING
@@ -426,6 +583,11 @@ async def handle_connection(
             await store.set_game(game)
 
     await broadcast(room_id, game)
+
+    # Si la manche vient de démarrer et que le premier enchérisseur est un bot,
+    # lancer la pompe (no-op si c'est à un humain de jouer).
+    if game.round and game.phase in (GamePhase.BIDDING, GamePhase.PLAYING):
+        asyncio.create_task(_run_bots(room_id))
 
     try:
         while True:
@@ -499,6 +661,9 @@ async def handle_connection(
 
             if game.round and game.round.phase == GamePhase.SCORING:
                 asyncio.create_task(_advance_after_scoring(room_id))
+            else:
+                # Enchaîner les coups des bots dont c'est désormais le tour.
+                asyncio.create_task(_run_bots(room_id))
 
             if error:
                 log.warning(
@@ -608,7 +773,9 @@ async def _dispatch(
                 if min_val is None or value < min_val or value > 160 or value % 10 != 0:
                     return game, f"Valeur d'enchère invalide (min {min_val})"
 
-            val_str = "Générale" if is_generale else ("Capot" if is_capot else str(value))
+            val_str = (
+                "Générale" if is_generale else ("Capot" if is_capot else str(value))
+            )
             log.info(
                 "Salon '%s' — %s  ANNONCE  %s à %s", room_id, tag, val_str, trump.value
             )
@@ -703,7 +870,11 @@ def _log_contract(game: GameState, room_id: str) -> None:
     if not r or not r.contract:
         return
     c = r.contract
-    val = "Générale" if c.bid.is_generale else ("Capot" if c.bid.is_capot else str(c.bid.value))
+    val = (
+        "Générale"
+        if c.bid.is_generale
+        else ("Capot" if c.bid.is_capot else str(c.bid.value))
+    )
     double_str = f" [{c.double.value}]" if c.double.value != "NONE" else ""
     bidder_name = game.players.get(c.bid.position, "?")
     log.info(

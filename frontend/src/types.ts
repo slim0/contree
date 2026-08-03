@@ -74,4 +74,5 @@ export interface GameData {
   my_position: string
   team_choices: Record<string, string>
   ready_to_start: boolean
+  bots: string[]
 }
