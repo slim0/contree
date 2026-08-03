@@ -692,6 +692,50 @@ export default function Game({ game, error, send }: {
   const ew = game.scores['EW'] ?? 0
   const lr = game.last_result
 
+  if (game.phase === 'FINISHED') {
+    const won = game.winner === TEAM[game.my_position]
+    const isCreator = game.players[game.my_position] === game.creator
+    return (
+      <div className="eog-overlay">
+        <div className={`eog-box ${won ? 'eog-win' : 'eog-lose'}`}>
+          {won && (
+            <div className="eog-confetti" aria-hidden="true">
+              {Array.from({ length: 12 }).map((_, i) => (
+                <span key={i} className={`eog-confetti-piece p${i}`} />
+              ))}
+            </div>
+          )}
+          <div className="eog-title">{won ? 'VICTOIRE !' : 'DÉFAITE'}</div>
+          <div className="eog-scores">
+            <div className="eog-team">
+              <span className="player-team-ns">{TEAM_LABEL['NS']}</span>
+              <strong>{ns}</strong>
+            </div>
+            <div className="eog-team">
+              <span className="player-team-ew">{TEAM_LABEL['EW']}</span>
+              <strong>{ew}</strong>
+            </div>
+          </div>
+          <div className="eog-actions">
+            {isCreator ? (
+              <button className="lp-btn-primary" onClick={() => send({ type: 'rematch' })}>
+                Rejouer
+              </button>
+            ) : (
+              <div style={{ color: '#aaa', fontSize: 14 }}>
+                En attente du créateur du salon…
+              </div>
+            )}
+            <button className="lp-btn-secondary" onClick={() => send({ type: 'leave' })}>
+              Quitter
+            </button>
+          </div>
+          {error && <p className="lp-error">{error}</p>}
+        </div>
+      </div>
+    )
+  }
+
   if (game.phase === 'WAITING') {
     const slots = ['N', 'E', 'S', 'W']
     const joined = Object.keys(game.players).length

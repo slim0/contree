@@ -457,17 +457,24 @@ async def _dispatch_waiting(
         return game, None, False, False
 
     elif action == "leave":
-        name = game.players.pop(player, None)
-        game.team_choices.pop(player.value, None)
-        if name == game.creator:
-            # le créateur part : transférer à un joueur restant, sinon salon indémarrable
-            game.creator = next(iter(game.players.values()), "")
-        if name:
-            game.messages.append(f"{name} ({player.value}) a quitté le salon")
-        log.info("Salon '%s' — %s quitte le salon", room_id, tag)
+        _do_leave(game, player, room_id)
         return game, None, False, True
 
     return game, f"Action inconnue en salle d'attente : {action}", False, False
+
+
+def _do_leave(game: GameState, player: Position, room_id: str) -> None:
+    """Retire un joueur du salon (WAITING ou FINISHED) : pop, transfert créateur, log.
+    Ne touche pas aux connexions — l'appelant gère unregister/broadcast/close."""
+    tag = _player_tag(game, player)
+    name = game.players.pop(player, None)
+    game.team_choices.pop(player.value, None)
+    if name == game.creator:
+        # le créateur part : transférer à un joueur restant, sinon salon indémarrable
+        game.creator = next(iter(game.players.values()), "")
+    if name:
+        game.messages.append(f"{name} ({player.value}) a quitté le salon")
+    log.info("Salon '%s' — %s quitte le salon", room_id, tag)
 
 
 async def handle_connection(
@@ -497,7 +504,9 @@ async def handle_connection(
         game = await store.create_room(room_id, target_score, room_name)
         game.creator = player_name  # le premier connecté est le créateur du salon
 
-    if game.phase == GamePhase.FINISHED:
+    # Partie terminée : on laisse revenir les joueurs déjà présents (écran de fin +
+    # rejouer), mais on refuse tout nouvel arrivant.
+    if game.phase == GamePhase.FINISHED and player_name not in game.players.values():
         log.warning("Salon '%s' terminé — %s refusé", room_id, player_name)
         await ws.send_text(json.dumps({"type": "error", "message": "Partie terminée."}))
         await ws.close()
@@ -659,6 +668,38 @@ async def handle_connection(
                         "Salon '%s' — Erreur pour %s : %s", room_id, player_name, error
                     )
                     await ws.send_text(json.dumps({"type": "error", "message": error}))
+                continue
+
+            # Partie terminée : seules les actions rejouer/quitter sont acceptées.
+            if game.phase == GamePhase.FINISHED:
+                if msg_type == "leave":
+                    _do_leave(game, position, room_id)
+                    await store.set_game(game)
+                    await _unregister(room_id, position, conn_id)
+                    if len(game.players) == 0:
+                        await store.delete_room(room_id)
+                    else:
+                        await broadcast(room_id, game)
+                    await ws.send_text(json.dumps({"type": "left"}))
+                    await ws.close()
+                    break
+                if msg_type == "rematch":
+                    if game.players.get(position) != game.creator:
+                        error = "Seul le créateur peut relancer la partie"
+                    elif len(game.players) != 4:
+                        error = "Il faut 4 joueurs pour rejouer"
+                    else:
+                        game = rules.restart_game(game)
+                        await store.set_game(game)
+                        log.info("Salon '%s' — Nouvelle partie (rematch)", room_id)
+                        await broadcast(room_id, game)
+                        asyncio.create_task(_run_bots(room_id))
+                        continue
+                    await ws.send_text(json.dumps({"type": "error", "message": error}))
+                    continue
+                await ws.send_text(
+                    json.dumps({"type": "error", "message": "Partie terminée."})
+                )
                 continue
 
             game, error = await _dispatch(game, position, msg, room_id)

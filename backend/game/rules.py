@@ -331,6 +331,19 @@ def start_new_round(game: GameState) -> GameState:
     return game
 
 
+def restart_game(game: GameState) -> GameState:
+    """Remet les scores à zéro, efface le vainqueur et redistribue la manche 1.
+    Conserve joueurs, positions, équipes et bots (rejouer après fin de partie)."""
+    game = copy.deepcopy(game)
+    game.scores = {Team.NORTH_SOUTH: 0, Team.EAST_WEST: 0}
+    game.winner = None
+    game.last_result = None
+    game.round = None  # → start_new_round repart en manche 1, donneur NORTH
+    game = start_new_round(game)
+    game.phase = GamePhase.BIDDING
+    return game
+
+
 def apply_pass(game: GameState) -> tuple[GameState, str]:
     game = copy.deepcopy(game)
     r = game.round
@@ -427,7 +440,11 @@ def _start_playing(game: GameState) -> GameState:
     r.current_trick = Trick()
 
     c = r.contract
-    val_str = "Générale" if c.bid.is_generale else ("Capot" if c.bid.is_capot else str(c.bid.value))
+    val_str = (
+        "Générale"
+        if c.bid.is_generale
+        else ("Capot" if c.bid.is_capot else str(c.bid.value))
+    )
     double_str = f" ({c.double.value})" if c.double != Double.NONE else ""
     game.messages.append(
         f"Contrat : {c.bidding_team.value} joue {val_str} à {c.bid.trump.value}{double_str}"

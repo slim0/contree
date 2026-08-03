@@ -17,7 +17,7 @@ from backend.game.models import (
     TrickCard,
     Trump,
 )
-from backend.game.rules import apply_pass, start_new_round, trick_winner
+from backend.game.rules import apply_pass, restart_game, start_new_round, trick_winner
 
 CLOCKWISE_ORDER = [Position.NORTH, Position.EAST, Position.SOUTH, Position.WEST]
 
@@ -128,3 +128,27 @@ def test_dealer_rotates_clockwise_after_a_void_deal():
     assert status == "redeal"
     assert game.round is not None
     assert game.round.dealer == Position.EAST
+
+
+def test_restart_game_resets_scores_and_deals_fresh_round():
+    game = _new_game()
+    game.bots = {"dave"}
+    game = start_new_round(game)  # manche 1
+    game = start_new_round(game)  # manche 2 — pour vérifier le retour à 1
+    # Simule une partie terminée
+    game.scores = {Team.NORTH_SOUTH: 520, Team.EAST_WEST: 310}
+    game.winner = Team.NORTH_SOUTH
+    game.phase = GamePhase.FINISHED
+
+    restarted = restart_game(game)
+
+    assert restarted.scores == {Team.NORTH_SOUTH: 0, Team.EAST_WEST: 0}
+    assert restarted.winner is None
+    assert restarted.last_result is None
+    assert restarted.phase == GamePhase.BIDDING
+    assert restarted.round is not None
+    assert restarted.round.number == 1
+    assert restarted.round.phase == GamePhase.BIDDING
+    # joueurs, équipes et bots conservés
+    assert restarted.players == game.players
+    assert restarted.bots == {"dave"}

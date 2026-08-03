@@ -124,3 +124,96 @@ def test_leave_frees_slot_for_other_players(auth_client, auth_client2):
 
         # La room doit toujours exister (ws2 est encore connecté)
         assert room_id in store._rooms
+
+
+# ── Fin de partie : quitter / rejouer ─────────────────────────────────────────
+
+
+def _make_finished_room(
+    room_id: str, players: dict[Position, str], creator: str
+) -> GameState:
+    game = GameState(
+        room_id=room_id,
+        players=dict(players),
+        scores={Team.NORTH_SOUTH: 520, Team.EAST_WEST: 310},
+        target_score=500,
+        round=None,
+        phase=GamePhase.FINISHED,
+        winner=Team.NORTH_SOUTH,
+        last_result=None,
+        messages=[],
+    )
+    game.creator = creator
+    return game
+
+
+def test_leave_works_when_game_finished(auth_client):
+    """Un joueur peut quitter une partie terminée et revient au lobby ('left')."""
+    room_id = "room-finished-leave"
+    store._rooms[room_id] = _make_finished_room(
+        room_id, {Position.NORTH: TEST_USER}, creator=TEST_USER
+    )
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
+        assert ws.receive_json()["type"] == "state"
+        ws.send_text(json.dumps({"type": "leave"}))
+        assert ws.receive_json()["type"] == "left"
+
+    assert room_id not in store._rooms
+
+
+def test_rematch_by_creator_resets_scores(auth_client):
+    """Le créateur relance : nouvelle manche, scores remis à zéro."""
+    room_id = "room-rematch"
+    store._rooms[room_id] = _make_finished_room(
+        room_id,
+        {
+            Position.NORTH: TEST_USER,
+            Position.EAST: "🤖 Bot 1",
+            Position.SOUTH: "🤖 Bot 2",
+            Position.WEST: "🤖 Bot 3",
+        },
+        creator=TEST_USER,
+    )
+    store._rooms[room_id].bots = {"🤖 Bot 1", "🤖 Bot 2", "🤖 Bot 3"}
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
+        assert ws.receive_json()["type"] == "state"
+        ws.send_text(json.dumps({"type": "rematch"}))
+        msg = ws.receive_json()
+        assert msg["type"] == "state"
+        data = msg["data"]
+        assert data["phase"] == "BIDDING"
+        assert data["scores"] == {"NS": 0, "EW": 0}
+        assert data["winner"] is None
+        assert data["round"]["number"] == 1
+
+
+def test_rematch_refused_for_non_creator(auth_client):
+    """Un non-créateur ne peut pas relancer la partie."""
+    room_id = "room-rematch-noncreator"
+    store._rooms[room_id] = _make_finished_room(
+        room_id, {Position.NORTH: TEST_USER}, creator="quelqu'un d'autre"
+    )
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
+        assert ws.receive_json()["type"] == "state"
+        ws.send_text(json.dumps({"type": "rematch"}))
+        msg = ws.receive_json()
+        assert msg["type"] == "error"
+        assert "créateur" in msg["message"]
+
+
+def test_rematch_refused_when_not_four_players(auth_client):
+    """Rejouer est refusé si un siège est vide (un joueur a quitté)."""
+    room_id = "room-rematch-incomplete"
+    store._rooms[room_id] = _make_finished_room(
+        room_id, {Position.NORTH: TEST_USER}, creator=TEST_USER
+    )
+
+    with auth_client.websocket_connect(f"/ws/{room_id}") as ws:
+        assert ws.receive_json()["type"] == "state"
+        ws.send_text(json.dumps({"type": "rematch"}))
+        msg = ws.receive_json()
+        assert msg["type"] == "error"
+        assert "4 joueurs" in msg["message"]
