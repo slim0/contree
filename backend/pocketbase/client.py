@@ -122,6 +122,7 @@ class PocketBaseClient:
         password: str,
         is_admin: bool = False,
         must_change_password: bool = True,
+        is_approved: bool = False,
     ) -> dict:
         r = self._authed_request(
             "POST",
@@ -132,7 +133,18 @@ class PocketBaseClient:
                 "passwordConfirm": password,
                 "is_admin": is_admin,
                 "must_change_password": must_change_password,
+                "is_approved": is_approved,
             },
+        )
+        if r.is_error:
+            raise PocketBaseError(r.status_code, r.text)
+        return r.json()
+
+    def set_approved(self, user_id: str, approved: bool = True) -> dict:
+        r = self._authed_request(
+            "PATCH",
+            f"/api/collections/{_USERS_COLLECTION}/records/{user_id}",
+            json={"is_approved": approved},
         )
         if r.is_error:
             raise PocketBaseError(r.status_code, r.text)

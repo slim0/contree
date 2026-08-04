@@ -126,9 +126,15 @@ def pb_client(pb_server) -> Iterator[PocketBaseClient]:
         pb.delete(record["id"])
 
     repo = UserRepository(pb)
-    repo.create(TEST_ADMIN, "Adm1n!pass", is_admin=True, must_change_password=False)
-    repo.create(TEST_USER, "testpass123", must_change_password=False)
-    repo.create(TEST_USER2, "testpass456", must_change_password=False)
+    repo.create(
+        TEST_ADMIN,
+        "Adm1n!pass",
+        is_admin=True,
+        must_change_password=False,
+        is_approved=True,
+    )
+    repo.create(TEST_USER, "testpass123", must_change_password=False, is_approved=True)
+    repo.create(TEST_USER2, "testpass456", must_change_password=False, is_approved=True)
 
     app.dependency_overrides[get_pb_client] = lambda: pb
 

@@ -167,6 +167,25 @@ def test_delete_user_forbidden_for_regular_user(auth_client):
     assert r.status_code == 403
 
 
+def test_approve_user_sets_flag(pb_client, admin_client):
+    UserRepository(pb_client).create(
+        "pending", "pass12345", must_change_password=False, is_approved=False
+    )
+    r = admin_client.post("/api/admin/users/pending/approve")
+    assert r.status_code == 200
+    assert r.json()["is_approved"] is True
+
+
+def test_approve_unknown_user_returns_404(admin_client):
+    r = admin_client.post("/api/admin/users/inexistant/approve")
+    assert r.status_code == 404
+
+
+def test_approve_forbidden_for_regular_user(auth_client):
+    r = auth_client.post("/api/admin/users/testuser/approve")
+    assert r.status_code == 403
+
+
 # ── Route /api/users/me/stats ───────────────────────────────────────────────────
 
 

@@ -73,7 +73,9 @@ def _bootstrap_admin() -> None:
     repo = UserRepository(get_pb_client())
     if repo.count() == 0:
         temp = generate_temp_password()
-        repo.create("admin", temp, is_admin=True, must_change_password=True)
+        repo.create(
+            "admin", temp, is_admin=True, must_change_password=True, is_approved=True
+        )
         log.warning("━" * 60)
         log.warning("PREMIER DÉMARRAGE — Compte administrateur créé")
         log.warning("  Identifiant       : admin")

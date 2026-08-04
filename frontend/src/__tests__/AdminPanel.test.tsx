@@ -18,12 +18,12 @@ const baseStats = {
 }
 
 const mockUsers = [
-  { id: 1, username: 'admin', is_admin: true, must_change_password: false, created_at: '2024-01-01T00:00:00Z', ...baseStats },
+  { id: 1, username: 'admin', is_admin: true, must_change_password: false, is_approved: true, created_at: '2024-01-01T00:00:00Z', ...baseStats },
   {
-    id: 2, username: 'alice', is_admin: false, must_change_password: false, created_at: '2024-01-02T00:00:00Z',
+    id: 2, username: 'alice', is_admin: false, must_change_password: false, is_approved: true, created_at: '2024-01-02T00:00:00Z',
     ...baseStats, games_played: 10, games_won: 6, games_lost: 4, win_rate: 0.6,
   },
-  { id: 3, username: 'bob', is_admin: false, must_change_password: true, created_at: '2024-01-03T00:00:00Z', ...baseStats },
+  { id: 3, username: 'bob', is_admin: false, must_change_password: true, is_approved: true, created_at: '2024-01-03T00:00:00Z', ...baseStats },
 ]
 
 describe('AdminPanel', () => {
@@ -116,6 +116,27 @@ describe('AdminPanel', () => {
   it('n\'affiche pas de lien "Mes statistiques" sans onShowStats', async () => {
     render(<AdminPanel onClose={onClose} />)
     expect(screen.queryByText('Mes statistiques')).not.toBeInTheDocument()
+  })
+
+  it('affiche les comptes en attente avec un bouton Approuver et déclenche l\'approbation', async () => {
+    const pending = { id: 5, username: 'newbie', is_admin: false, must_change_password: false, is_approved: false, created_at: '2024-01-05T00:00:00Z', ...baseStats }
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => [...mockUsers, pending] }) // GET initial
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ ...pending, is_approved: true }) }) // POST approve
+      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers }) // GET refresh
+
+    render(<AdminPanel onClose={onClose} />)
+    await waitFor(() => screen.getByText('newbie'))
+    expect(screen.getByText(/En attente d'approbation/)).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: /Approuver/i }))
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/admin/users/newbie/approve',
+        expect.objectContaining({ method: 'POST' }),
+      )
+    })
   })
 
   it('affiche une erreur si le nom d\'utilisateur est déjà pris', async () => {

@@ -1,5 +1,6 @@
 import { useState, FormEvent } from 'react'
 import type { AuthUser } from '../../store/authStore'
+import RegisterPage from './RegisterPage'
 
 interface Props {
   onLogin: (user: AuthUser) => void
@@ -10,6 +11,11 @@ export default function LoginPage({ onLogin }: Props) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+  const [showRegister, setShowRegister] = useState(false)
+
+  if (showRegister) {
+    return <RegisterPage onBack={() => setShowRegister(false)} />
+  }
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault()
@@ -77,6 +83,13 @@ export default function LoginPage({ onLogin }: Props) {
           </button>
         </form>
         {error && <p className="lp-error">{error}</p>}
+        <button
+          className="lp-back-inline"
+          style={{ marginTop: 16 }}
+          onClick={() => setShowRegister(true)}
+        >
+          Pas encore de compte ? Créer un compte
+        </button>
       </div>
     </div>
   )

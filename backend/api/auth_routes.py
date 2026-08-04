@@ -2,13 +2,43 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 
 from backend.api.limiter import limiter
 from backend.auth.dependencies import get_current_user
-from backend.auth.schemas import ChangePasswordRequest, LoginRequest, UserInfo
+from backend.auth.schemas import (
+    ChangePasswordRequest,
+    LoginRequest,
+    RegisterRequest,
+    UserInfo,
+)
 from backend.auth.service import create_token, set_auth_cookie
 from backend.pocketbase.client import PocketBaseClient, get_pb_client
 from backend.users.models import User
 from backend.users.repository import UserRepository
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/register", status_code=status.HTTP_201_CREATED)
+@limiter.limit("5/minute")
+async def register(
+    request: Request,
+    body: RegisterRequest,
+    pb: PocketBaseClient = Depends(get_pb_client),
+) -> dict:
+    repo = UserRepository(pb)
+    if repo.get_by_username(body.username):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Ce nom d'utilisateur est déjà pris",
+        )
+    # Compte auto-inscrit : mot de passe choisi par le joueur (pas de changement
+    # forcé), mais inutilisable tant que l'admin ne l'a pas approuvé.
+    repo.create(
+        body.username,
+        body.password,
+        is_admin=False,
+        must_change_password=False,
+        is_approved=False,
+    )
+    return {"detail": "Compte créé, en attente de validation par l'administrateur"}
 
 
 @router.post("/login", response_model=UserInfo)
@@ -24,6 +54,11 @@ async def login(
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED, detail="Identifiants invalides"
+        )
+    if not user.is_approved:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Compte en attente de validation par l'administrateur",
         )
     token = create_token(
         user.id, user.username, user.is_admin, user.must_change_password

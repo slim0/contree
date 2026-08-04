@@ -38,10 +38,28 @@ async def create_user(
             detail="Ce nom d'utilisateur est déjà pris",
         )
     temp_password = generate_temp_password()
-    user = repo.create(body.username, temp_password)
+    # Compte créé par l'admin = de confiance, utilisable immédiatement.
+    user = repo.create(body.username, temp_password, is_approved=True)
     return UserWithTempPassword(
         user=UserResponse.model_validate(user), temp_password=temp_password
     )
+
+
+@router.post("/users/{username}/approve", response_model=UserResponse)
+@limiter.limit("10/minute")
+async def approve_user(
+    request: Request,
+    username: str,
+    pb: PocketBaseClient = Depends(get_pb_client),
+    _: User = Depends(require_admin),
+) -> User:
+    repo = UserRepository(pb)
+    user = repo.get_by_username(username)
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable"
+        )
+    return repo.set_approved(user, True)
 
 
 @router.delete("/users/{username}", status_code=status.HTTP_204_NO_CONTENT)

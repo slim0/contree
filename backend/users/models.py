@@ -9,6 +9,7 @@ class User:
     is_admin: bool
     must_change_password: bool
     created_at: datetime
+    is_approved: bool = False
     games_played: int = 0
     games_won: int = 0
     games_lost: int = 0
@@ -38,6 +39,7 @@ class User:
             is_admin=record["is_admin"],
             must_change_password=record["must_change_password"],
             created_at=datetime.fromisoformat(record["created"]),
+            is_approved=record.get("is_approved", False),
             games_played=record["games_played"],
             games_won=record["games_won"],
             games_lost=record["games_lost"],

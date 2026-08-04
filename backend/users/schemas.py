@@ -12,6 +12,7 @@ class UserResponse(BaseModel):
     username: str
     is_admin: bool
     must_change_password: bool
+    is_approved: bool
     created_at: datetime
     games_played: int
     games_won: int

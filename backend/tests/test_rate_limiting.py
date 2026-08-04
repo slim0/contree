@@ -11,6 +11,26 @@ def test_login_rate_limit(client):
     assert r.status_code == 429
 
 
+def test_register_rate_limit(client):
+    for i in range(5):
+        client.post(
+            "/api/auth/register",
+            json={"username": f"reg{i}", "password": "chosenPass1"},
+        )
+    r = client.post(
+        "/api/auth/register",
+        json={"username": "overflow", "password": "chosenPass1"},
+    )
+    assert r.status_code == 429
+
+
+def test_admin_approve_user_rate_limit(admin_client):
+    for _ in range(10):
+        admin_client.post("/api/admin/users/nonexistent/approve")
+    r = admin_client.post("/api/admin/users/nonexistent/approve")
+    assert r.status_code == 429
+
+
 def test_change_password_rate_limit(auth_client):
     payload = {"old_password": "wrong", "new_password": "nouveauPass1!"}
     for _ in range(5):

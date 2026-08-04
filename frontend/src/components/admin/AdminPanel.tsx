@@ -5,6 +5,7 @@ interface UserRecord {
   username: string
   is_admin: boolean
   must_change_password: boolean
+  is_approved: boolean
   created_at: string
   games_played: number
   games_won: number
@@ -66,6 +67,24 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', o
       setError('Impossible de contacter le serveur')
     } finally {
       setLoading(false)
+    }
+  }
+
+  async function handleApprove(username: string) {
+    setError(null)
+    try {
+      const r = await fetch(`/api/admin/users/${encodeURIComponent(username)}/approve`, {
+        method: 'POST',
+        credentials: 'include',
+      })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        setError(body.detail ?? "Erreur lors de l'approbation")
+        return
+      }
+      await fetchUsers()
+    } catch {
+      setError('Impossible de contacter le serveur')
     }
   }
 
@@ -145,11 +164,49 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', o
 
         {error && <p className="lp-error">{error}</p>}
 
+        {/* Comptes en attente d'approbation */}
+        {users.some(u => !u.is_approved) && (
+          <div style={{ marginTop: 8, marginBottom: 16 }}>
+            <label className="lp-label">
+              En attente d'approbation ({users.filter(u => !u.is_approved).length})
+            </label>
+            <ul className="lp-room-list" style={{ marginTop: 8 }}>
+              {users.filter(u => !u.is_approved).map(u => (
+                <li key={u.id} className="lp-room-item" style={{ cursor: 'default' }}>
+                  <span className="lp-room-item-name">{u.username}</span>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    <button
+                      style={{
+                        background: 'none', border: '1.5px solid #1a7a3a',
+                        borderRadius: 8, padding: '4px 10px',
+                        fontSize: 12, color: '#1a7a3a', cursor: 'pointer', margin: 0,
+                      }}
+                      onClick={() => handleApprove(u.username)}
+                    >
+                      Approuver
+                    </button>
+                    <button
+                      style={{
+                        background: 'none', border: '1.5px solid #e0e0e0',
+                        borderRadius: 8, padding: '4px 10px',
+                        fontSize: 12, color: '#9e0a0a', cursor: 'pointer', margin: 0,
+                      }}
+                      onClick={() => handleDelete(u.username)}
+                    >
+                      Rejeter
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
         {/* Liste */}
         <div style={{ marginTop: 8 }}>
-          <label className="lp-label">Joueurs ({users.length})</label>
+          <label className="lp-label">Joueurs ({users.filter(u => u.is_approved).length})</label>
           <ul className="lp-room-list" style={{ marginTop: 8 }}>
-            {users.map(u => (
+            {users.filter(u => u.is_approved).map(u => (
               <li key={u.id} className="lp-room-item" style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <span className="lp-room-item-name">

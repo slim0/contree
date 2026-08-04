@@ -66,6 +66,12 @@ describe('LoginPage', () => {
     expect(onLogin).not.toHaveBeenCalled()
   })
 
+  it('bascule vers le formulaire d\'inscription', () => {
+    render(<LoginPage onLogin={onLogin} />)
+    fireEvent.click(screen.getByText(/Créer un compte/i))
+    expect(screen.getByRole('button', { name: /Créer le compte/i })).toBeInTheDocument()
+  })
+
   it('affiche une erreur réseau si le serveur est injoignable', async () => {
     mockFetch.mockRejectedValueOnce(new Error('Network error'))
 

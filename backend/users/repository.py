@@ -28,12 +28,19 @@ class UserRepository:
         password: str,
         is_admin: bool = False,
         must_change_password: bool = True,
+        is_approved: bool = False,
     ) -> User:
-        record = self._pb.create(username, password, is_admin, must_change_password)
+        record = self._pb.create(
+            username, password, is_admin, must_change_password, is_approved
+        )
         return User.from_record(record)
 
     def update_password(self, user: User, new_password: str) -> User:
         record = self._pb.set_password(user.id, new_password)
+        return User.from_record(record)
+
+    def set_approved(self, user: User, approved: bool = True) -> User:
+        record = self._pb.set_approved(user.id, approved)
         return User.from_record(record)
 
     def increment_stats(self, user_id: str, increments: dict[str, int]) -> User:
