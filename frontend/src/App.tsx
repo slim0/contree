@@ -193,7 +193,8 @@ export default function App() {
   }
 
   function handleCopy() {
-    navigator.clipboard.writeText(createdRoom ?? '')
+    const link = createdRoom ? `${location.origin}/?room=${createdRoom}` : ''
+    navigator.clipboard.writeText(link)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -305,10 +306,10 @@ export default function App() {
               />
               <div className="lp-code-box">
                 <div className="lp-code">{createdRoom}</div>
-                <div className="lp-code-hint">Partagez ce code avec vos 3 amis</div>
+                <div className="lp-code-hint">Partagez le code ou le lien avec vos 3 amis</div>
               </div>
               <button className="lp-btn-copy" onClick={handleCopy}>
-                {copied ? '✓ Code copié !' : 'Copier le code'}
+                {copied ? '✓ Lien copié !' : 'Copier le lien d’invitation'}
               </button>
               <div className="lp-score-selector">
                 <label className="lp-label">Score cible</label>
