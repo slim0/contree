@@ -473,7 +473,7 @@
           "left center right"
           ". bottom .";
         grid-template-columns: minmax(155px, 220px) 1fr minmax(155px, 220px);
-        grid-template-rows: auto 1fr auto;
+        grid-template-rows: minmax(0, auto) minmax(0, 1fr) auto;
         gap: 6px;
         width: 100%;
         height: 100%;
@@ -489,11 +489,12 @@
         grid-template-columns: minmax(50px, 70px) 1fr minmax(50px, 70px);
       }
       .table-grid--bidding .player-slot { min-width: 0; }
-      .slot-top    { grid-area: top; }
+      /* La main du joueur (bas) est prioritaire : les adversaires (haut) cèdent leur place en premier. */
+      .slot-top    { grid-area: top; align-self: start; min-height: 0; }
       .slot-left   { grid-area: left; }
-      .slot-center { grid-area: center; align-self: stretch; width: 100%; }
+      .slot-center { grid-area: center; align-self: stretch; width: 100%; min-height: 0; display: flex; align-items: center; justify-content: center; }
       .slot-right  { grid-area: right; }
-      .slot-bottom { grid-area: bottom; }
+      .slot-bottom { grid-area: bottom; align-self: end; }
 
       /* ── PLAYER SLOT (pas de cadre — la main repose directement sur le tapis) ── */
       .player-slot {
@@ -631,9 +632,10 @@
         align-items: center;
         justify-items: center;
         min-width: 170px;
-        min-height: 130px;
+        min-height: 0;
         width: 100%;
-        height: 100%;
+        height: auto;
+        max-height: 100%;
         border: 2px solid #3a3a2a;
         border-radius: 16px;
         padding: 10px;
@@ -928,6 +930,13 @@
         .hand-fan { height: 130px; }
         .hand-fan-opp { height: 68px; }
         .card-back { width: 76px; height: 109px; }
+      }
+
+      /* ── PAYSAGE CONTRAINT : plie le pli (cartes jouées se chevauchent) pour garder
+         la main du joueur toujours entièrement visible — priorité aux cartes du joueur ── */
+      @media (orientation: landscape) and (max-height: 900px) {
+        .trick-pos-top    { margin-bottom: -46px; z-index: 1; }
+        .trick-pos-bottom { margin-top: -46px; z-index: 1; }
       }
     </style>
   </head>

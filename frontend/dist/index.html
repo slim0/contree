@@ -9,7 +9,7 @@
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-    <meta name="apple-mobile-web-app-title" content="Belote" />
+    <meta name="apple-mobile-web-app-title" content="Coinche" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -303,8 +303,7 @@
         gap: 6px;
         padding: max(8px, env(safe-area-inset-top)) max(8px, env(safe-area-inset-right))
                  max(8px, env(safe-area-inset-bottom)) max(8px, env(safe-area-inset-left));
-        overflow-y: auto;
-        overflow-x: hidden;
+        overflow: hidden;
       }
 
       /* ── HEADER COMPACT ── */
@@ -465,7 +464,7 @@
         display: flex;
         justify-content: center;
         align-items: stretch;
-        overflow-y: auto;
+        overflow: hidden;
       }
       .table-grid {
         display: grid;
@@ -477,7 +476,7 @@
         grid-template-rows: auto 1fr auto;
         gap: 6px;
         width: 100%;
-        min-height: 100%;
+        height: 100%;
         align-items: center;
         justify-items: center;
         background: radial-gradient(ellipse at center, #2d5a2d 0%, #1e3d1e 50%, #152815 100%);
@@ -527,7 +526,7 @@
         color: #4d9; animation: marker-pulse-play 2s ease-in-out infinite;
       }
       .player-name { font-size: 1em; font-weight: bold; margin-bottom: 4px; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
-      .player-pos  { font-size: 0.82em; color: #cfcfcf; margin-bottom: 4px; display: flex; flex-wrap: wrap; gap: 3px; justify-content: center; align-items: center; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
+      .player-pos  { font-size: 0.82em; color: #cfcfcf; margin-bottom: 4px; display: flex; flex-wrap: nowrap; white-space: nowrap; gap: 3px; justify-content: center; align-items: center; text-shadow: 0 1px 3px rgba(0,0,0,0.8); }
       .badge-dealer { color: #eb4; }
       .badge-action { font-weight: bold; text-shadow: 0 1px 2px rgba(0,0,0,0.5); }
 
@@ -826,8 +825,8 @@
         .playing-card.compact .pc-rank { font-size: 14px; }
         .playing-card.compact .pc-sym  { font-size: 11px; }
         .playing-card.compact .pc-center { font-size: 21px; }
-        .hand-fan { height: 109px; }
-        .hand-fan-opp { height: 47px; }
+        .hand-fan { height: 96px; }
+        .hand-fan-opp { height: 30px; }
         .hand-fan-wrap { padding: 0px 0 0px; }
         .card-back { width: 64px; height: 92px; }
         .card-back.compact { width: 28px; height: 40px; }
@@ -837,16 +836,17 @@
 
         h3 { font-size: 0.72em; margin-bottom: 4px; }
         .panel { padding: 6px 10px; margin: 3px 0; border-radius: 6px; }
-        .bid-center { padding: 1px 4px; gap: 1px; min-width: 110px; }
+        /* Enchères compactes : laisse la place à la main du joueur en bas (paysage court) */
+        .bid-center { padding: 2px 6px; gap: 2px; min-width: 110px; }
         .bid-center-label { display: none; }
         .bid-to-beat { display: none; }
-        .bid-center-controls { gap: 1px; }
-        .bid-double-row, .bid-value-row, .bid-action-row { gap: 1px; }
-        .bid-suit-grid { gap: 1px; }
-        .bid-suit-btn { padding: 1px 2px; font-size: 0.76em; min-height: 13px; }
-        .bid-value-btn { padding: 1px 4px; min-height: 13px; }
-        .bid-page-arrow { padding: 1px 6px; min-height: 13px; min-width: 18px; }
-        .bid-double-btn, .bid-pass-btn { min-height: 13px; }
+        .bid-center-controls { gap: 3px; }
+        .bid-double-row, .bid-value-row, .bid-action-row { gap: 3px; }
+        .bid-suit-grid { gap: 3px; }
+        .bid-suit-btn { padding: 3px 4px; font-size: 1em; min-height: 27px; }
+        .bid-value-btn { padding: 3px 6px; font-size: 0.95em; min-height: 27px; }
+        .bid-page-arrow { padding: 3px 8px; min-height: 27px; min-width: 26px; }
+        .bid-double-btn, .bid-pass-btn { min-height: 25px; font-size: 0.9em; }
       }
 
       /* ── PORTRAIT MOBILE (≤ 640px de largeur) ── */
@@ -930,7 +930,7 @@
         .card-back { width: 76px; height: 109px; }
       }
     </style>
-    <script type="module" crossorigin src="/assets/index-u0BQ_WDn.js"></script>
+    <script type="module" crossorigin src="/assets/index-C-Hv4HGD.js"></script>
   </head>
   <body>
     <div id="root"></div>
