@@ -8,40 +8,47 @@ services:
     volumes:
       - pocketbase_data:/pb/pb_data
     environment:
-      PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL:?PB_SUPERUSER_EMAIL is required}
-      PB_SUPERUSER_PASSWORD: ${PB_SUPERUSER_PASSWORD:?PB_SUPERUSER_PASSWORD is required}
+      PB_SUPERUSER_EMAIL: admin@contree.local
+      PB_SUPERUSER_PASSWORD: dev-superuser-password
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8090/api/health"]
       interval: 5s
       timeout: 3s
       retries: 10
-    restart: unless-stopped
 
   backend:
     build:
       context: .
       dockerfile: Dockerfile.backend
-      target: prod
+      target: dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app/backend   # hot-reload Python
+      - ./DEV:/app/DEV
     environment:
       PB_URL: http://pocketbase:8090
-      PB_SUPERUSER_EMAIL: ${PB_SUPERUSER_EMAIL:?PB_SUPERUSER_EMAIL is required}
-      PB_SUPERUSER_PASSWORD: ${PB_SUPERUSER_PASSWORD:?PB_SUPERUSER_PASSWORD is required}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:?JWT_SECRET_KEY is required}
+      PB_SUPERUSER_EMAIL: admin@contree.local
+      PB_SUPERUSER_PASSWORD: dev-superuser-password
+      DEVELOPMENT: "true"
     depends_on:
       pocketbase:
         condition: service_healthy
-    restart: unless-stopped
 
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-      target: prod
+      target: dev
     ports:
-      - "80:80"
+      - "3000:3000"
+    volumes:
+      - ./frontend/src:/app/src         # hot-reload Vite
+      - ./frontend/public:/app/public
+    environment:
+      BACKEND_URL: http://backend:8000
     depends_on:
       - backend
-    restart: unless-stopped
 
 volumes:
   pocketbase_data:
