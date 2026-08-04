@@ -254,6 +254,27 @@ def test_mediumbot_bids_proportionally_on_strong_hand():
     assert d.value is not None and d.value > 80
 
 
+def test_mediumbot_opens_on_a_decent_hand():
+    """Main correcte sans être monstre (9,A ♥ + 2 as latéraux ≈ 52 pts en main) :
+    trop faible seule pour 80, mais l'apport partenaire doit la faire ouvrir.
+    Régression : avant PARTNER_ALLOWANCE le bot ne prenait quasi jamais."""
+    decent = [
+        Card(Suit.HEARTS, Rank.NINE),
+        Card(Suit.HEARTS, Rank.ACE),
+        Card(Suit.HEARTS, Rank.SEVEN),
+        Card(Suit.HEARTS, Rank.EIGHT),
+        Card(Suit.SPADES, Rank.ACE),
+        Card(Suit.CLUBS, Rank.ACE),
+        Card(Suit.DIAMONDS, Rank.SEVEN),
+        Card(Suit.DIAMONDS, Rank.EIGHT),
+    ]
+    r = _bidding_round(None, Position.EAST)
+    r.hands[Position.EAST] = decent
+    d = MediumBot().choose_bid(r, Position.EAST)
+    assert d.kind == "bid"
+    assert d.value == 80
+
+
 def test_mediumbot_passes_on_weak_hand():
     weak = [
         Card(Suit.HEARTS, Rank.SEVEN),

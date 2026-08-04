@@ -162,6 +162,8 @@ class MediumBot:
     """
 
     BID_MARGIN = 0  # équilibré : annonce à hauteur de l'estimation, sans marge
+    PARTNER_ALLOWANCE = 25  # un contrat est un pari d'équipe : le partenaire apporte
+    #   des points que ma seule main ne voit pas. Sans ça le bot n'ouvre quasi jamais.
     NT_SCALE = 0.6  # Sans/Tout Atout : on rabote l'estimation (surestimation facile)
     CONTRE_MIN_CONTRACT = 110  # valeur adverse minimale pour envisager un contre
     CONTRE_HAND = 55  # force minimale de ma main dans leur atout pour contrer
@@ -222,7 +224,7 @@ class MediumBot:
 
         min_val = actions["min_bid_value"]
         if min_val is not None and best_trump is not None:
-            target = _round10(best_est - self.BID_MARGIN)
+            target = _round10(best_est + self.PARTNER_ALLOWANCE - self.BID_MARGIN)
             if target >= min_val:
                 return BidDecision("bid", value=min(target, 160), trump=best_trump)
         return BidDecision("pass")
