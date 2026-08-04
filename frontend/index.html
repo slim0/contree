@@ -489,6 +489,12 @@
         grid-template-columns: minmax(50px, 70px) 1fr minmax(50px, 70px);
       }
       .table-grid--bidding .player-slot { min-width: 0; }
+      /* Enchères : on masque les dos des adversaires (priorité aux cartes du joueur) et on
+         ancre le panneau en haut pour remonter la main du joueur, toujours visible en bas. */
+      .table-grid--bidding .slot-top   .hand-fan-wrap,
+      .table-grid--bidding .slot-left  .hand-fan-wrap,
+      .table-grid--bidding .slot-right .hand-fan-wrap { display: none; }
+      .table-grid--bidding .slot-center { align-items: flex-start; }
       /* La main du joueur (bas) est prioritaire : les adversaires (haut) cèdent leur place en premier. */
       .slot-top    { grid-area: top; align-self: start; min-height: 0; }
       .slot-left   { grid-area: left; }
@@ -849,6 +855,19 @@
         .bid-value-btn { padding: 3px 6px; font-size: 0.95em; min-height: 27px; }
         .bid-page-arrow { padding: 3px 8px; min-height: 27px; min-width: 26px; }
         .bid-double-btn, .bid-pass-btn { min-height: 25px; font-size: 0.9em; }
+      }
+
+      /* ── ENCHÈRES COMPACTES — paysage moyen (521–900px de haut) ──
+         Empêche le panneau d'enchères de dominer la hauteur pour garder la main visible. */
+      @media (orientation: landscape) and (min-height: 521px) and (max-height: 900px) {
+        .bid-center { padding: 4px 8px; gap: 3px; }
+        .bid-center-label { display: none; }
+        .bid-center-controls { gap: 4px; }
+        .bid-double-row, .bid-value-row, .bid-action-row, .bid-suit-grid { gap: 4px; }
+        .bid-suit-btn  { padding: 4px 4px; min-height: 30px; }
+        .bid-value-btn { padding: 4px 6px; min-height: 30px; }
+        .bid-page-arrow { padding: 4px 8px; min-height: 30px; min-width: 28px; }
+        .bid-double-btn, .bid-pass-btn { min-height: 28px; }
       }
 
       /* ── PORTRAIT MOBILE (≤ 640px de largeur) ── */
