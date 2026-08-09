@@ -203,21 +203,28 @@ Permet de jouer à moins de 4 humains (ex. 2 humains vs 2 bots). Livré : **Easy
   garde-fous « tous connectés » rendus conscients des bots (démarrage, gate de reprise
   après GO, watchdog de reconnexion), et **pompe `_run_bots`** qui joue les coups des bots
   (les bots n'ont pas de socket) après chaque action humaine, au début de manche et après
-  le score. Guard `_bot_running` contre les double-boucles.
+  le score. Guard `_bot_running` contre les double-boucles. En phase d'enchères, la pompe
+  vérifie à chaque itération si un bot adverse hors tour veut **contrer « à la volée »**
+  (`_find_bot_volee_contre`) avant de regarder `r.current_bidder` — même mécanisme que le
+  chemin humain (`_dispatch`, action `"contre"` traitée avant la vérification de tour).
 - Front : boutons « + 🤖 » par siège vide dans le salon (`Game.tsx`), badge/retrait bot,
   champ `bots: string[]` dans `types.ts`.
 
 ### Niveaux existants
 - **EasyBot** — faible exprès : ouvre uniquement à 80, ne relance/coinche jamais, entame
   la carte la moins chère sans mémoire. Conservé pour tests/comparaison.
-- **MediumBot** (défaut en jeu) — **fonction d'évaluation** `_estimate_points(hand, trump)` :
-  enchère proportionnée (relance, meilleur des 6 atouts, tempérament équilibré),
-  **contre/surcontre** sur son tour, jeu avec **mémoire** des cartes tombées
-  (`_seen_cards`/`_is_master`) : tire atout comme déclarant, encaisse ses maîtres, nourrit
-  le partenaire quand il est dernier à jouer, préserve ses maîtres en défaussant. Constantes
-  de calibrage exposées en tête de classe (`BID_MARGIN`, `CONTRE_HAND`, …).
-  Limites (`ponytail:`) : `_is_master` ignore la coupe adverse ; pas de coinche « à la
-  volée » hors tour ; pas d'annonce Capot/Générale.
+- **MediumBot** (défaut en jeu) — enchère via une **grille d'ouverture/relance explicite
+  par palier** (`_bid_ladder`, sur les traits de main nommés `TrumpHandFeatures` :
+  longueur d'atout, honneurs V/9, belote, as/dix latéraux protégés) pour les couleurs
+  classiques ; Sans Atout/Tout Atout gardent une estimation continue
+  (`_estimate_points` × `NT_SCALE`) faute de couleur d'atout unique à noter. Contre/
+  surcontre restent sur `_estimate_points` (`CONTRE_HAND`/`SURCONTRE_HAND`/
+  `CONTRE_MIN_CONTRACT`) — **y compris hors tour** (coinche à la volée, cf. ci-dessus).
+  Jeu avec **mémoire** des cartes tombées (`_seen_cards`/`_is_master`) : tire atout comme
+  déclarant, encaisse ses maîtres, nourrit le partenaire quand il est dernier à jouer,
+  préserve ses maîtres en défaussant.
+  Limites (`ponytail:`) : `_is_master` ignore la coupe adverse ; pas d'annonce
+  Capot/Générale.
 
 ### Étapes suivantes (dans l'ordre)
 1. **HardBot** — recherche par **simulations Monte Carlo** (déterminisation des mains

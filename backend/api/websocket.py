@@ -17,6 +17,7 @@ from backend.game.models import (
     GameState,
     Position,
     Rank,
+    RoundState,
     Suit,
     Trump,
 )
@@ -43,6 +44,23 @@ _bot_running: set[str] = set()
 
 def _is_bot(game: GameState, pos: Position) -> bool:
     return game.players.get(pos) in game.bots
+
+
+def _find_bot_volee_contre(game: GameState, r: RoundState) -> Position | None:
+    """Un bot adverse veut-il contrer "à la volée", hors tour — comme un humain
+    peut déjà le faire (cf. `_dispatch`, action "contre" traitée avant la
+    vérification de tour) ? Ne concerne jamais le surcontre (pas de volée pour
+    le surcontre côté humain non plus)."""
+    if r.contract is None:
+        return None
+    for pos, name in game.players.items():
+        if pos == r.current_bidder or name not in game.bots:
+            continue
+        if not rules.get_legal_bid_actions(r, pos)["can_contre"]:
+            continue
+        if _bot.choose_bid(r, pos).kind == "contre":
+            return pos
+    return None
 
 
 # ─── WebRTC signalisation ──────────────────────────────────────────────────────
@@ -151,38 +169,47 @@ async def _run_bots(room_id: str) -> None:
             r = game.round
 
             if r.phase == GamePhase.BIDDING:
-                pos = r.current_bidder
-                if pos is None or not _is_bot(game, pos):
-                    return
-                decision = _bot.choose_bid(r, pos)
-                if (
-                    decision.kind == "bid"
-                    and decision.value is not None
-                    and decision.trump is not None
-                ):
+                volee_pos = _find_bot_volee_contre(game, r)
+                if volee_pos is not None:
                     log.info(
-                        "Salon '%s' — bot %s ANNONCE %d à %s",
+                        "Salon '%s' — bot %s CONTRE ! (à la volée)",
                         room_id,
-                        pos.value,
-                        decision.value,
-                        decision.trump.value,
+                        volee_pos.value,
                     )
-                    game, _ = rules.apply_bid(
-                        game,
-                        decision.value,
-                        decision.is_capot,
-                        decision.trump,
-                        decision.is_generale,
-                    )
-                elif decision.kind == "contre":
-                    log.info("Salon '%s' — bot %s CONTRE !", room_id, pos.value)
-                    game, _ = rules.apply_contre(game, pos)
-                elif decision.kind == "surcontre":
-                    log.info("Salon '%s' — bot %s SURCONTRE !", room_id, pos.value)
-                    game, _ = rules.apply_surcontre(game)
+                    game, _ = rules.apply_contre(game, volee_pos)
                 else:
-                    log.info("Salon '%s' — bot %s PASSE", room_id, pos.value)
-                    game, _ = rules.apply_pass(game)
+                    pos = r.current_bidder
+                    if pos is None or not _is_bot(game, pos):
+                        return
+                    decision = _bot.choose_bid(r, pos)
+                    if (
+                        decision.kind == "bid"
+                        and decision.value is not None
+                        and decision.trump is not None
+                    ):
+                        log.info(
+                            "Salon '%s' — bot %s ANNONCE %d à %s",
+                            room_id,
+                            pos.value,
+                            decision.value,
+                            decision.trump.value,
+                        )
+                        game, _ = rules.apply_bid(
+                            game,
+                            decision.value,
+                            decision.is_capot,
+                            decision.trump,
+                            decision.is_generale,
+                        )
+                    elif decision.kind == "contre":
+                        log.info("Salon '%s' — bot %s CONTRE !", room_id, pos.value)
+                        game, _ = rules.apply_contre(game, pos)
+                    elif decision.kind == "surcontre":
+                        log.info("Salon '%s' — bot %s SURCONTRE !", room_id, pos.value)
+                        game, _ = rules.apply_surcontre(game)
+                    else:
+                        log.info("Salon '%s' — bot %s PASSE", room_id, pos.value)
+                        game, _ = rules.apply_pass(game)
                 if game.round and game.round.phase == GamePhase.PLAYING:
                     _log_contract(game, room_id)
 

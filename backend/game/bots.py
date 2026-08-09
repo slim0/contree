@@ -153,6 +153,85 @@ def _is_master(card: Card, trump: Trump, seen: set[Card]) -> bool:
     return True
 
 
+@dataclass
+class TrumpHandFeatures:
+    """Traits nommés d'une main pour une couleur d'atout candidate — sert de base à
+    la grille d'ouverture `_bid_ladder` (lisible "quelles conditions manquent pour
+    relancer encore", plutôt qu'une estimation continue difficile à justifier)."""
+
+    length: int  # nb de cartes dans la couleur candidate
+    honors: int  # 0/1/2 — Valet et/ou 9 d'atout tenus
+    has_belote: bool  # Roi + Dame d'atout tenus
+    protected_aces: int  # as latéraux dans une couleur d'au moins 2 cartes (sûrs)
+    lone_aces: int  # as latéraux secs — plus incertains, non comptés dans la grille
+    guarded_tens: int  # 10 latéral gardé (couleur d'au moins 2 cartes, sans as)
+
+
+def _trump_features(hand: list[Card], ts: Suit) -> TrumpHandFeatures:
+    trumps = [c for c in hand if c.suit == ts]
+    honors = sum(1 for c in trumps if c.rank in (Rank.JACK, Rank.NINE))
+    has_belote = Card(ts, Rank.KING) in hand and Card(ts, Rank.QUEEN) in hand
+
+    protected_aces = 0
+    lone_aces = 0
+    guarded_tens = 0
+    for suit in rules.ALL_SUITS:
+        if suit == ts:
+            continue
+        sc = [c for c in hand if c.suit == suit]
+        has_ace = any(c.rank == Rank.ACE for c in sc)
+        has_ten = any(c.rank == Rank.TEN for c in sc)
+        if has_ace:
+            if len(sc) >= 2:
+                protected_aces += 1
+            else:
+                lone_aces += 1
+        elif has_ten and len(sc) >= 2:
+            guarded_tens += 1
+
+    return TrumpHandFeatures(
+        length=len(trumps),
+        honors=honors,
+        has_belote=has_belote,
+        protected_aces=protected_aces,
+        lone_aces=lone_aces,
+        guarded_tens=guarded_tens,
+    )
+
+
+def _bid_ladder(f: TrumpHandFeatures) -> int | None:
+    """Grille d'ouverture/relance explicite pour une couleur d'atout candidate,
+    du palier le plus haut vers le plus bas. Chaque palier inclut strictement les
+    conditions du palier en dessous (atteindre 110 garantit d'atteindre 90/100/80) —
+    c'est ce qui remplace la marge de sécurité continue : on lit directement quelle
+    condition manque pour relancer encore, plutôt que de dérouler une formule.
+
+    Retourne `None` si aucune condition n'est remplie (pas d'ouverture sur cette
+    couleur).
+    """
+    if f.length >= 5 and f.honors == 2 and f.has_belote and f.protected_aces >= 1:
+        return 130
+    if f.length >= 4 and f.honors == 2 and f.protected_aces >= 2:
+        return 110
+    if (
+        f.length >= 4
+        and f.honors == 2
+        and (f.protected_aces >= 1 or f.guarded_tens >= 1 or f.has_belote)
+    ):
+        return 100
+    if f.length >= 4 and f.honors == 2:
+        return 90
+    if f.length >= 4 and f.honors >= 1 and f.protected_aces >= 1:
+        return 90
+    if f.length >= 4:
+        return 80
+    if f.length == 3 and f.honors == 2:
+        return 80
+    if f.length == 3 and f.honors >= 1 and f.protected_aces >= 1:
+        return 80
+    return None
+
+
 class MediumBot:
     """IA à fonction d'évaluation : enchère proportionnée à la main, contre/surcontre,
     jeu avec mémoire des cartes tombées et du partenaire. Tempérament équilibré.
@@ -164,12 +243,17 @@ class MediumBot:
     BID_MARGIN = 0  # équilibré : annonce à hauteur de l'estimation, sans marge
     PARTNER_ALLOWANCE = 25  # un contrat est un pari d'équipe : le partenaire apporte
     #   des points que ma seule main ne voit pas. Sans ça le bot n'ouvre quasi jamais.
+    #   Utilisé pour Sans Atout/Tout Atout (pas de grille par palier pour ces variantes,
+    #   cf. _bid_ladder) et pour le contre/surcontre.
     NT_SCALE = 0.6  # Sans/Tout Atout : on rabote l'estimation (surestimation facile)
     CONTRE_MIN_CONTRACT = 110  # valeur adverse minimale pour envisager un contre
     CONTRE_HAND = 55  # force minimale de ma main dans leur atout pour contrer
     SURCONTRE_HAND = 100  # force minimale pour surcontrer notre propre contrat
 
     # ── Évaluation ────────────────────────────────────────────────────────────
+    # Utilisée pour contre/surcontre, pour Sans Atout/Tout Atout, et comme
+    # départage secondaire entre couleurs candidates à égalité de palier dans
+    # la grille d'ouverture (`_bid_ladder`).
     def _estimate_points(self, hand: list[Card], trump: Trump) -> int:
         if trump == Trump.NO_TRUMP:
             return int(sum(NO_TRUMP_POINTS[c.rank] for c in hand) * self.NT_SCALE)
@@ -215,18 +299,30 @@ class MediumBot:
             ):
                 return BidDecision("contre")
 
+        # Couleurs classiques : grille d'ouverture explicite par palier.
         best_trump: Trump | None = None
-        best_est = -1
-        for t in rules.ALL_TRUMPS:
-            e = self._estimate_points(hand, t)
-            if e > best_est:
-                best_est, best_trump = e, t
+        best_value = -1
+        best_est = -1  # départage secondaire entre couleurs à palier égal
+        for suit in rules.ALL_SUITS:
+            palier = _bid_ladder(_trump_features(hand, suit))
+            if palier is None:
+                continue
+            est = self._estimate_points(hand, Trump(suit.value))
+            if palier > best_value or (palier == best_value and est > best_est):
+                best_value, best_trump, best_est = palier, Trump(suit.value), est
+
+        # Sans Atout / Tout Atout : pas de "couleur d'atout" unique à noter par une
+        # grille — on garde l'estimation continue, ramenée à la même échelle de
+        # palier (round10) pour rester comparable aux couleurs classiques.
+        for t in (Trump.NO_TRUMP, Trump.ALL_TRUMP):
+            est = self._estimate_points(hand, t)
+            palier = _round10(est + self.PARTNER_ALLOWANCE - self.BID_MARGIN)
+            if palier > best_value or (palier == best_value and est > best_est):
+                best_value, best_trump, best_est = palier, t, est
 
         min_val = actions["min_bid_value"]
-        if min_val is not None and best_trump is not None:
-            target = _round10(best_est + self.PARTNER_ALLOWANCE - self.BID_MARGIN)
-            if target >= min_val:
-                return BidDecision("bid", value=min(target, 160), trump=best_trump)
+        if min_val is not None and best_trump is not None and best_value >= min_val:
+            return BidDecision("bid", value=min(best_value, 160), trump=best_trump)
         return BidDecision("pass")
 
     # ── Jeu ───────────────────────────────────────────────────────────────────

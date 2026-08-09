@@ -318,6 +318,68 @@ def test_mediumbot_feeds_partner_when_last_to_play():
     assert card == Card(Suit.SPADES, Rank.TEN)
 
 
+def test_mediumbot_opens_100_on_ladder_tier():
+    """4 atouts, 2 honneurs (V,9), 1 as latéral protégé (♠ A,7) → palier 100 de la
+    grille (ne remplit pas la condition ``protected_aces >= 2`` du palier 110)."""
+    hand = [
+        Card(Suit.HEARTS, Rank.JACK),
+        Card(Suit.HEARTS, Rank.NINE),
+        Card(Suit.HEARTS, Rank.SEVEN),
+        Card(Suit.HEARTS, Rank.EIGHT),
+        Card(Suit.SPADES, Rank.ACE),
+        Card(Suit.SPADES, Rank.SEVEN),
+        Card(Suit.CLUBS, Rank.SEVEN),
+        Card(Suit.CLUBS, Rank.EIGHT),
+    ]
+    r = _bidding_round(None, Position.EAST)
+    r.hands[Position.EAST] = hand
+    d = MediumBot().choose_bid(r, Position.EAST)
+    assert d.kind == "bid"
+    assert d.trump == Trump.HEARTS
+    assert d.value == 100
+
+
+def test_mediumbot_opens_130_on_ladder_tier():
+    """5 atouts, 2 honneurs, belote, 1 as latéral protégé → palier 130 de la grille."""
+    hand = [
+        Card(Suit.HEARTS, Rank.JACK),
+        Card(Suit.HEARTS, Rank.NINE),
+        Card(Suit.HEARTS, Rank.KING),
+        Card(Suit.HEARTS, Rank.QUEEN),
+        Card(Suit.HEARTS, Rank.TEN),
+        Card(Suit.SPADES, Rank.ACE),
+        Card(Suit.SPADES, Rank.SEVEN),
+        Card(Suit.CLUBS, Rank.SEVEN),
+    ]
+    r = _bidding_round(None, Position.EAST)
+    r.hands[Position.EAST] = hand
+    d = MediumBot().choose_bid(r, Position.EAST)
+    assert d.kind == "bid"
+    assert d.trump == Trump.HEARTS
+    assert d.value == 130
+
+
+def test_mediumbot_picks_highest_ladder_tier_between_suits():
+    """♠ (4 atouts, 2 honneurs → palier 90) doit l'emporter sur ♦ (3 atouts, 2
+    honneurs → palier 80) : la grille choisit la couleur au palier le plus élevé."""
+    hand = [
+        Card(Suit.SPADES, Rank.JACK),
+        Card(Suit.SPADES, Rank.NINE),
+        Card(Suit.SPADES, Rank.SEVEN),
+        Card(Suit.SPADES, Rank.EIGHT),
+        Card(Suit.DIAMONDS, Rank.JACK),
+        Card(Suit.DIAMONDS, Rank.NINE),
+        Card(Suit.DIAMONDS, Rank.SEVEN),
+        Card(Suit.HEARTS, Rank.SEVEN),
+    ]
+    r = _bidding_round(None, Position.EAST)
+    r.hands[Position.EAST] = hand
+    d = MediumBot().choose_bid(r, Position.EAST)
+    assert d.kind == "bid"
+    assert d.trump == Trump.SPADES
+    assert d.value == 90
+
+
 def test_mediumbot_contres_strong_defense_on_high_contract():
     """Contrat adverse élevé (130 ♥ par NORD/NS) + EST tient une main forte à ♥ →
     EST (défense) coinche."""
@@ -376,6 +438,54 @@ async def test_run_bots_applies_contre(monkeypatch):
     assert updated is not None and updated.round is not None
     assert updated.round.contract is not None
     assert updated.round.contract.double == Double.CONTRE
+    await store.delete_room(game.room_id)
+
+
+@pytest.mark.asyncio
+async def test_run_bots_applies_volee_contre_out_of_turn(monkeypatch):
+    """OUEST (bot, défense) tient une main assassine à ♥ mais ce n'est pas son tour
+    (c'est au tour d'EST, humain, de parler juste après l'annonce de NORD) : le bot
+    doit contrer "à la volée" tout de suite, sans attendre que la rotation lui
+    revienne — comme un humain peut déjà le faire (cf. `_dispatch`)."""
+    from backend.store import memory_store as store
+
+    monkeypatch.setattr(ws_module, "BOT_MOVE_DELAY", 0)
+
+    players = {
+        Position.NORTH: "alice",
+        Position.EAST: "carol",
+        Position.SOUTH: "dave",
+        Position.WEST: "🤖 Bot 4",
+    }
+    game = _new_game(players, {"🤖 Bot 4"})
+    contract = Contract(
+        Bid(Position.NORTH, 130, False, Trump.HEARTS), Double.NONE, Team.NORTH_SOUTH
+    )
+    game.round = _bidding_round(contract, Position.EAST)  # tour d'EST, humain
+    game.round.hands[Position.WEST] = [
+        Card(Suit.HEARTS, Rank.JACK),
+        Card(Suit.HEARTS, Rank.NINE),
+        Card(Suit.HEARTS, Rank.ACE),
+        Card(Suit.HEARTS, Rank.TEN),
+        Card(Suit.SPADES, Rank.ACE),
+        Card(Suit.CLUBS, Rank.ACE),
+        Card(Suit.DIAMONDS, Rank.SEVEN),
+        Card(Suit.DIAMONDS, Rank.EIGHT),
+    ]
+    await store.set_game(game)
+
+    await ws_module._run_bots(game.room_id)
+
+    updated = await store.get_game(game.room_id)
+    assert updated is not None and updated.round is not None
+    assert updated.round.contract is not None
+    assert updated.round.contract.double == Double.CONTRE
+    # EST (humain, tour normal) n'a rien joué entre-temps : OUEST a coinché
+    # immédiatement, avant que la rotation ne lui revienne naturellement.
+    assert len(updated.round.bid_history) == 1
+    assert updated.round.bid_history[0].position == Position.WEST
+    assert updated.round.bid_history[0].action == "contre"
+    assert updated.round.current_bidder == Position.NORTH  # NEXT_PLAYER[WEST]
     await store.delete_room(game.room_id)
 
 
