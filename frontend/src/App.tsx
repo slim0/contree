@@ -48,10 +48,10 @@ export default function App() {
   // lock() ne marche qu'en PWA installée (fullscreen) ; ailleurs il rejette → ignoré.
   useEffect(() => {
     const landscape = !!game && game.phase !== 'WAITING'
-    const orientation = screen.orientation as ScreenOrientation & {
+    const orientation = screen.orientation as (ScreenOrientation & {
       lock?: (o: string) => Promise<void>
-    }
-    orientation.lock?.(landscape ? 'landscape' : 'portrait').catch(() => {})
+    }) | undefined
+    orientation?.lock?.(landscape ? 'landscape' : 'portrait')?.catch(() => {})
   }, [game?.phase, game])
 
   // Vérification de session au montage
@@ -172,6 +172,25 @@ export default function App() {
 
   const send = useCallback((msg: object) => {
     wsRef.current?.send(JSON.stringify(msg))
+    setError(null)
+  }, [])
+
+  // Quitter la table en cours de partie : on ferme la connexion sans envoyer
+  // "leave" (refusé par le serveur hors WAITING/FINISHED) — le siège reste
+  // réservé, la partie continue et on peut revenir en rejoignant le salon.
+  const handleQuitGame = useCallback(() => {
+    shouldReconnect.current = false
+    if (reconnectTimer.current) {
+      clearTimeout(reconnectTimer.current)
+      reconnectTimer.current = null
+    }
+    wsRef.current?.close()
+    sessionStorage.removeItem(STORAGE_ROOM)
+    setGame(null)
+    setCreatedRoom(null)
+    setRoomId('')
+    setConnected(false)
+    setReconnecting(false)
     setError(null)
   }, [])
 
@@ -397,5 +416,5 @@ export default function App() {
     )
   }
 
-  return <Game game={game} error={error} send={send} />
+  return <Game game={game} error={error} send={send} onQuit={handleQuitGame} />
 }

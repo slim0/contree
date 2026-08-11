@@ -520,10 +520,11 @@ export function RoundResultOverlay({ lastResult, scores, targetScore }: {
 
 // ─── Main Game component ───────────────────────────────────────────────────────
 
-export default function Game({ game, error, send }: {
+export default function Game({ game, error, send, onQuit }: {
   game: GameData | null
   error: string | null
   send: (msg: object) => void
+  onQuit?: () => void
 }) {
   if (!game) return <p style={{color:'#4af'}}>Connexion en cours…</p>
 
@@ -535,6 +536,7 @@ export default function Game({ game, error, send }: {
   const [isMuted, setIsMuted] = useState(false)
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const voiceInitializedRef = useRef(false)
+  const [confirmQuit, setConfirmQuit] = useState(false)
 
   const me = game.my_position
 
@@ -963,8 +965,38 @@ export default function Game({ game, error, send }: {
           >
             {isMuted ? '🔇' : '🎤'}
           </button>
+          {onQuit && (
+            <button
+              className="header-quit-btn"
+              onClick={() => setConfirmQuit(true)}
+              title="Quitter la partie"
+              aria-label="Quitter la partie"
+            >
+              🚪
+            </button>
+          )}
         </div>
       </div>
+
+      {confirmQuit && onQuit && (
+        <div className="eog-overlay">
+          <div className="eog-box">
+            <div className="quit-title">Quitter la partie ?</div>
+            <p className="quit-text">
+              Vous retournez à l’accueil. Votre place est conservée : rejoignez le salon
+              #{game.room_id} pour reprendre la partie.
+            </p>
+            <div className="eog-actions">
+              <button className="lp-btn-primary" onClick={onQuit}>
+                Quitter
+              </button>
+              <button className="lp-btn-secondary" onClick={() => setConfirmQuit(false)}>
+                Annuler
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
 
       {/* ── Table losange ── */}

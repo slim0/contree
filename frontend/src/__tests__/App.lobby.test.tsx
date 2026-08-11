@@ -161,4 +161,63 @@ describe('App — rejoindre un salon', () => {
 
     window.history.pushState({}, '', '/')
   })
+
+  // Bouton "Quitter" en cours de partie : retour à l'accueil sans envoyer "leave"
+  // (le siège reste réservé) et sans boucle de reconnexion.
+  it('revient au lobby quand on quitte la partie depuis la table', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ username: 'alice', is_admin: false, must_change_password: false }),
+      })
+      .mockResolvedValue({ ok: true, json: async () => ({ rooms: [] }) })
+
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('AB3X')
+
+    render(<App />)
+
+    await waitFor(() => expect(lastWsInstance).not.toBeNull())
+    act(() => { lastWsInstance!.onopen?.(new Event('open')) })
+    act(() => {
+      lastWsInstance!.onmessage?.({
+        data: JSON.stringify({
+          type: 'state',
+          data: {
+            room_id: 'AB3X',
+            room_name: 'Salon de Simon',
+            players: { N: 'alice', E: 'bob', S: 'charlie', W: 'diana' },
+            scores: { NS: 0, EW: 0 },
+            target_score: 1000,
+            round: null,
+            phase: 'BIDDING',
+            winner: null,
+            last_result: null,
+            messages: [],
+            my_position: 'N',
+            team_choices: {},
+            ready_to_start: false,
+          },
+        }),
+      })
+    })
+
+    // La connexion courante (le hook peut en avoir recréé une depuis le montage)
+    const ws = lastWsInstance!
+
+    fireEvent.click(await screen.findByLabelText('Quitter la partie'))
+    fireEvent.click(screen.getByRole('button', { name: 'Quitter' }))
+
+    // Le backend n'est pas notifié : quitter en cours de partie = déconnexion simple
+    expect(ws.send).not.toHaveBeenCalled()
+    expect(ws.close).toHaveBeenCalled()
+    expect(Storage.prototype.removeItem).toHaveBeenCalledWith('contree_room')
+
+    // La fermeture qui suit ne doit pas relancer une reconnexion
+    act(() => { ws.onclose?.() })
+
+    await waitFor(() => {
+      expect(screen.getByText(/Créer un salon/i)).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Reconnexion en cours/i)).not.toBeInTheDocument()
+  })
 })

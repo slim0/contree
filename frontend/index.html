@@ -364,6 +364,19 @@
       .header-voice-btn.off { background: #333; }
       .header-voice-btn:disabled { opacity: .4; cursor: not-allowed; }
 
+      /* ── QUITTER LA PARTIE (barre du haut, à droite de la voix) ── */
+      .header-quit-btn {
+        margin: 0 0 0 6px; padding: 0;
+        width: 26px; height: 26px; min-height: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 50%; border: 1px solid #744;
+        background: #522; color: #fbb; font-size: 0.85em; line-height: 1;
+        box-shadow: none;
+      }
+      .header-quit-btn:hover { background: #833; color: #fff; }
+      .quit-title { font-size: 1.3em; font-weight: bold; color: #fc9; margin-bottom: 10px; }
+      .quit-text { font-size: 0.9em; color: #bbb; margin: 0 0 16px; max-width: 320px; }
+
       /* ── ROUND RESULT OVERLAY ── */
       @keyframes rr-anim {
         0%   { opacity: 0; transform: scale(0.88); }
@@ -806,6 +819,7 @@
         .header-voice { gap: 3px; }
         .header-voice-dot { width: 16px; height: 16px; font-size: 0.6em; }
         .header-voice-btn { width: 20px; height: 20px; font-size: 0.7em; }
+        .header-quit-btn { width: 20px; height: 20px; font-size: 0.75em; margin-left: 4px; }
 
         .table-grid {
           grid-template-columns: minmax(96px, 140px) 1fr minmax(96px, 140px);
