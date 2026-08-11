@@ -98,8 +98,28 @@ async def list_rooms() -> list[dict]:
                 {
                     "room_id": game.room_id,
                     "room_name": game.room_name,
+                    "creator": game.creator,
                     "player_count": len(game.players),
                     "phase": game.phase.value,
                 }
             )
         return result
+
+
+async def list_all_rooms() -> list[dict]:
+    """Tous les salons, y compris terminés — vue d'administration."""
+    async with _lock:
+        return [
+            {
+                "room_id": game.room_id,
+                "room_name": game.room_name,
+                "creator": game.creator,
+                "phase": game.phase.value,
+                "player_count": len(game.players),
+                "players": [game.players[p] for p in Position if p in game.players],
+                "target_score": game.target_score,
+                "scores": {t.value: s for t, s in game.scores.items()},
+                "last_activity": game.last_activity,
+            }
+            for game in _rooms.values()
+        ]

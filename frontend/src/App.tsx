@@ -13,6 +13,7 @@ const STORAGE_ROOM = 'contree_room'
 interface RoomSummary {
   room_id: string
   room_name: string
+  creator: string
   player_count: number
   phase: string
 }
@@ -116,12 +117,15 @@ export default function App() {
           shouldReconnect.current = false
           sessionStorage.removeItem(STORAGE_ROOM)
         }
-      } else if (msg.type === 'left') {
+      } else if (msg.type === 'left' || msg.type === 'room_closed') {
+        // 'room_closed' : le créateur (ou un admin) a supprimé le salon —
+        // retour au lobby sans tentative de reconnexion, avec la raison affichée.
         shouldReconnect.current = false
         sessionStorage.removeItem(STORAGE_ROOM)
         setGame(null)
         setCreatedRoom(null)
         setRoomId('')
+        if (msg.type === 'room_closed') setError(msg.message)
       }
       // ─── WebRTC signalisation ──────────────────────────────
       else if (msg.type === 'voice-webrtc-offer') {
@@ -161,14 +165,38 @@ export default function App() {
     }
   }, [user, connect])
 
-  // Fetch room list when join panel opens
-  useEffect(() => {
-    if (!joinMode) return
-    fetch('/api/rooms', { credentials: 'include' })
+  const fetchRooms = useCallback(() => {
+    return fetch('/api/rooms', { credentials: 'include' })
       .then(r => r.json())
       .then(data => setRooms(data.rooms ?? []))
       .catch(() => setRooms([]))
-  }, [joinMode])
+  }, [])
+
+  // Fetch room list when join panel opens
+  useEffect(() => {
+    if (!joinMode) return
+    fetchRooms()
+  }, [joinMode, fetchRooms])
+
+  // Suppression d'un salon dont je suis le créateur (le back autorise aussi les admins)
+  const handleDeleteRoom = useCallback(async (room: RoomSummary) => {
+    if (!confirm(`Supprimer le salon "${room.room_name || room.room_id}" ?`)) return
+    setError(null)
+    try {
+      const r = await fetch(`/api/rooms/${encodeURIComponent(room.room_id)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        setError(body.detail ?? 'Erreur lors de la suppression du salon')
+        return
+      }
+      await fetchRooms()
+    } catch {
+      setError('Impossible de contacter le serveur')
+    }
+  }, [fetchRooms])
 
   const send = useCallback((msg: object) => {
     wsRef.current?.send(JSON.stringify(msg))
@@ -392,7 +420,22 @@ export default function App() {
                         {rooms.map(r => (
                           <li key={r.room_id} className="lp-room-item" onClick={handleSelectRoom}>
                             <span className="lp-room-item-name">{r.room_name || r.room_id}</span>
-                            <span className="lp-room-item-players">{r.player_count}/4</span>
+                            <span className="lp-room-item-meta">
+                              <span className="lp-room-item-players">{r.player_count}/4</span>
+                              {r.creator === user.username && (
+                                <button
+                                  aria-label={`Supprimer le salon ${r.room_name || r.room_id}`}
+                                  title="Supprimer ce salon"
+                                  className="lp-room-item-delete"
+                                  onClick={e => {
+                                    e.stopPropagation()
+                                    handleDeleteRoom(r)
+                                  }}
+                                >
+                                  ✕
+                                </button>
+                              )}
+                            </span>
                           </li>
                         ))}
                       </ul>

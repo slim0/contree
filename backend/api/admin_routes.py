@@ -4,6 +4,7 @@ from backend.api.limiter import limiter
 from backend.auth.dependencies import require_admin
 from backend.auth.service import generate_temp_password
 from backend.pocketbase.client import PocketBaseClient, get_pb_client
+from backend.store import memory_store as store
 from backend.users.models import User
 from backend.users.repository import UserRepository
 from backend.users.schemas import UserCreate, UserResponse, UserWithTempPassword
@@ -82,3 +83,14 @@ async def delete_user(
             status_code=status.HTTP_404_NOT_FOUND, detail="Utilisateur introuvable"
         )
     repo.delete(user)
+
+
+@router.get("/rooms")
+@limiter.limit("30/minute")
+async def list_rooms(
+    request: Request,
+    _: User = Depends(require_admin),
+) -> dict:
+    """Tous les salons en mémoire (terminés compris) — la suppression passe par
+    `DELETE /rooms/{room_id}`, qui accepte déjà les admins."""
+    return {"rooms": await store.list_all_rooms()}

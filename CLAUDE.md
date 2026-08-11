@@ -320,8 +320,8 @@ Cette règle s'applique aussi à `backend/api/dev_routes.py`, bien que ces route
 | Catégorie | Rate | Exemples |
 |-----------|------|----------|
 | Credential (login, change-password) | **5/minute** | POST /auth/login, POST /auth/change-password |
-| Écriture légère | **10/minute** | logout, create_user, delete_user, create_room |
-| Lecture admin / modération | **30/minute** | GET /admin/users |
+| Écriture légère | **10/minute** | logout, create_user, delete_user, create_room, DELETE /rooms/{id} |
+| Lecture admin / modération | **30/minute** | GET /admin/users, GET /admin/rooms |
 | Lecture fréquente (polling, me) | **60/minute** | GET /auth/me, GET /rooms, GET /rooms/{id} |
 
 ### Tests

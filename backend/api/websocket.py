@@ -306,6 +306,31 @@ async def _close_all_connections(room_id: str) -> None:
             await ws.close()
 
 
+async def close_room(room_id: str, reason: str = "Le salon a été supprimé.") -> None:
+    """Supprime le salon et éjecte tous ses clients (suppression par le créateur
+    ou par un admin, via HTTP — cf. `backend/api/routes.py`).
+
+    L'état est retiré du store *avant* la fermeture des sockets : les handlers
+    réveillés par le `WebSocketDisconnect` trouvent alors `game is None` et ne
+    tentent ni broadcast ni suppression concurrente.
+    """
+    async with _conn_lock:
+        entries = list(_connections.pop(room_id, {}).values())
+        _voice_peers.pop(room_id, None)
+    _closing_for_start.discard(room_id)
+
+    await store.delete_room(room_id)
+    log.info(
+        "Salon '%s' — supprimé (%d connexion(s) éjectée(s))", room_id, len(entries)
+    )
+
+    for ws, _ in entries:
+        with contextlib.suppress(Exception):
+            await ws.send_text(json.dumps({"type": "room_closed", "message": reason}))
+        with contextlib.suppress(Exception):
+            await ws.close()
+
+
 # Délai laissé aux 4 joueurs pour se reconnecter après un GO avant que le
 # salon ne soit considéré bloqué (ex : un joueur perd son réseau juste avant
 # ou pendant la fermeture des connexions pour réassignation).

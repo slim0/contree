@@ -84,7 +84,8 @@ describe('AdminPanel', () => {
 
   it('crée un utilisateur et affiche le mot de passe temporaire', async () => {
     mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers }) // GET initial
+      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers }) // GET users initial
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: [] }) }) // GET rooms initial
       .mockResolvedValueOnce({
         ok: true,
         json: async () => ({
@@ -121,7 +122,8 @@ describe('AdminPanel', () => {
   it('affiche les comptes en attente avec un bouton Approuver et déclenche l\'approbation', async () => {
     const pending = { id: 5, username: 'newbie', is_admin: false, must_change_password: false, is_approved: false, created_at: '2024-01-05T00:00:00Z', ...baseStats }
     mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => [...mockUsers, pending] }) // GET initial
+      .mockResolvedValueOnce({ ok: true, json: async () => [...mockUsers, pending] }) // GET users initial
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: [] }) }) // GET rooms initial
       .mockResolvedValueOnce({ ok: true, json: async () => ({ ...pending, is_approved: true }) }) // POST approve
       .mockResolvedValueOnce({ ok: true, json: async () => mockUsers }) // GET refresh
 
@@ -141,7 +143,8 @@ describe('AdminPanel', () => {
 
   it('affiche une erreur si le nom d\'utilisateur est déjà pris', async () => {
     mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers }) // GET initial
+      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers }) // GET users initial
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: [] }) }) // GET rooms initial
       .mockResolvedValueOnce({
         ok: false,
         json: async () => ({ detail: 'Ce nom d\'utilisateur est déjà pris' }),
@@ -156,5 +159,71 @@ describe('AdminPanel', () => {
     await waitFor(() => {
       expect(screen.getByText('Ce nom d\'utilisateur est déjà pris')).toBeInTheDocument()
     }, { timeout: 3000 })
+  })
+
+  // ── Gestion des salons ──────────────────────────────────────────────────────
+
+  const mockRooms = [
+    {
+      room_id: 'AB3X', room_name: 'Salon de Simon', creator: 'alice',
+      phase: 'PLAYING', player_count: 4, players: ['alice', 'bob', 'carol', 'dan'],
+      target_score: 1000,
+    },
+  ]
+
+  it('affiche les salons en cours', async () => {
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: mockRooms }) })
+
+    render(<AdminPanel onClose={onClose} />)
+
+    await waitFor(() => expect(screen.getByText(/Salons \(1\)/)).toBeInTheDocument())
+    expect(screen.getByText('Salon de Simon')).toBeInTheDocument()
+    expect(screen.getByText('#AB3X')).toBeInTheDocument()
+    expect(screen.getByText(/alice · En jeu · 4\/4 joueurs/)).toBeInTheDocument()
+  })
+
+  it('supprime un salon après confirmation et recharge la liste', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: mockRooms }) })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) }) // DELETE
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: [] }) }) // GET rooms refresh
+
+    render(<AdminPanel onClose={onClose} />)
+    await waitFor(() => screen.getByText('Salon de Simon'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer le salon Salon de Simon' }))
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/rooms/AB3X',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
+    await waitFor(() => {
+      expect(screen.queryByText('Salon de Simon')).not.toBeInTheDocument()
+      expect(screen.getByText('Aucun salon en cours.')).toBeInTheDocument()
+    })
+  })
+
+  it('ne supprime pas le salon si la confirmation est refusée', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(false)
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => mockUsers })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: mockRooms }) })
+
+    render(<AdminPanel onClose={onClose} />)
+    await waitFor(() => screen.getByText('Salon de Simon'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Supprimer le salon Salon de Simon' }))
+
+    expect(mockFetch).not.toHaveBeenCalledWith(
+      '/api/rooms/AB3X',
+      expect.objectContaining({ method: 'DELETE' }),
+    )
+    expect(screen.getByText('Salon de Simon')).toBeInTheDocument()
   })
 })

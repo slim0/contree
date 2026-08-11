@@ -220,4 +220,109 @@ describe('App — rejoindre un salon', () => {
     })
     expect(screen.queryByText(/Reconnexion en cours/i)).not.toBeInTheDocument()
   })
+
+  // ── Suppression d'un salon par son créateur ─────────────────────────────────
+
+  const roomsWithMine = [
+    { room_id: 'AB3X', room_name: 'Salon de Simon', creator: 'bob', player_count: 1, phase: 'WAITING' },
+    { room_id: 'CD9Z', room_name: 'Mon salon', creator: 'alice', player_count: 2, phase: 'WAITING' },
+  ]
+
+  function mockLobbyWithRooms(rooms: unknown[]) {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ username: 'alice', is_admin: false, must_change_password: false }),
+      })
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms }) })
+  }
+
+  it('n\'affiche le bouton de suppression que sur les salons dont je suis le créateur', async () => {
+    mockLobbyWithRooms(roomsWithMine)
+
+    render(<App />)
+    fireEvent.click(screen.getByText(/Rejoindre un salon existant/i))
+
+    await waitFor(() => expect(screen.getByText('Mon salon')).toBeInTheDocument())
+    expect(screen.getByLabelText('Supprimer le salon Mon salon')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Supprimer le salon Salon de Simon')).not.toBeInTheDocument()
+  })
+
+  it('supprime mon salon après confirmation et recharge la liste', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    mockLobbyWithRooms(roomsWithMine)
+    mockFetch
+      .mockResolvedValueOnce({ ok: true, json: async () => ({}) }) // DELETE
+      .mockResolvedValueOnce({ ok: true, json: async () => ({ rooms: [roomsWithMine[0]] }) })
+
+    render(<App />)
+    fireEvent.click(screen.getByText(/Rejoindre un salon existant/i))
+    await waitFor(() => screen.getByText('Mon salon'))
+
+    fireEvent.click(screen.getByLabelText('Supprimer le salon Mon salon'))
+
+    await waitFor(() => {
+      expect(mockFetch).toHaveBeenCalledWith(
+        '/api/rooms/CD9Z',
+        expect.objectContaining({ method: 'DELETE' }),
+      )
+    })
+    await waitFor(() => {
+      expect(screen.queryByText('Mon salon')).not.toBeInTheDocument()
+    })
+    // Le clic sur ✕ ne doit pas basculer sur la saisie de code
+    expect(screen.queryByLabelText('Code du salon')).not.toBeInTheDocument()
+  })
+
+  it('affiche une erreur si la suppression est refusée par le backend', async () => {
+    vi.spyOn(window, 'confirm').mockReturnValue(true)
+    mockLobbyWithRooms(roomsWithMine)
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      json: async () => ({ detail: 'Seul le créateur du salon peut le supprimer' }),
+    })
+
+    render(<App />)
+    fireEvent.click(screen.getByText(/Rejoindre un salon existant/i))
+    await waitFor(() => screen.getByText('Mon salon'))
+
+    fireEvent.click(screen.getByLabelText('Supprimer le salon Mon salon'))
+
+    await waitFor(() => {
+      expect(screen.getByText('Seul le créateur du salon peut le supprimer')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Mon salon')).toBeInTheDocument()
+  })
+
+  // Un joueur assis dans un salon supprimé par son créateur (ou un admin) est
+  // renvoyé au lobby avec la raison, sans boucle de reconnexion.
+  it('revient au lobby quand le salon est supprimé pendant la partie', async () => {
+    mockFetch
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ username: 'alice', is_admin: false, must_change_password: false }),
+      })
+      .mockResolvedValue({ ok: true, json: async () => ({ rooms: [] }) })
+
+    vi.spyOn(Storage.prototype, 'getItem').mockReturnValue('AB3X')
+
+    render(<App />)
+
+    await waitFor(() => expect(lastWsInstance).not.toBeNull())
+    act(() => { lastWsInstance!.onopen?.(new Event('open')) })
+
+    // lastWsInstance est relu à chaque étape : le hook peut avoir recréé la connexion
+    act(() => {
+      lastWsInstance!.onmessage?.({
+        data: JSON.stringify({ type: 'room_closed', message: 'Le salon a été supprimé.' }),
+      })
+    })
+    act(() => { lastWsInstance!.onclose?.() })
+
+    await waitFor(() => {
+      expect(screen.getByText('Le salon a été supprimé.')).toBeInTheDocument()
+    })
+    expect(screen.queryByText(/Reconnexion en cours/i)).not.toBeInTheDocument()
+    expect(Storage.prototype.removeItem).toHaveBeenCalledWith('contree_room')
+  })
 })

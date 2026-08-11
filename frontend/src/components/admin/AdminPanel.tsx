@@ -18,6 +18,24 @@ interface UserRecord {
   contract_success_rate: number | null
 }
 
+interface RoomRecord {
+  room_id: string
+  room_name: string
+  creator: string
+  phase: string
+  player_count: number
+  players: string[]
+  target_score: number
+}
+
+const PHASE_LABEL: Record<string, string> = {
+  WAITING: 'En attente',
+  BIDDING: 'Enchères',
+  PLAYING: 'En jeu',
+  SCORING: 'Décompte',
+  FINISHED: 'Terminée',
+}
+
 interface Props {
   onClose: () => void
   backLabel?: string
@@ -26,6 +44,7 @@ interface Props {
 
 export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', onShowStats }: Props) {
   const [users, setUsers] = useState<UserRecord[]>([])
+  const [rooms, setRooms] = useState<RoomRecord[]>([])
   const [newUsername, setNewUsername] = useState('')
   const [tempPassword, setTempPassword] = useState<string | null>(null)
   const [copiedPassword, setCopiedPassword] = useState(false)
@@ -41,7 +60,35 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', o
     }
   }
 
-  useEffect(() => { fetchUsers() }, [])
+  async function fetchRooms() {
+    try {
+      const r = await fetch('/api/admin/rooms', { credentials: 'include' })
+      if (r.ok) setRooms((await r.json()).rooms ?? [])
+    } catch {
+      setError('Impossible de charger la liste des salons')
+    }
+  }
+
+  useEffect(() => { fetchUsers(); fetchRooms() }, [])
+
+  async function handleDeleteRoom(room: RoomRecord) {
+    if (!confirm(`Supprimer le salon "${room.room_name || room.room_id}" ?`)) return
+    setError(null)
+    try {
+      const r = await fetch(`/api/rooms/${encodeURIComponent(room.room_id)}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      })
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({}))
+        setError(body.detail ?? 'Erreur lors de la suppression du salon')
+        return
+      }
+      await fetchRooms()
+    } catch {
+      setError('Impossible de contacter le serveur')
+    }
+  }
 
   async function handleCreate() {
     if (!newUsername.trim()) return
@@ -246,6 +293,46 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', o
               </li>
             ))}
           </ul>
+        </div>
+
+        {/* Salons en cours */}
+        <div style={{ marginTop: 24 }}>
+          <label className="lp-label">Salons ({rooms.length})</label>
+          {rooms.length === 0 ? (
+            <p className="lp-no-rooms">Aucun salon en cours.</p>
+          ) : (
+            <ul className="lp-room-list" style={{ marginTop: 8 }}>
+              {rooms.map(r => (
+                <li
+                  key={r.room_id}
+                  className="lp-room-item"
+                  style={{ cursor: 'default', flexDirection: 'column', alignItems: 'stretch' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <span className="lp-room-item-name">
+                      {r.room_name || r.room_id}
+                      <span className="lp-room-item-code" style={{ marginLeft: 6 }}>#{r.room_id}</span>
+                    </span>
+                    <button
+                      aria-label={`Supprimer le salon ${r.room_name || r.room_id}`}
+                      style={{
+                        background: 'none', border: '1.5px solid #e0e0e0',
+                        borderRadius: 8, padding: '4px 10px',
+                        fontSize: 12, color: '#9e0a0a', cursor: 'pointer', margin: 0,
+                      }}
+                      onClick={() => handleDeleteRoom(r)}
+                    >
+                      Supprimer
+                    </button>
+                  </div>
+                  <div className="lp-stats-line">
+                    {r.creator || '—'} · {PHASE_LABEL[r.phase] ?? r.phase} · {r.player_count}/4 joueurs
+                    {r.players.length > 0 && <> · {r.players.join(', ')}</>}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </div>
       </div>
     </div>

@@ -81,6 +81,20 @@ def test_admin_delete_user_rate_limit(admin_client):
     assert r.status_code == 429
 
 
+def test_admin_list_rooms_rate_limit(admin_client):
+    for _ in range(30):
+        admin_client.get("/api/admin/rooms")
+    r = admin_client.get("/api/admin/rooms")
+    assert r.status_code == 429
+
+
+def test_delete_room_rate_limit(auth_client):
+    for _ in range(10):
+        auth_client.delete("/api/rooms/nonexistent")
+    r = auth_client.delete("/api/rooms/nonexistent")
+    assert r.status_code == 429
+
+
 def test_rate_limit_resets_between_tests_login(client):
     """Vérifie que le reset du limiter entre tests fonctionne."""
     payload = {"username": "testuser", "password": "testpass123"}
