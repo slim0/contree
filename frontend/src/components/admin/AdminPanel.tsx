@@ -37,12 +37,13 @@ const PHASE_LABEL: Record<string, string> = {
 }
 
 interface Props {
-  onClose: () => void
+  onClose?: () => void
   backLabel?: string
   onShowStats?: () => void
+  onLogout?: () => void
 }
 
-export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', onShowStats }: Props) {
+export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', onShowStats, onLogout }: Props) {
   const [users, setUsers] = useState<UserRecord[]>([])
   const [rooms, setRooms] = useState<RoomRecord[]>([])
   const [newUsername, setNewUsername] = useState('')
@@ -164,14 +165,21 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', o
   return (
     <div className="lp-root" style={{ zIndex: 100 }}>
       <div className="lp-card" style={{ maxWidth: 520 }}>
-        <button className="lp-back" onClick={onClose}>{backLabel}</button>
+        {onClose && <button className="lp-back" onClick={onClose}>{backLabel}</button>}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h1 className="lp-title" style={{ textAlign: 'left', marginBottom: 0 }}>Gestion des joueurs</h1>
-          {onShowStats && (
-            <button className="lp-back-inline" style={{ marginBottom: 0 }} onClick={onShowStats}>
-              Mes statistiques
-            </button>
-          )}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            {onShowStats && (
+              <button className="lp-back-inline" style={{ marginBottom: 0 }} onClick={onShowStats}>
+                Mes statistiques
+              </button>
+            )}
+            {onLogout && (
+              <button className="lp-back-inline" style={{ marginBottom: 0, color: '#b3261e' }} onClick={onLogout}>
+                Quitter
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Créer un joueur */}

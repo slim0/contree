@@ -107,6 +107,26 @@ describe('AdminPanel', () => {
     }, { timeout: 3000 })
   })
 
+  it('affiche un bouton Quitter qui déconnecte quand onLogout est fourni', async () => {
+    const onLogout = vi.fn()
+    render(<AdminPanel onClose={onClose} onLogout={onLogout} />)
+    fireEvent.click(screen.getByText('Quitter'))
+    expect(onLogout).toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('n\'affiche pas de bouton Quitter sans onLogout', async () => {
+    render(<AdminPanel onClose={onClose} />)
+    expect(screen.queryByText('Quitter')).not.toBeInTheDocument()
+  })
+
+  it('n\'affiche pas de bouton retour sans onClose', async () => {
+    const onLogout = vi.fn()
+    render(<AdminPanel onLogout={onLogout} />)
+    expect(screen.queryByText(/Retour au jeu/i)).not.toBeInTheDocument()
+    expect(screen.getByText('Quitter')).toBeInTheDocument()
+  })
+
   it('affiche un lien "Mes statistiques" quand onShowStats est fourni', async () => {
     const onShowStats = vi.fn()
     render(<AdminPanel onClose={onClose} onShowStats={onShowStats} />)
