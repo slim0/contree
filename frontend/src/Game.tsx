@@ -300,7 +300,7 @@ function getLastTrick(r: RoundData | null) {
   }
 }
 
-const BID_SUIT_GRID = ['H', 'C', 'NT', 'S', 'D', 'AT']
+const BID_SUIT_GRID = ['H', 'C', 'D', 'S', 'NT', 'AT']
 const BID_SUIT_BTN_LABEL: Record<string, string> = { ...SUIT_SYM, NT: 'SA', AT: 'TA' }
 const BID_SUIT_COLOR_CLASS: Record<string, string> = { H: ' suit-red', D: ' suit-red', C: ' suit-black', S: ' suit-black' }
 

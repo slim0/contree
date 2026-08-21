@@ -773,13 +773,15 @@
         box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18);
       }
       .bid-suit-grid {
-        display: grid;
-        grid-template-columns: repeat(3, 1fr);
+        display: flex;
+        flex-wrap: nowrap;
+        justify-content: center;
         gap: 5px;
       }
       .bid-suit-btn {
         font-size: 1.05em;
-        padding: 8px 4px;
+        padding: 8px 10px;
+        flex: 0 0 auto;
       }
       .bid-suit-btn.suit-red, .bid-suit-btn.suit-black {
         background: linear-gradient(135deg, #fff8f8 0%, #fff 100%);
