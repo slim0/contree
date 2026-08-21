@@ -19,7 +19,7 @@ for arg in "$@"; do
 done
 
 echo "=== Seed de la base ==="
-if docker compose exec backend uv run /app/DEV/seed.py; then
+if docker compose -f docker-compose.dev.yml exec backend uv run /app/DEV/seed.py; then
     echo ""
 else
     echo "⚠ Seed échoué — le backend est-il démarré ? (docker compose up)"
