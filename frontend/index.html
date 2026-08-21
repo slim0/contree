@@ -739,26 +739,38 @@
         color: #f96;
         background: linear-gradient(180deg, #5a3a20 0%, #4a2a10 100%);
       }
-      .bid-value-row {
+      .bid-value-spinner {
         display: flex;
         align-items: center;
-        gap: 5px;
+        justify-content: center;
+        gap: 6px;
       }
       .bid-page-arrow {
         flex: 0 0 auto;
-        padding: 6px 8px;
-        min-width: 30px;
+        padding: 6px 12px;
+        min-width: 36px;
+        font-size: 1.2em;
         font-weight: bold;
+        background: rgba(255,255,255,0.08);
+        border: 1.5px solid rgba(255,255,255,0.18);
+        border-radius: 10px;
+        color: #ddd;
+        transition: background 0.15s;
       }
-      .bid-value-btn {
-        flex: 1;
-        min-width: 0;
-        background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
-      }
-      .bid-value-btn.selected {
-        border-color: #4caf50;
+      .bid-page-arrow:not(:disabled):hover { background: rgba(255,255,255,0.18); color: #fff; }
+      .bid-page-arrow:disabled { opacity: 0.3; cursor: default; }
+      .bid-spinner-value {
+        min-width: 72px;
+        text-align: center;
+        font-size: 1.25em;
+        font-weight: 800;
+        letter-spacing: 0.02em;
         color: #fff;
-        background: linear-gradient(180deg, #4caf50 0%, #388e3c 100%);
+        background: linear-gradient(160deg, #5ecb64 0%, #3a9e40 60%, #2d7a32 100%);
+        border: 1.5px solid rgba(120,220,120,0.45);
+        border-radius: 10px;
+        padding: 7px 14px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.18);
       }
       .bid-suit-grid {
         display: grid;
@@ -870,11 +882,11 @@
         .bid-center-label { display: none; }
         .bid-to-beat { display: none; }
         .bid-center-controls { gap: 3px; }
-        .bid-double-row, .bid-value-row, .bid-action-row { gap: 3px; }
+        .bid-double-row, .bid-value-spinner, .bid-action-row { gap: 3px; }
         .bid-suit-grid { gap: 3px; }
         .bid-suit-btn { padding: 3px 4px; font-size: 1em; min-height: 27px; }
-        .bid-value-btn { padding: 3px 6px; font-size: 0.95em; min-height: 27px; }
-        .bid-page-arrow { padding: 3px 8px; min-height: 27px; min-width: 26px; }
+        .bid-spinner-value { padding: 4px 10px; font-size: 1em; min-height: 27px; min-width: 52px; }
+        .bid-page-arrow { padding: 3px 8px; min-height: 27px; min-width: 28px; font-size: 1em; }
         .bid-double-btn, .bid-pass-btn { min-height: 25px; font-size: 0.9em; }
       }
 
@@ -884,10 +896,10 @@
         .bid-center { padding: 4px 8px; gap: 3px; }
         .bid-center-label { display: none; }
         .bid-center-controls { gap: 4px; }
-        .bid-double-row, .bid-value-row, .bid-action-row, .bid-suit-grid { gap: 4px; }
+        .bid-double-row, .bid-value-spinner, .bid-action-row, .bid-suit-grid { gap: 4px; }
         .bid-suit-btn  { padding: 4px 4px; min-height: 30px; }
-        .bid-value-btn { padding: 4px 6px; min-height: 30px; }
-        .bid-page-arrow { padding: 4px 8px; min-height: 30px; min-width: 28px; }
+        .bid-spinner-value { padding: 5px 12px; min-height: 30px; min-width: 60px; }
+        .bid-page-arrow { padding: 4px 10px; min-height: 30px; min-width: 30px; }
         .bid-double-btn, .bid-pass-btn { min-height: 28px; }
       }
 

@@ -303,7 +303,6 @@ function getLastTrick(r: RoundData | null) {
 const BID_SUIT_GRID = ['H', 'C', 'NT', 'S', 'D', 'AT']
 const BID_SUIT_BTN_LABEL: Record<string, string> = { ...SUIT_SYM, NT: 'SA', AT: 'TA' }
 const BID_SUIT_COLOR_CLASS: Record<string, string> = { H: ' suit-red', D: ' suit-red', C: ' suit-black', S: ' suit-black' }
-const VALUE_PAGE_SIZE = 4
 
 function bidValueLabel(bid: { is_capot: boolean; is_generale?: boolean; value: number }) {
   if (bid.is_generale) return 'Générale'
@@ -332,21 +331,16 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
     ...(actions?.can_bid_generale ? ['GENERALE' as const] : []),
   ]
 
-  // Pas de valeur présélectionnée : le joueur doit choisir explicitement pour
-  // éviter une annonce accidentelle.
-  const [bidVal, setBidVal] = useState<number | null>(null)
-  const [page, setPage] = useState(0)
-  const [mode, setMode] = useState<'value' | 'capot' | 'generale'>('value')
+  const [selectedIndex, setSelectedIndex] = useState(0)
 
   useEffect(() => {
-    setBidVal(null)
-    setPage(0)
-    setMode('value')
+    setSelectedIndex(0)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions?.min_bid_value, r.current_bidder])
 
-  const maxPage = Math.max(0, Math.ceil(sliderItems.length / VALUE_PAGE_SIZE) - 1)
-  const visibleItems = sliderItems.slice(page * VALUE_PAGE_SIZE, page * VALUE_PAGE_SIZE + VALUE_PAGE_SIZE)
+  const selectedItem = sliderItems[selectedIndex] ?? null
+  const mode = selectedItem === 'CAPOT' ? 'capot' : selectedItem === 'GENERALE' ? 'generale' : 'value'
+  const bidVal = typeof selectedItem === 'number' ? selectedItem : null
 
   const currentBidder = r.current_bidder ? (game.players[r.current_bidder] ?? r.current_bidder) : null
   const currentTeam   = r.current_bidder ? TEAM[r.current_bidder] : null
@@ -387,21 +381,14 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
           )}
 
           {sliderItems.length > 0 && (
-            <div className="bid-value-row">
-              <button className="bid-page-arrow" disabled={page === 0}
-                onClick={() => setPage(p => Math.max(0, p - 1))} aria-label="Valeurs précédentes">‹</button>
-              {visibleItems.map(item => item === 'CAPOT' ? (
-                <button key="capot" className={`bid-value-btn${mode === 'capot' ? ' selected' : ''}`}
-                  onClick={() => setMode(m => m === 'capot' ? 'value' : 'capot')}>Capot</button>
-              ) : item === 'GENERALE' ? (
-                <button key="generale" className={`bid-value-btn${mode === 'generale' ? ' selected' : ''}`}
-                  onClick={() => setMode(m => m === 'generale' ? 'value' : 'generale')}>Générale</button>
-              ) : (
-                <button key={item} className={`bid-value-btn${item === bidVal && mode === 'value' ? ' selected' : ''}`}
-                  onClick={() => { setBidVal(item); setMode('value') }}>{item}</button>
-              ))}
-              <button className="bid-page-arrow" disabled={page >= maxPage}
-                onClick={() => setPage(p => Math.min(maxPage, p + 1))} aria-label="Valeurs suivantes">›</button>
+            <div className="bid-value-spinner">
+              <button className="bid-page-arrow" disabled={selectedIndex === 0}
+                onClick={() => setSelectedIndex(i => Math.max(0, i - 1))} aria-label="Valeur précédente">‹</button>
+              <span className="bid-spinner-value">
+                {selectedItem === 'CAPOT' ? 'Capot' : selectedItem === 'GENERALE' ? 'Générale' : String(selectedItem)}
+              </span>
+              <button className="bid-page-arrow" disabled={selectedIndex >= sliderItems.length - 1}
+                onClick={() => setSelectedIndex(i => Math.min(sliderItems.length - 1, i + 1))} aria-label="Valeur suivante">›</button>
             </div>
           )}
 
