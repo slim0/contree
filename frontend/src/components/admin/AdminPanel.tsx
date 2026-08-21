@@ -163,8 +163,8 @@ export default function AdminPanel({ onClose, backLabel = '← Retour au jeu', o
   }
 
   return (
-    <div className="lp-root" style={{ zIndex: 100 }}>
-      <div className="lp-card" style={{ maxWidth: 520 }}>
+    <div className="lp-root" style={{ zIndex: 100, alignItems: 'flex-start' }}>
+      <div className="lp-card" style={{ maxWidth: 520, margin: '16px auto' }}>
         {onClose && <button className="lp-back" onClick={onClose}>{backLabel}</button>}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <h1 className="lp-title" style={{ textAlign: 'left', marginBottom: 0 }}>Gestion des joueurs</h1>
