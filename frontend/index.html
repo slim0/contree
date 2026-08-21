@@ -791,6 +791,10 @@
       .bid-suit-btn.suit-red { color: #d40000; }
       .bid-suit-btn.suit-black { color: #1a1a1a; }
       .bid-suit-btn.suit-red:hover, .bid-suit-btn.suit-black:hover { background: linear-gradient(135deg, #ffecec 0%, #f5f5f5 100%); }
+      .bid-suit-btn.selected {
+        border-color: #3a9e40;
+        box-shadow: 0 0 0 2px rgba(58,158,64,0.5);
+      }
       .bid-action-row {
         display: flex;
         justify-content: center;
@@ -799,6 +803,14 @@
       .bid-pass-btn {
         flex: 0 0 auto;
         font-size: 0.85em;
+      }
+      .bid-confirm-btn {
+        flex: 0 0 auto;
+        font-size: 0.9em;
+        font-weight: 700;
+        color: #fff;
+        background: linear-gradient(160deg, #5ecb64 0%, #3a9e40 60%, #2d7a32 100%);
+        border-color: rgba(120,220,120,0.45);
       }
       .bid-center-waiting {
         text-align: center;

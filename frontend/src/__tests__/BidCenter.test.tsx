@@ -50,35 +50,44 @@ describe('BidCenter — enchères par boutons', () => {
     expect(container.querySelectorAll('select').length).toBe(0)
   })
 
-  it('aucune valeur n’est présélectionnée au départ (évite une annonce accidentelle)', () => {
+  it('la valeur minimale légale est présélectionnée par défaut dans le sélecteur', () => {
     const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
     render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
-
-    expect(screen.getByText('80')).not.toHaveClass('selected')
-    expect(screen.getByText('♥')).toBeDisabled()
+    expect(screen.getByText('80')).toBeInTheDocument()
   })
 
-  it('un clic sur une pastille de valeur change la valeur sélectionnée', async () => {
+  it('les flèches du sélecteur changent la valeur affichée', async () => {
     const user = userEvent.setup()
     const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
     render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
 
-    await user.click(screen.getByText('90'))
-    expect(screen.getByText('90')).toHaveClass('selected')
-    expect(screen.getByText('80')).not.toHaveClass('selected')
-    expect(screen.getByText('♥')).not.toBeDisabled()
+    await user.click(screen.getByLabelText('Valeur suivante'))
+    expect(screen.getByText('90')).toBeInTheDocument()
+
+    await user.click(screen.getByLabelText('Valeur précédente'))
+    expect(screen.getByText('80')).toBeInTheDocument()
   })
 
-  it('un clic sur une couleur envoie directement l’enchère avec la valeur sélectionnée', async () => {
+  it('un clic sur une couleur la sélectionne sans envoyer l’enchère, seul "Prendre" l’envoie', async () => {
     const user = userEvent.setup()
     const send = vi.fn()
     const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
     render(<Game game={makeGame(round)} error={null} send={send} />)
 
-    await user.click(screen.getByText('100'))
+    await user.click(screen.getByLabelText('Valeur suivante')) // 90
     await user.click(screen.getByText('♥'))
+    expect(screen.getByText('♥')).toHaveClass('selected')
+    expect(send).not.toHaveBeenCalled()
 
-    expect(send).toHaveBeenCalledWith({ type: 'bid', value: 100, trump: 'H', is_capot: false })
+    await user.click(screen.getByText('Prendre'))
+    expect(send).toHaveBeenCalledWith({ type: 'bid', value: 90, trump: 'H', is_capot: false })
+  })
+
+  it('"Prendre" est toujours affiché mais désactivé tant qu’aucune couleur n’est sélectionnée', () => {
+    const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
+    render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
+    expect(screen.getByText('Prendre')).toBeInTheDocument()
+    expect(screen.getByText('Prendre')).toBeDisabled()
   })
 
   it('Passer envoie {type: "pass"}', async () => {
@@ -106,32 +115,41 @@ describe('BidCenter — enchères par boutons', () => {
     expect(screen.getByText('Passer')).toBeInTheDocument()
   })
 
-  it('le bouton Capot bascule le mode et envoie une enchère capot au clic sur une couleur', async () => {
+  it('une enchère Capot sélectionnée puis "Prendre" envoie l’enchère capot', async () => {
     const user = userEvent.setup()
     const send = vi.fn()
     const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: null, can_bid_capot: true, can_bid_generale: false })
     render(<Game game={makeGame(round)} error={null} send={send} />)
 
-    expect(screen.getByText('♠')).toBeDisabled()
-    await user.click(screen.getByText('Capot'))
-    expect(screen.getByText('♠')).not.toBeDisabled()
-
+    expect(screen.getByText('Capot')).toBeInTheDocument()
     await user.click(screen.getByText('♠'))
+    await user.click(screen.getByText('Prendre'))
     expect(send).toHaveBeenCalledWith({ type: 'bid', value: 0, trump: 'S', is_capot: true })
   })
 
-  it('le bouton Générale bascule le mode et envoie une enchère générale au clic sur une couleur', async () => {
+  it('une enchère Générale sélectionnée puis "Prendre" envoie l’enchère générale', async () => {
     const user = userEvent.setup()
     const send = vi.fn()
     const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: null, can_bid_capot: false, can_bid_generale: true })
     render(<Game game={makeGame(round)} error={null} send={send} />)
 
-    expect(screen.getByText('♠')).toBeDisabled()
-    await user.click(screen.getByText('Générale'))
-    expect(screen.getByText('♠')).not.toBeDisabled()
-
+    expect(screen.getByText('Générale')).toBeInTheDocument()
     await user.click(screen.getByText('♠'))
+    await user.click(screen.getByText('Prendre'))
     expect(send).toHaveBeenCalledWith({ type: 'bid', value: 0, trump: 'S', is_capot: false, is_generale: true })
+  })
+
+  it('changer de bidder réinitialise la couleur sélectionnée (désactive à nouveau "Prendre")', async () => {
+    const user = userEvent.setup()
+    const round = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false })
+    const { rerender } = render(<Game game={makeGame(round)} error={null} send={vi.fn()} />)
+
+    await user.click(screen.getByText('♥'))
+    expect(screen.getByText('Prendre')).not.toBeDisabled()
+
+    const nextRound = makeRound({ can_pass: true, can_contre: false, can_surcontre: false, min_bid_value: 80, can_bid_capot: false, can_bid_generale: false }, { current_bidder: 'E' })
+    rerender(<Game game={makeGame(nextRound)} error={null} send={vi.fn()} />)
+    expect(screen.getByText('Prendre')).toBeDisabled()
   })
 
   it('affiche un bouton "Coinche à la volée !" à un adversaire hors tour et envoie {type: "contre"} au clic', async () => {

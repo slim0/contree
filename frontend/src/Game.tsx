@@ -332,9 +332,11 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
   ]
 
   const [selectedIndex, setSelectedIndex] = useState(0)
+  const [selectedSuit, setSelectedSuit] = useState<string | null>(null)
 
   useEffect(() => {
     setSelectedIndex(0)
+    setSelectedSuit(null)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [actions?.min_bid_value, r.current_bidder])
 
@@ -348,10 +350,13 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
   // Enchère en tête à dépasser (même pattern que getCurrentTrump).
   const lead = [...r.bid_history].reverse().find(e => e.action === 'bid')
 
-  const chooseSuit = (trump: string) => {
-    if (mode === 'capot') send({ type: 'bid', value: 0, trump, is_capot: true })
-    else if (mode === 'generale') send({ type: 'bid', value: 0, trump, is_capot: false, is_generale: true })
-    else if (bidVal !== null) send({ type: 'bid', value: bidVal, trump, is_capot: false })
+  // Choisir une couleur ne fait que la sélectionner : l'enchère n'est envoyée
+  // qu'au clic explicite sur "Prendre", pour éviter toute annonce accidentelle.
+  const confirmBid = () => {
+    if (selectedSuit === null) return
+    if (mode === 'capot') send({ type: 'bid', value: 0, trump: selectedSuit, is_capot: true })
+    else if (mode === 'generale') send({ type: 'bid', value: 0, trump: selectedSuit, is_capot: false, is_generale: true })
+    else if (bidVal !== null) send({ type: 'bid', value: bidVal, trump: selectedSuit, is_capot: false })
   }
 
   return (
@@ -395,7 +400,9 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
           {(actions.min_bid_value !== null || actions.can_bid_capot || actions.can_bid_generale) && (
             <div className="bid-suit-grid">
               {BID_SUIT_GRID.map(t => (
-                <button key={t} className={`bid-suit-btn${BID_SUIT_COLOR_CLASS[t] ?? ''}`} onClick={() => chooseSuit(t)}
+                <button key={t}
+                  className={`bid-suit-btn${BID_SUIT_COLOR_CLASS[t] ?? ''}${t === selectedSuit ? ' selected' : ''}`}
+                  onClick={() => setSelectedSuit(t)}
                   disabled={mode === 'value' && (actions.min_bid_value === null || bidVal === null)}>
                   {BID_SUIT_BTN_LABEL[t]}
                 </button>
@@ -403,11 +410,13 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
             </div>
           )}
 
-          {actions.can_pass && (
-            <div className="bid-action-row">
+          <div className="bid-action-row">
+            <button className="bid-suit-btn bid-confirm-btn" onClick={confirmBid}
+              disabled={selectedSuit === null || (mode === 'value' && bidVal === null)}>Prendre</button>
+            {actions.can_pass && (
               <button className="bid-suit-btn bid-pass-btn" onClick={() => send({ type: 'pass' })}>Passer</button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       ) : currentBidder ? (
         <div className="bid-center-waiting">
