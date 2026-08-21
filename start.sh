@@ -24,7 +24,7 @@ if [[ "$MODE" == "docker" ]]; then
   echo "Ouvre 4 onglets sur http://localhost:3000"
   echo "Même salon (ex: salon1), 4 pseudos différents."
   echo ""
-  docker compose up --build
+  docker compose -f docker-compose.dev.yml up --build
   exit 0
 fi
 
