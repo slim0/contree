@@ -375,6 +375,9 @@ class GameState:
     winner: Team | None
     last_result: RoundResult | None
     messages: list[str]
+    # Résultat de chaque manche terminée de la partie en cours, dans l'ordre —
+    # sert au récapitulatif des scores (distinct du journal d'actions, jamais exposé).
+    round_history: list[RoundResult] = field(default_factory=list)
     room_name: str = ""
     # username du joueur ayant créé le salon (premier connecté) — seul autorisé à lancer la partie
     creator: str = ""
@@ -401,6 +404,7 @@ class GameState:
             "phase": self.phase.value,
             "winner": self.winner.value if self.winner else None,
             "last_result": self.last_result.to_dict() if self.last_result else None,
+            "round_history": [r.to_dict() for r in self.round_history],
             "messages": self.messages[-30:],
             "team_choices": self.team_choices,
             "ready_to_start": self.ready_to_start,

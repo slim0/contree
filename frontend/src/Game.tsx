@@ -524,6 +524,7 @@ export default function Game({ game, error, send, onQuit }: {
   const [voiceError, setVoiceError] = useState<string | null>(null)
   const voiceInitializedRef = useRef(false)
   const [confirmQuit, setConfirmQuit] = useState(false)
+  const [showScoreHistory, setShowScoreHistory] = useState(false)
 
   const me = game.my_position
 
@@ -898,11 +899,80 @@ export default function Game({ game, error, send, onQuit }: {
         </div>
       )}
 
+      {showScoreHistory && (
+        <div className="eog-overlay" onClick={() => setShowScoreHistory(false)}>
+          <div className="score-history-box" onClick={e => e.stopPropagation()}>
+            <div className="score-history-head">
+              <h3>Scores de la partie</h3>
+              <button
+                className="score-history-close"
+                onClick={() => setShowScoreHistory(false)}
+                aria-label="Fermer"
+              >
+                ✕
+              </button>
+            </div>
+            {game.round_history.length === 0 ? (
+              <p className="score-history-empty">Aucune manche terminée pour l’instant.</p>
+            ) : (
+              <div className="score-history-scroll">
+                <table className="score-history-table">
+                  <thead>
+                    <tr>
+                      <th>Manche</th>
+                      <th>Contrat</th>
+                      <th className="player-team-ns">{TEAM_LABEL['NS']}</th>
+                      <th className="player-team-ew">{TEAM_LABEL['EW']}</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {game.round_history.map(res => (
+                      <tr key={res.round_number}>
+                        <td>{res.round_number}</td>
+                        <td className="score-history-contract">
+                          <span className={res.contract.bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
+                            {TEAM_LABEL[res.contract.bidding_team] ?? res.contract.bidding_team}
+                          </span>
+                          {' '}{bidValueLabel(res.contract.bid)} {TRUMP_LABELS[res.contract.bid.trump] ?? res.contract.bid.trump}
+                          {res.contract.double !== 'NONE' && <strong style={{color:'#f96'}}> {res.contract.double}</strong>}
+                          <span className={res.contract_made ? 'score-history-made' : 'score-history-chute'}>
+                            {' '}{res.contract_made ? '✓ Réussi' : '✗ Chuté'}
+                          </span>
+                          {res.belote_team && <span style={{color:'#ff4'}}> · Belote</span>}
+                        </td>
+                        <td className="score-history-pts">{res.score_ns > 0 ? `+${res.score_ns}` : res.score_ns}</td>
+                        <td className="score-history-pts">{res.score_ew > 0 ? `+${res.score_ew}` : res.score_ew}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr>
+                      <td colSpan={2}>Total</td>
+                      <td className="score-history-pts">{ns}</td>
+                      <td className="score-history-pts">{ew}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
 
       {/* ── Table losange ── */}
       <div className="table-wrap">
         {/* ── Header compact : room + scores + contrat, en overlay sur le tapis ── */}
         <div className="game-header">
+          <button
+            className="header-history-btn"
+            onClick={() => setShowScoreHistory(true)}
+            title="Scores de la partie"
+            aria-label="Scores de la partie"
+          >
+            📊
+          </button>
+
           <div className="header-room">
             <strong>{game.room_name || game.room_id}</strong>
             {game.room_name && <span className="header-code"> #{game.room_id}</span>}

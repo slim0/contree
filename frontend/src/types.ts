@@ -70,6 +70,7 @@ export interface GameData {
   phase: string
   winner: string | null
   last_result: RoundResult | null
+  round_history: RoundResult[]
   messages: string[]
   my_position: string
   team_choices: Record<string, string>

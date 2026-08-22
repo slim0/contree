@@ -338,6 +338,7 @@ def restart_game(game: GameState) -> GameState:
     game.scores = {Team.NORTH_SOUTH: 0, Team.EAST_WEST: 0}
     game.winner = None
     game.last_result = None
+    game.round_history = []
     game.round = None  # → start_new_round repart en manche 1, donneur NORTH
     game = start_new_round(game)
     game.phase = GamePhase.BIDDING
@@ -510,6 +511,7 @@ def _end_round(game: GameState) -> GameState:
     assert game.round is not None
     result = compute_round_result(game.round)
     game.last_result = result
+    game.round_history.append(result)
 
     game.scores[Team.NORTH_SOUTH] += result.score_ns
     game.scores[Team.EAST_WEST] += result.score_ew

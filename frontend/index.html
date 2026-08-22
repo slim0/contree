@@ -328,6 +328,15 @@
         pointer-events: none;
       }
       .game-header > * { pointer-events: auto; }
+      .header-history-btn {
+        margin: 0; padding: 0;
+        width: 26px; height: 26px; min-height: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 50%; border: 1px solid #555;
+        background: #333; font-size: 0.85em; line-height: 1;
+        box-shadow: none;
+      }
+      .header-history-btn:hover { background: #444; }
       .header-room { font-size: 0.9em; }
       .header-code { color: #aaa; font-size: 0.85em; font-weight: 400; }
       .header-player { color: #888; font-size: 0.9em; }
@@ -383,6 +392,53 @@
       .header-quit-btn:hover { background: #833; color: #fff; }
       .quit-title { font-size: 1.3em; font-weight: bold; color: #fc9; margin-bottom: 10px; }
       .quit-text { font-size: 0.9em; color: #bbb; margin: 0 0 16px; max-width: 320px; }
+
+      /* ── SCORES DE LA PARTIE (récapitulatif des manches) ── */
+      .score-history-box {
+        background: linear-gradient(180deg, #1a1a3a 0%, #12122a 100%);
+        border: 2px solid #555;
+        border-radius: 16px;
+        padding: 14px 16px 16px;
+        min-width: 280px; max-width: 92vw;
+        max-height: 82vh;
+        display: flex;
+        flex-direction: column;
+        box-shadow: 0 8px 40px rgba(0,0,0,0.7);
+      }
+      .score-history-head {
+        display: flex; align-items: center; justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 10px;
+      }
+      .score-history-head h3 { margin: 0; font-size: 1em; color: #eee; }
+      .score-history-close {
+        margin: 0; padding: 0;
+        width: 26px; height: 26px; min-height: 0;
+        display: inline-flex; align-items: center; justify-content: center;
+        border-radius: 50%; border: 1px solid #555;
+        background: #333; color: #ccc; font-size: 0.8em; line-height: 1;
+        box-shadow: none;
+      }
+      .score-history-close:hover { background: #444; color: #fff; }
+      .score-history-empty { color: #888; font-size: 0.9em; margin: 8px 0 2px; }
+      .score-history-scroll { overflow-y: auto; overflow-x: auto; }
+      .score-history-table { border-collapse: collapse; width: 100%; font-size: 0.85em; white-space: nowrap; }
+      .score-history-table th, .score-history-table td {
+        padding: 6px 10px;
+        text-align: left;
+        border-bottom: 1px solid #333;
+      }
+      .score-history-table th { color: #888; font-weight: 600; font-size: 0.9em; }
+      .score-history-table td.score-history-pts { text-align: right; font-weight: 700; color: #fff; }
+      .score-history-table td.score-history-contract { white-space: normal; min-width: 220px; }
+      .score-history-made  { color: #4d9; font-weight: 600; }
+      .score-history-chute { color: #f66; font-weight: 600; }
+      .score-history-table tfoot td {
+        border-bottom: none;
+        border-top: 2px solid #555;
+        font-weight: 700;
+        color: #fff;
+      }
 
       /* ── ROUND RESULT OVERLAY ── */
       @keyframes rr-anim {
