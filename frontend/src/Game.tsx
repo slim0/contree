@@ -187,7 +187,6 @@ function PlayerSlot({ pos, game, r, cardSizes }: {
 
   return (
     <div className={slotClass}>
-      <div className="player-marker">▼</div>
       <div className="player-pos">
         <span className={teamClass}>{TEAM_LABEL[team] ?? team}</span>
         {isDealer && <span className="badge-dealer" title="Donneur"> 🃏</span>}
@@ -1014,7 +1013,6 @@ export default function Game({ game, error, send, onQuit }: {
           </div>
           <div className="slot-bottom">
             <div className={`player-slot${isMyTurnBid ? ' active-bidder' : isMyTurnPlay ? ' active-player' : ''}`}>
-              <div className="player-marker">▼</div>
               <div className="player-pos">
                 <span className={TEAM[me] === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
                   {TEAM_LABEL[TEAM[me]] ?? TEAM[me]}

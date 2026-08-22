@@ -514,7 +514,7 @@
       .table-grid--bidding .slot-top   .hand-fan-wrap,
       .table-grid--bidding .slot-left  .hand-fan-wrap,
       .table-grid--bidding .slot-right .hand-fan-wrap { display: none; }
-      .table-grid--bidding .slot-center { align-items: flex-start; }
+      .table-grid--bidding .slot-center { align-items: flex-start; padding: 20px; }
       /* La main du joueur (bas) est prioritaire : les adversaires (haut) cèdent leur place en premier. */
       .slot-top    { grid-area: top; align-self: start; min-height: 0; }
       .slot-left   { grid-area: left; }
@@ -529,13 +529,6 @@
         width: 100%;
         text-align: center;
       }
-      .player-marker {
-        font-size: 0.7em;
-        line-height: 1;
-        color: #4a7a4a;
-        margin-bottom: 2px;
-        transition: color 0.2s ease, text-shadow 0.2s ease;
-      }
       @keyframes marker-pulse-bid  {
         0%, 100% { text-shadow: 0 0 4px rgba(255,170,100,0.5); }
         50%       { text-shadow: 0 0 12px rgba(255,170,100,1); }
@@ -544,11 +537,9 @@
         0%, 100% { text-shadow: 0 0 4px rgba(68,200,150,0.5); }
         50%       { text-shadow: 0 0 12px rgba(68,200,150,1); }
       }
-      .player-slot.active-bidder .player-marker,
       .player-slot.active-bidder .player-name {
         color: #fa6; animation: marker-pulse-bid 2s ease-in-out infinite;
       }
-      .player-slot.active-player .player-marker,
       .player-slot.active-player .player-name {
         color: #4d9; animation: marker-pulse-play 2s ease-in-out infinite;
       }
@@ -864,9 +855,9 @@
         .table-grid--bidding {
           grid-template-columns: minmax(40px, 50px) 1fr minmax(40px, 50px);
         }
+        .table-grid--bidding .slot-center { padding: 5px; }
 
         .player-slot { padding: 0px 6px; min-width: 90px; min-height: 0; }
-        .player-marker { font-size: 0.6em; margin-bottom: 0; }
         .player-name { font-size: 0.85em; margin-bottom: 0; }
         .player-pos  { font-size: 0.68em; margin-bottom: 0; gap: 2px; }
         .bid-entry-row { padding: 0px 5px; font-size: 0.68em; }
