@@ -723,9 +723,11 @@
         box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
       }
       .trick-pos-top    { grid-area: tn; }
-      .trick-pos-left   { grid-area: tw; }
+      /* Ancrées vers le bord intérieur de leur colonne (flexible) plutôt que centrées
+         dedans, pour rester proches du centre du tapis même sur un plateau large. */
+      .trick-pos-left   { grid-area: tw; justify-self: end; }
       .trick-pos-center { grid-area: tc; font-size: 0.7em; color: #666; text-align: center; }
-      .trick-pos-right  { grid-area: te; }
+      .trick-pos-right  { grid-area: te; justify-self: start; }
       .trick-pos-bottom { grid-area: ts; }
 
       /* ── BID CENTER ── */
