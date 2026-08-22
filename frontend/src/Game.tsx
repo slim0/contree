@@ -19,14 +19,6 @@ const SCREEN_RIGHT: Record<string, string> = { N: 'W', E: 'N', S: 'E', W: 'S' }
 const TEAM: Record<string, string> = { N: 'NS', S: 'NS', E: 'EW', W: 'EW' }
 const TEAM_LABEL: Record<string, string> = { NS: 'TEAM RED', EW: 'TEAM BLUE' }
 
-function formatMsg(msg: string): string {
-  return msg
-    .replace(/ à ([HDCS])\b/g, (_, s) => ` à ${SUIT_SYM[s]}`)
-    .replace(/\b([RD])([HDCS])\b/g, (_, r, s) => `${r}${SUIT_SYM[s]}`)
-    .replace(/\bNS\b/g, TEAM_LABEL['NS'])
-    .replace(/\bEW\b/g, TEAM_LABEL['EW'])
-}
-
 // ─── Card sorting ─────────────────────────────────────────────────────────────
 
 const TRUMP_STR: Record<string, number>  = { J:7, '9':6, A:5, '10':4, K:3, Q:2, '8':1, '7':0 }
@@ -933,12 +925,6 @@ export default function Game({ game, error, send, onQuit }: {
               <span className="running-points">({r.running_points['EW'] ?? 0})</span>
             )}
             <span className="score-limit"> /{game.target_score}</span>
-            {lr && (
-              <span className={`last-inline ${lr.contract_made ? 'result-made' : 'result-chute'}`}
-                title={formatMsg(lr.message)}>
-                {' '}{lr.contract_made ? '✓' : '✗'}M{lr.round_number}
-              </span>
-            )}
           </div>
 
           <div className="header-contract">
