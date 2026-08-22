@@ -313,17 +313,21 @@
         overflow: hidden;
       }
 
-      /* ── HEADER COMPACT ── */
+      /* ── HEADER COMPACT — en overlay flottant au-dessus du tapis ── */
       .game-header {
+        position: absolute;
+        top: 8px;
+        left: 8px;
+        right: 8px;
+        z-index: 20;
         display: flex;
         flex-wrap: wrap;
         gap: 8px 16px;
         align-items: center;
-        padding: 10px 14px;
-        background: #222;
-        border: 1px solid #333;
-        border-radius: 8px;
+        padding: 8px 14px;
+        pointer-events: none;
       }
+      .game-header > * { pointer-events: auto; }
       .header-room { font-size: 0.9em; }
       .header-code { color: #aaa; font-size: 0.85em; font-weight: 400; }
       .header-player { color: #888; font-size: 0.9em; }
@@ -479,6 +483,7 @@
 
       /* ── TABLE LOSANGE ── */
       .table-wrap {
+        position: relative;
         flex: 1;
         min-height: 0;
         display: flex;
@@ -835,10 +840,13 @@
         .game-wrap { gap: 1px; padding: 2px 4px; }
 
         .game-header {
+          top: 2px;
+          left: 2px;
+          right: 2px;
           padding: 2px 8px;
           gap: 2px 10px;
           border-radius: 6px;
-          background: linear-gradient(180deg, #2a2a2a 0%, #1a1a1a 100%);
+          background: rgba(20,20,20,0.78);
           box-shadow: 0 2px 6px rgba(0,0,0,0.3);
         }
         .header-voice-error { max-width: 140px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: inline-block; vertical-align: middle; }

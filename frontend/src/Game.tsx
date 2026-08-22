@@ -886,93 +886,6 @@ export default function Game({ game, error, send, onQuit }: {
 
       <RoundResultOverlay lastResult={lr} scores={game.scores} targetScore={game.target_score} />
 
-      {/* ── Header compact : room + scores + contrat ── */}
-      <div className="game-header">
-        <div className="header-room">
-          <strong>{game.room_name || game.room_id}</strong>
-          {game.room_name && <span className="header-code"> #{game.room_id}</span>}
-          <span className="header-player"> {me} · {game.players[me] ?? '?'}</span>
-          {game.phase === 'FINISHED' && (
-            <span style={{color:'#f96'}}> 🏆 {TEAM_LABEL[game.winner ?? ''] ?? game.winner}</span>
-          )}
-        </div>
-
-        <div className="header-scores">
-          <span className="player-team-ns">{TEAM_LABEL['NS']}</span>
-          <strong className="score-num">{ns}</strong>
-          {r?.phase === 'PLAYING' && (
-            <span className="running-points">({r.running_points['NS'] ?? 0})</span>
-          )}
-          <span className="score-sep"> · </span>
-          <span className="player-team-ew">{TEAM_LABEL['EW']}</span>
-          <strong className="score-num">{ew}</strong>
-          {r?.phase === 'PLAYING' && (
-            <span className="running-points">({r.running_points['EW'] ?? 0})</span>
-          )}
-          <span className="score-limit"> /{game.target_score}</span>
-          {lr && (
-            <span className={`last-inline ${lr.contract_made ? 'result-made' : 'result-chute'}`}
-              title={formatMsg(lr.message)}>
-              {' '}{lr.contract_made ? '✓' : '✗'}M{lr.round_number}
-            </span>
-          )}
-        </div>
-
-        <div className="header-contract">
-          {contract ? (
-            <>
-              <span className={contract.bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
-                {TEAM_LABEL[contract.bidding_team] ?? contract.bidding_team}
-              </span>
-              {' '}{bidValueLabel(contract.bid)}
-              {' '}{TRUMP_LABELS[contract.bid.trump] ?? contract.bid.trump}
-              {contract.double !== 'NONE' && <strong style={{color:'#f96'}}> {contract.double}</strong>}
-              {r?.belote_team && <span style={{color:'#ff4'}}> · Belote {TEAM_LABEL[r.belote_team] ?? r.belote_team}</span>}
-            </>
-          ) : r?.phase === 'BIDDING' ? (
-            <span style={{color:'#888'}}>Enchères en cours…</span>
-          ) : null}
-        </div>
-
-        {/* ─── Chat vocal (compact, ancré à droite de la barre) ── */}
-        <div className="header-voice">
-          {voiceError && <span className="header-voice-error">{voiceError}</span>}
-          <span
-            className={`header-voice-dot${isMuted ? ' off' : ''}${localIsSpeaking ? ' speaking' : ''}`}
-            title={`${game.players[me] ?? me} (${me}) — ${isMuted ? 'micro coupé' : 'micro activé'}`}
-          >
-            {me}
-          </span>
-          {Array.from(voicePeers.entries()).map(([position, peer]) => (
-            <span
-              key={position}
-              className={`header-voice-dot${peer.connectionState !== 'connected' ? ' off' : ''}${peer.isSpeaking ? ' speaking' : ''}`}
-              title={`${game.players[position] ?? position} (${position})`}
-            >
-              {position}
-            </span>
-          ))}
-          <button
-            className={`header-voice-btn${isMuted ? ' off' : ''}`}
-            onClick={toggleMute}
-            disabled={!!voiceError}
-            title={voiceError ? voiceError : isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
-          >
-            {isMuted ? '🔇' : '🎤'}
-          </button>
-          {onQuit && (
-            <button
-              className="header-quit-btn"
-              onClick={() => setConfirmQuit(true)}
-              title="Quitter la partie"
-              aria-label="Quitter la partie"
-            >
-              🚪
-            </button>
-          )}
-        </div>
-      </div>
-
       {confirmQuit && onQuit && (
         <div className="eog-overlay">
           <div className="eog-box">
@@ -996,6 +909,93 @@ export default function Game({ game, error, send, onQuit }: {
 
       {/* ── Table losange ── */}
       <div className="table-wrap">
+        {/* ── Header compact : room + scores + contrat, en overlay sur le tapis ── */}
+        <div className="game-header">
+          <div className="header-room">
+            <strong>{game.room_name || game.room_id}</strong>
+            {game.room_name && <span className="header-code"> #{game.room_id}</span>}
+            <span className="header-player"> {me} · {game.players[me] ?? '?'}</span>
+            {game.phase === 'FINISHED' && (
+              <span style={{color:'#f96'}}> 🏆 {TEAM_LABEL[game.winner ?? ''] ?? game.winner}</span>
+            )}
+          </div>
+
+          <div className="header-scores">
+            <span className="player-team-ns">{TEAM_LABEL['NS']}</span>
+            <strong className="score-num">{ns}</strong>
+            {r?.phase === 'PLAYING' && (
+              <span className="running-points">({r.running_points['NS'] ?? 0})</span>
+            )}
+            <span className="score-sep"> · </span>
+            <span className="player-team-ew">{TEAM_LABEL['EW']}</span>
+            <strong className="score-num">{ew}</strong>
+            {r?.phase === 'PLAYING' && (
+              <span className="running-points">({r.running_points['EW'] ?? 0})</span>
+            )}
+            <span className="score-limit"> /{game.target_score}</span>
+            {lr && (
+              <span className={`last-inline ${lr.contract_made ? 'result-made' : 'result-chute'}`}
+                title={formatMsg(lr.message)}>
+                {' '}{lr.contract_made ? '✓' : '✗'}M{lr.round_number}
+              </span>
+            )}
+          </div>
+
+          <div className="header-contract">
+            {contract ? (
+              <>
+                <span className={contract.bidding_team === 'NS' ? 'player-team-ns' : 'player-team-ew'}>
+                  {TEAM_LABEL[contract.bidding_team] ?? contract.bidding_team}
+                </span>
+                {' '}{bidValueLabel(contract.bid)}
+                {' '}{TRUMP_LABELS[contract.bid.trump] ?? contract.bid.trump}
+                {contract.double !== 'NONE' && <strong style={{color:'#f96'}}> {contract.double}</strong>}
+                {r?.belote_team && <span style={{color:'#ff4'}}> · Belote {TEAM_LABEL[r.belote_team] ?? r.belote_team}</span>}
+              </>
+            ) : r?.phase === 'BIDDING' ? (
+              <span style={{color:'#888'}}>Enchères en cours…</span>
+            ) : null}
+          </div>
+
+          {/* ─── Chat vocal (compact, ancré à droite de la barre) ── */}
+          <div className="header-voice">
+            {voiceError && <span className="header-voice-error">{voiceError}</span>}
+            <span
+              className={`header-voice-dot${isMuted ? ' off' : ''}${localIsSpeaking ? ' speaking' : ''}`}
+              title={`${game.players[me] ?? me} (${me}) — ${isMuted ? 'micro coupé' : 'micro activé'}`}
+            >
+              {me}
+            </span>
+            {Array.from(voicePeers.entries()).map(([position, peer]) => (
+              <span
+                key={position}
+                className={`header-voice-dot${peer.connectionState !== 'connected' ? ' off' : ''}${peer.isSpeaking ? ' speaking' : ''}`}
+                title={`${game.players[position] ?? position} (${position})`}
+              >
+                {position}
+              </span>
+            ))}
+            <button
+              className={`header-voice-btn${isMuted ? ' off' : ''}`}
+              onClick={toggleMute}
+              disabled={!!voiceError}
+              title={voiceError ? voiceError : isMuted ? 'Désactiver le micro (touche M)' : 'Activer le micro'}
+            >
+              {isMuted ? '🔇' : '🎤'}
+            </button>
+            {onQuit && (
+              <button
+                className="header-quit-btn"
+                onClick={() => setConfirmQuit(true)}
+                title="Quitter la partie"
+                aria-label="Quitter la partie"
+              >
+                🚪
+              </button>
+            )}
+          </div>
+        </div>
+
         <div className={`table-grid${r?.phase === 'BIDDING' ? ' table-grid--bidding' : ''}`}>
           <div className="slot-top">
             <PlayerSlot pos={top} game={game} r={r} cardSizes={cardSizes} />
