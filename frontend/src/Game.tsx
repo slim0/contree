@@ -424,9 +424,9 @@ function BidCenter({ r, game, send }: { r: RoundData; game: GameData; send: (m: 
             {' '}réfléchit…
           </div>
           {r.can_contre_volee && (
-            <button className="bid-double-btn bid-volee-btn" onClick={() => send({ type: 'contre' })}>
-              Coinche !
-            </button>
+            <div className="bid-double-row">
+              <button className="bid-double-btn" onClick={() => send({ type: 'contre' })}>Coinche !</button>
+            </div>
           )}
         </div>
       ) : null}
